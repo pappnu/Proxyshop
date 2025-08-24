@@ -65,7 +65,7 @@ jobs:
           key: ${{ env.VENV_CACHE_KEY }}
 
       - name: Define app version
-        run: echo "version=${{ env.APP_VERSION }}.dev" > __VERSION__.py
+        run: echo "version='${{ env.APP_VERSION }}.dev'" > __VERSION__.py
 
       - name: Build app
         run: poetry run pyinstaller -n Proxyshop --onefile --icon "./src/img/favicon.ico" --distpath "./dist" --console main.py
