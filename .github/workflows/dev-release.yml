@@ -10,6 +10,7 @@ permissions:
 
 env:
   PYTHON_VERSION: "3.13"
+  # Fix for Kivy not finding OpenGL >= 2.0 in the action runner
   KIVY_GL_BACKEND: "angle_sdl2"
 
 jobs:
@@ -70,19 +71,19 @@ jobs:
         run: poetry run pyinstaller -n Proxyshop --onefile --icon "./src/img/favicon.ico" --distpath "./dist" --console main.py
 
       - name: Copy fonts
-        run: cp -Path "./fonts/*" -Destination "./dist/fonts" -Recurse -Force
+        run: cp -Path "./fonts" -Destination "./dist" -Recurse -Force
 
       - name: Copy plugins
-        run: cp -Path "./plugins/*" -Destination "./dist/plugins" -Recurse -Force
+        run: cp -Path "./plugins" -Destination "./dist" -Recurse -Force
 
       - name: Copy data
-        run: cp -Path "./src/data/*" -Destination "./dist/src/data" -Recurse -Force
+        run: cp -Path "./src/data" -Destination "./dist/src" -Recurse -Force
 
       - name: Copy templates
-        run: cp -Path "./src/templates/*" -Destination "./dist/src/templates" -Recurse -Force
+        run: cp -Path "./src/templates" -Destination "./dist/src" -Recurse -Force
 
       - name: Copy img
-        run: cp -Path "./src/img/*" -Destination "./dist/src/img" -Recurse -Force
+        run: cp -Path "./src/img" -Destination "./dist/src" -Recurse -Force
 
       - name: Copy README
         run: cp "./README.md" -Destination "./dist" -Force
