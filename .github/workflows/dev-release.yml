@@ -76,13 +76,17 @@ jobs:
       - name: Copy plugins
         run: cp -Path "./plugins" -Destination "./dist" -Recurse -Force
 
-      - name: Copy data
-        run: cp -Path "./src/data" -Destination "./dist/src" -Recurse -Force
-
       - name: Copy templates
-        run: cp -Path "./src/templates" -Destination "./dist/src" -Recurse -Force
+        run: cp -Path "./templates" -Destination "./dist" -Recurse -Force
+
+      - name: Copy data
+        # Here ./dist/src doesn't exist yet so cp only copies source directory contents
+        # to the newly created ./dist/src, so we have to specify data as the target directory
+        run: cp -Path "./src/data" -Destination "./dist/src/data" -Recurse -Force
 
       - name: Copy img
+        # Here ./dist/src already exists so cp copies the whole source directory
+        # and not just its contents
         run: cp -Path "./src/img" -Destination "./dist/src" -Recurse -Force
 
       - name: Copy README
@@ -95,7 +99,7 @@ jobs:
         run: mkdir -Path ./dist/art -Force
 
       - name: Zip files
-        run: Compress-Archive -Path "./dist/*" -DestinationPath "./${{ env.ARCHIVE_NAME }}"
+        run: 7z a "./${{ env.ARCHIVE_NAME }}" "./dist/*"
 
       - name: Create release tag
         run: |
