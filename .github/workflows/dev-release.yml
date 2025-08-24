@@ -7,6 +7,11 @@ on:
 
 permissions:
   contents: write
+
+env:
+  PYTHON_VERSION: "3.13"
+  KIVY_GL_BACKEND: "angle_sdl2"
+
 jobs:
   build:
     runs-on: windows-latest
@@ -17,7 +22,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Set current date as env variable
         run: echo ("NOW=" + (Get-Date -UFormat '%Y-%m-%dT%H:%M:%S%Z')) >> $env:GITHUB_ENV
@@ -41,7 +46,7 @@ jobs:
         run: python -m poetry config virtualenvs.in-project true
 
       - name: Set cache key as env variable
-        run: echo "VENV_CACHE_KEY=${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-venv-${{ hashFiles('./poetry.lock') }}" >> $env:GITHUB_ENV
+        run: echo "VENV_CACHE_KEY=${{ runner.os }}-${{ env.PYTHON_VERSION }}-venv-${{ hashFiles('./poetry.lock') }}" >> $env:GITHUB_ENV
 
       - name: Restore the virtual environment from cache
         uses: actions/cache/restore@v4
