@@ -1,0 +1,116 @@
+name: Release
+
+on:
+  push:
+    branches: ["build"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: "3.13"
+  # Fix for Kivy not finding OpenGL >= 2.0 in the action runner
+  KIVY_GL_BACKEND: "angle_sdl2"
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set current date as env variable
+        run: echo ("NOW=" + (Get-Date -UFormat '%Y-%m-%dT%H:%M:%S%Z')) >> $env:GITHUB_ENV
+
+      - name: Set current path friendly date as env variable
+        run: echo ("NOW_PATH=" + (Get-Date -UFormat '%Y-%m-%dT%H-%M-%S%Z')) >> $env:GITHUB_ENV
+
+      - name: Set commit short sha as env variable
+        run: echo "SHORT_SHA=$("${{ github.sha }}".SubString(0, 8))" >> $env:GITHUB_ENV
+
+      - name: Set app version as env variable
+        run: echo ("APP_VERSION=" + (Get-Date -Format 'yyyy.M.dHHmmss')) >> $env:GITHUB_ENV
+
+      - name: Set release archive name as env variable
+        run: echo "ARCHIVE_NAME=Proxyshop_${{ env.NOW_PATH }}_${{ env.SHORT_SHA }}.zip" >> $env:GITHUB_ENV
+
+      - name: Install poetry
+        run: python -m pip install poetry
+
+      - name: Configure poetry
+        run: python -m poetry config virtualenvs.in-project true
+
+      - name: Set cache key as env variable
+        run: echo "VENV_CACHE_KEY=${{ runner.os }}-${{ env.PYTHON_VERSION }}-venv-${{ hashFiles('./poetry.lock') }}" >> $env:GITHUB_ENV
+
+      - name: Restore the virtual environment from cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ./.venv
+          key: ${{ env.VENV_CACHE_KEY }}
+
+      - name: Install dependencies
+        run: python -m poetry install
+
+      - name: Cache virtual environment
+        uses: actions/cache/save@v4
+        with:
+          path: ./.venv
+          key: ${{ env.VENV_CACHE_KEY }}
+
+      - name: Define app version
+        run: echo "version='${{ env.APP_VERSION }}.dev'" > __VERSION__.py
+
+      - name: Build app
+        run: poetry run pyinstaller -n Proxyshop --onefile --icon "./src/img/favicon.ico" --distpath "./dist" --console main.py
+
+      - name: Copy fonts
+        run: cp -Path "./fonts" -Destination "./dist" -Recurse -Force
+
+      - name: Copy plugins
+        run: cp -Path "./plugins" -Destination "./dist" -Recurse -Force
+
+      - name: Copy templates
+        run: cp -Path "./templates" -Destination "./dist" -Recurse -Force
+
+      - name: Copy data
+        # Here ./dist/src doesn't exist yet so cp only copies source directory contents
+        # to the newly created ./dist/src, so we have to specify data as the target directory
+        run: cp -Path "./src/data" -Destination "./dist/src/data" -Recurse -Force
+
+      - name: Copy img
+        # Here ./dist/src already exists so cp copies the whole source directory
+        # and not just its contents
+        run: cp -Path "./src/img" -Destination "./dist/src" -Recurse -Force
+
+      - name: Copy README
+        run: cp "./README.md" -Destination "./dist" -Force
+
+      - name: Copy LICENSE
+        run: cp "./LICENSE.md" -Destination "./dist" -Force
+
+      - name: Make art directory
+        run: mkdir -Path ./dist/art -Force
+
+      - name: Zip files
+        run: 7z a "./${{ env.ARCHIVE_NAME }}" "./dist/*"
+
+      - name: Create release tag
+        run: |
+          git tag -f ${{ env.NOW_PATH }}
+          git push origin ${{ env.NOW_PATH }}
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ env.NOW }}-${{ env.SHORT_SHA }}"
+          files: ${{ env.ARCHIVE_NAME }}
+          tag_name: ${{ env.NOW_PATH }}
+          fail_on_unmatched_files: true
+          generate_release_notes: true
