@@ -46,6 +46,9 @@ jobs:
       - name: Configure poetry
         run: python -m poetry config virtualenvs.in-project true
 
+      - name: Update Poetry lockfile
+        run: python -m poetry update --lock
+
       - name: Set cache key as env variable
         run: echo "VENV_CACHE_KEY=${{ runner.os }}-${{ env.PYTHON_VERSION }}-venv-${{ hashFiles('./poetry.lock') }}" >> $env:GITHUB_ENV
 
@@ -68,7 +71,7 @@ jobs:
         run: echo "version='${{ env.APP_VERSION }}.dev'" > __VERSION__.py
 
       - name: Build app
-        run: poetry run pyinstaller -n Proxyshop --onefile --icon "./src/img/favicon.ico" --distpath "./dist" --console main.py
+        run: python -m poetry run pyinstaller -n Proxyshop --onefile --icon "./src/img/favicon.ico" --distpath "./dist" --console main.py
 
       - name: Copy fonts
         run: cp -Path "./fonts" -Destination "./dist" -Recurse -Force
