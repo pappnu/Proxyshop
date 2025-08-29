@@ -1,22 +1,33 @@
 """
 * Helpers: Layers and Layer Groups
 """
+
 # Standard Library Imports
 from contextlib import suppress
 from collections.abc import Sequence, Iterable
 
 # Third Party Imports
-from photoshop.api import DialogModes, ActionDescriptor, ActionReference, BlendMode, ElementPlacement
+from photoshop.api import (
+    DialogModes,
+    ActionDescriptor,
+    ActionReference,
+    BlendMode,
+    ElementPlacement,
+)
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
 
 # Local Imports
 from src import APP, ENV
-from src.utils.adobe import LayerContainer, LayerContainerTypes, ReferenceLayer, PS_EXCEPTIONS
+from src.utils.adobe import (
+    LayerContainer,
+    LayerContainerTypes,
+    ReferenceLayer,
+    PS_EXCEPTIONS,
+)
 
 # QOL Definitions
-sID, cID = APP.stringIDToTypeID, APP.charIDToTypeID
 NO_DIALOG = DialogModes.DisplayNoDialogs
 
 
@@ -27,7 +38,10 @@ NO_DIALOG = DialogModes.DisplayNoDialogs
 
 def getLayer(
     name: str,
-    group: str | None | LayerContainerTypes | Iterable[LayerContainerTypes | str | None] = None
+    group: str
+    | None
+    | LayerContainerTypes
+    | Iterable[LayerContainerTypes | str | None] = None,
 ) -> ArtLayer | None:
     """Retrieve ArtLayer object from given name and group/group tree.
 
@@ -42,16 +56,16 @@ def getLayer(
         # LayerSet provided?
         if not group:
             # LayerSet not provided
-            return APP.activeDocument.artLayers[name]
+            return APP.instance.activeDocument.artLayers[name]
         elif isinstance(group, str):
             # LayerSet name given
-            return APP.activeDocument.layerSets[group].artLayers[name]
+            return APP.instance.activeDocument.layerSets[group].artLayers[name]
         elif isinstance(group, LayerContainer):
             # LayerSet object given
             return group.artLayers[name]
         elif isinstance(group, tuple | list):
             # Tuple or list of LayerSets
-            layer_set = APP.activeDocument
+            layer_set = APP.instance.activeDocument
             for g in group:
                 if isinstance(g, str):
                     # LayerSet name given
@@ -75,7 +89,10 @@ def getLayer(
 
 def getLayerSet(
     name: str,
-    group: str | None | LayerContainerTypes | Iterable[LayerContainerTypes | str | None] = None
+    group: str
+    | None
+    | LayerContainerTypes
+    | Iterable[LayerContainerTypes | str | None] = None,
 ) -> LayerSet | None:
     """Retrieve layer group object.
 
@@ -90,13 +107,13 @@ def getLayerSet(
         # Was LayerSet provided?
         if not group:
             # No LayerSet given
-            return APP.activeDocument.layerSets[name]
+            return APP.instance.activeDocument.layerSets[name]
         elif isinstance(group, str):
             # LayerSet name given
-            return APP.activeDocument.layerSets[group].layerSets[name]
+            return APP.instance.activeDocument.layerSets[group].layerSets[name]
         elif isinstance(group, tuple | list):
             # Tuple or list of groups
-            layer_set = APP.activeDocument
+            layer_set = APP.instance.activeDocument
             for g in group:
                 if isinstance(g, str):
                     # LayerSet name given
@@ -121,7 +138,9 @@ def getLayerSet(
     return
 
 
-def get_reference_layer(name: str, group: None | str | LayerSet | Document = None) -> ReferenceLayer | None:
+def get_reference_layer(
+    name: str, group: None | str | LayerSet | Document = None
+) -> ReferenceLayer | None:
     """Get an ArtLayer that is a static reference layer.
 
     Args:
@@ -136,18 +155,16 @@ def get_reference_layer(name: str, group: None | str | LayerSet | Document = Non
 
     # Select the proper group if str or None provided
     if not group:
-        group = APP.activeDocument
+        group = APP.instance.activeDocument
     if isinstance(group, str):
         try:
-            group = APP.activeDocument.layerSets[group]
+            group = APP.instance.activeDocument.layerSets[group]
         except PS_EXCEPTIONS:
-            group = APP.activeDocument
+            group = APP.instance.activeDocument
 
     # Select the reference layer
     with suppress(Exception):
-        return ReferenceLayer(
-            parent=group.artLayers.app[name],
-            app=APP)
+        return ReferenceLayer(parent=group.artLayers.app[name], app=APP.instance)
     return None
 
 
@@ -166,8 +183,8 @@ def create_new_layer(layer_name: str | None = None) -> ArtLayer:
         Newly created layer object
     """
     # Create new layer at top of layers
-    active_layer = APP.activeDocument.activeLayer
-    layer = APP.activeDocument.artLayers.add()
+    active_layer = APP.instance.activeDocument.activeLayer
+    layer = APP.instance.activeDocument.artLayers.add()
     layer.name = layer_name or "Layer"
 
     # Name it & set blend mode to normal
@@ -178,7 +195,9 @@ def create_new_layer(layer_name: str | None = None) -> ArtLayer:
     return layer
 
 
-def merge_layers(layers: list[ArtLayer | LayerSet], name: str | None = None) -> ArtLayer:
+def merge_layers(
+    layers: list[ArtLayer | LayerSet], name: str | None = None
+) -> ArtLayer:
     """Merge a set of layers together.
 
     Args:
@@ -199,11 +218,13 @@ def merge_layers(layers: list[ArtLayer | LayerSet], name: str | None = None) -> 
         select_layers(layers)
 
     # Merge layers and return result
-    APP.executeAction(sID("mergeLayersNew"), None, NO_DIALOG)
+    APP.instance.executeAction(APP.instance.sID("mergeLayersNew"), None, NO_DIALOG)
 
-    active_layer = APP.activeDocument.activeLayer
+    active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, ArtLayer):
-        raise ValueError("Failed to merge layers. Active layer is unexpectedly not an ArtLayer.")
+        raise ValueError(
+            "Failed to merge layers. Active layer is unexpectedly not an ArtLayer."
+        )
 
     if name:
         active_layer.name = name
@@ -236,21 +257,25 @@ def group_layers(
     desc1 = ActionDescriptor()
     ref1 = ActionReference()
     ref2 = ActionReference()
-    ref1.putClass(sID("layerSection"))
-    desc1.putReference(sID('null'), ref1)
-    ref2.putEnumerated(cID('Lyr '), cID('Ordn'), cID('Trgt'))
-    desc1.putReference(cID('From'), ref2)
+    ref1.putClass(APP.instance.sID("layerSection"))
+    desc1.putReference(APP.instance.sID("null"), ref1)
+    ref2.putEnumerated(
+        APP.instance.cID("Lyr "), APP.instance.cID("Ordn"), APP.instance.cID("Trgt")
+    )
+    desc1.putReference(APP.instance.cID("From"), ref2)
     desc2 = ActionDescriptor()
-    desc2.putString(cID('Nm  '), name)
-    desc1.putObject(cID('Usng'), sID("layerSection"), desc2)
-    desc1.putInteger(sID("layerSectionStart"), 0)
-    desc1.putInteger(sID("layerSectionEnd"), 1)
-    desc1.putString(cID('Nm  '), name)
-    APP.executeAction(cID('Mk  '), desc1, NO_DIALOG)
+    desc2.putString(APP.instance.cID("Nm  "), name)
+    desc1.putObject(APP.instance.cID("Usng"), APP.instance.sID("layerSection"), desc2)
+    desc1.putInteger(APP.instance.sID("layerSectionStart"), 0)
+    desc1.putInteger(APP.instance.sID("layerSectionEnd"), 1)
+    desc1.putString(APP.instance.cID("Nm  "), name)
+    APP.instance.executeAction(APP.instance.cID("Mk  "), desc1, NO_DIALOG)
 
-    active_layer = APP.activeDocument.activeLayer
+    active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, LayerSet):
-        raise ValueError("Failed to group layers. Active layer is unexpectedly not a LayerSet.")
+        raise ValueError(
+            "Failed to group layers. Active layer is unexpectedly not a LayerSet."
+        )
 
     return active_layer
 
@@ -268,15 +293,21 @@ def duplicate_group(group: LayerSet, name: str) -> LayerSet:
 
     desc241 = ActionDescriptor()
     ref4 = ActionReference()
-    ref4.putEnumerated(sID("layer"), sID("ordinal"), sID("targetEnum"))
-    desc241.putReference(sID("target"),  ref4)
-    desc241.putString(sID("name"), name)
-    desc241.putInteger(sID("version"),  5)
-    APP.executeAction(sID("duplicate"), desc241, NO_DIALOG)
+    ref4.putEnumerated(
+        APP.instance.sID("layer"),
+        APP.instance.sID("ordinal"),
+        APP.instance.sID("targetEnum"),
+    )
+    desc241.putReference(APP.instance.sID("target"), ref4)
+    desc241.putString(APP.instance.sID("name"), name)
+    desc241.putInteger(APP.instance.sID("version"), 5)
+    APP.instance.executeAction(APP.instance.sID("duplicate"), desc241, NO_DIALOG)
 
-    active_layer = APP.activeDocument.activeLayer
+    active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, LayerSet):
-        raise ValueError("Failed to duplicate group. Active layer is unexpectedly not a LayerSet.")
+        raise ValueError(
+            "Failed to duplicate group. Active layer is unexpectedly not a LayerSet."
+        )
 
     return active_layer
 
@@ -288,8 +319,8 @@ def merge_group(group: LayerSet | None = None) -> None:
         group: Layer set to merge. Merges active if not provided.
     """
     if group:
-        APP.activeDocument.activeLayer = group
-    APP.executeAction(sID("mergeLayersNew"), None, NO_DIALOG)
+        APP.instance.activeDocument.activeLayer = group
+    APP.instance.executeAction(APP.instance.sID("mergeLayersNew"), None, NO_DIALOG)
 
 
 """
@@ -297,26 +328,32 @@ def merge_group(group: LayerSet | None = None) -> None:
 """
 
 
-def smart_layer(layer: ArtLayer | LayerSet | None = None, docref: Document | None = None) -> ArtLayer:
+def smart_layer(
+    layer: ArtLayer | LayerSet | None = None, docref: Document | None = None
+) -> ArtLayer:
     """Makes a given layer, or the currently selected layer(s) into a smart layer.
 
     Args:
         layer: Layer to turn into smart layer, use active layer(s) if not provided.
         docref: Document reference, use active if not provided.
     """
-    docref = docref or APP.activeDocument
+    docref = docref or APP.instance.activeDocument
     if layer:
         docref.activeLayer = layer
-    APP.executeAction(sID("newPlacedLayer"), None, NO_DIALOG)
-    
-    active_layer = APP.activeDocument.activeLayer
+    APP.instance.executeAction(APP.instance.sID("newPlacedLayer"), None, NO_DIALOG)
+
+    active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, ArtLayer):
-        raise ValueError("Failed to convert layer to smart layer. Active layer is unexpectedly not an ArtLayer.")
+        raise ValueError(
+            "Failed to convert layer to smart layer. Active layer is unexpectedly not an ArtLayer."
+        )
 
     return active_layer
 
 
-def edit_smart_layer(layer: ArtLayer | None = None, docref: Document | None = None) -> None:
+def edit_smart_layer(
+    layer: ArtLayer | None = None, docref: Document | None = None
+) -> None:
     """Opens the contents of a given smart layer (as a separate document) for editing.
 
     Args:
@@ -324,12 +361,16 @@ def edit_smart_layer(layer: ArtLayer | None = None, docref: Document | None = No
         docref: Document reference, use active if not provided.
     """
     if layer:
-        docref = docref or APP.activeDocument
+        docref = docref or APP.instance.activeDocument
         docref.activeLayer = layer
-    APP.executeAction(sID("placedLayerEditContents"), None, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("placedLayerEditContents"), None, NO_DIALOG
+    )
 
 
-def unpack_smart_layer(layer: ArtLayer | None = None, docref: Document | None = None) -> None:
+def unpack_smart_layer(
+    layer: ArtLayer | None = None, docref: Document | None = None
+) -> None:
     """Converts a smart layer back into its separate components.
 
     Args:
@@ -337,9 +378,11 @@ def unpack_smart_layer(layer: ArtLayer | None = None, docref: Document | None = 
         docref: Document reference, use active if not provided.
     """
     if layer:
-        docref = docref or APP.activeDocument
+        docref = docref or APP.instance.activeDocument
         docref.activeLayer = layer
-    APP.executeAction(sID("placedLayerConvertToLayers"), None, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("placedLayerConvertToLayers"), None, NO_DIALOG
+    )
 
 
 """
@@ -357,12 +400,12 @@ def lock_layer(layer: ArtLayer | LayerSet, protection: str = "protectAll") -> No
     d1 = ActionDescriptor()
     d2 = ActionDescriptor()
     r1 = ActionReference()
-    r1.putIdentifier(sID("layer"), layer.id)
-    d1.putReference(sID("target"), r1)
-    d2.putBoolean(sID(protection), True)
-    idlayerLocking = sID("layerLocking")
+    r1.putIdentifier(APP.instance.sID("layer"), layer.id)
+    d1.putReference(APP.instance.sID("target"), r1)
+    d2.putBoolean(APP.instance.sID(protection), True)
+    idlayerLocking = APP.instance.sID("layerLocking")
     d1.putObject(idlayerLocking, idlayerLocking, d2)
-    APP.executeAction(sID("applyLocking"), d1, NO_DIALOG)
+    APP.instance.executeAction(APP.instance.sID("applyLocking"), d1, NO_DIALOG)
 
 
 def unlock_layer(layer: ArtLayer | LayerSet) -> None:
@@ -388,16 +431,13 @@ def select_layer(layer: ArtLayer | LayerSet, make_visible: bool = False) -> None
     """
     d1 = ActionDescriptor()
     r1 = ActionReference()
-    r1.putIdentifier(sID('layer'), layer.id)
-    d1.putReference(sID('target'), r1)
-    d1.putBoolean(sID('makeVisible'), make_visible)
-    APP.executeAction(sID('select'), d1, NO_DIALOG)
+    r1.putIdentifier(APP.instance.sID("layer"), layer.id)
+    d1.putReference(APP.instance.sID("target"), r1)
+    d1.putBoolean(APP.instance.sID("makeVisible"), make_visible)
+    APP.instance.executeAction(APP.instance.sID("select"), d1, NO_DIALOG)
 
 
-def select_layer_add(
-    layer: ArtLayer | LayerSet,
-    make_visible: bool = False
-) -> None:
+def select_layer_add(layer: ArtLayer | LayerSet, make_visible: bool = False) -> None:
     """Add layer to currently selected and optionally force it to be visible.
 
     Args:
@@ -406,14 +446,15 @@ def select_layer_add(
     """
     desc1 = ActionDescriptor()
     ref1 = ActionReference()
-    ref1.putIdentifier(sID("layer"), layer.id)
-    desc1.putReference(sID("target"), ref1)
+    ref1.putIdentifier(APP.instance.sID("layer"), layer.id)
+    desc1.putReference(APP.instance.sID("target"), ref1)
     desc1.putEnumerated(
-        sID('selectionModifier'),
-        sID('selectionModifierType'),
-        sID('addToSelection'))
-    desc1.putBoolean(sID("makeVisible"), make_visible)
-    APP.executeAction(sID('select'), desc1, NO_DIALOG)
+        APP.instance.sID("selectionModifier"),
+        APP.instance.sID("selectionModifierType"),
+        APP.instance.sID("addToSelection"),
+    )
+    desc1.putBoolean(APP.instance.sID("makeVisible"), make_visible)
+    APP.instance.executeAction(APP.instance.sID("select"), desc1, NO_DIALOG)
 
 
 def select_layers(layers: Sequence[ArtLayer | LayerSet]) -> None:
@@ -426,35 +467,39 @@ def select_layers(layers: Sequence[ArtLayer | LayerSet]) -> None:
     if not layers:
         return
     if len(layers) == 1:
-        APP.activeDocument.activeLayer = layers[0]
+        APP.instance.activeDocument.activeLayer = layers[0]
     select_no_layers()
 
     # ID's and descriptors
-    idLayer = sID('layer')
-    idSelect = sID('select')
-    idTarget = sID('target')
-    idAddToSel = sID('addToSelection')
-    idSelMod = sID('selectionModifier')
-    idSelModType = sID('selectionModifierType')
+    idLayer = APP.instance.sID("layer")
+    idSelect = APP.instance.sID("select")
+    idTarget = APP.instance.sID("target")
+    idAddToSel = APP.instance.sID("addToSelection")
+    idSelMod = APP.instance.sID("selectionModifier")
+    idSelModType = APP.instance.sID("selectionModifierType")
     d1, r1 = ActionDescriptor(), ActionReference()
 
     # Select initial layer
     r1.putIdentifier(idLayer, layers[0].id)
     d1.putReference(idTarget, r1)
     d1.putEnumerated(idSelMod, idSelModType, idAddToSel)
-    d1.putBoolean(sID('makeVisible'), False)
-    APP.executeAction(idSelect, d1, NO_DIALOG)
+    d1.putBoolean(APP.instance.sID("makeVisible"), False)
+    APP.instance.executeAction(idSelect, d1, NO_DIALOG)
 
     # Select each additional layer
     for lay in layers[1:]:
         r1.putIdentifier(idLayer, lay.id)
         d1.putReference(idTarget, r1)
-        APP.executeAction(idSelect, d1, NO_DIALOG)
+        APP.instance.executeAction(idSelect, d1, NO_DIALOG)
 
 
 def select_no_layers() -> None:
     """Deselect all layers."""
     d1, r1 = ActionDescriptor(), ActionReference()
-    r1.putEnumerated(sID("layer"), sID("ordinal"), sID("targetEnum"))
-    d1.putReference(sID("target"), r1)
-    APP.executeAction(sID("selectNoLayers"), d1, NO_DIALOG)
+    r1.putEnumerated(
+        APP.instance.sID("layer"),
+        APP.instance.sID("ordinal"),
+        APP.instance.sID("targetEnum"),
+    )
+    d1.putReference(APP.instance.sID("target"), r1)
+    APP.instance.executeAction(APP.instance.sID("selectNoLayers"), d1, NO_DIALOG)

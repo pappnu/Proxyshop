@@ -126,11 +126,11 @@ See `pyproject.toml` for supported Python versions.
     poetry install
     ```
 4. Install the fonts included in the `fonts/` folder. Do not delete these after install, some are used by the GUI.
-5. Create a folder called `art` in the root directory. This is where you place art images for cards you wish to render.
+5. Create a folder called `art` in the root directory. This is where you place art images for cards you wish to batch render.
 6. Run the app.
     ```bash
     # OPTION 1) Execute via poetry
-    poetry run main.py
+    poetry run python main.py
     
     # OPTION 2) Enter the poetry environment, then execute with cli
     poetry shell
@@ -142,7 +142,7 @@ See `pyproject.toml` for supported Python versions.
     ```
 7. Refer to the [usage guide](#-using-the-proxyshop-gui) for navigating the GUI.
 
-# Development Environment
+# 🖥 Development Environment
 
 If you want to contribute to Proxyshop you should ensure that your code plays well with the strict type checking of [Pyright](https://github.com/microsoft/pyright) or [Mypy](https://github.com/python/mypy). For example, using [VS Code](https://code.visualstudio.com/) with the extensions below will allow you to see type checking results and take advantage of code completions, such as auto-imports, while writing code, though you are free to use any other setup that suits you as well:
  - [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python)

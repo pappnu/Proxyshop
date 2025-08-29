@@ -20,6 +20,7 @@ from loguru._logger import Logger
 # Local Imports
 from src._config import AppConfig
 from src._state import AppEnvironment, PATH
+from src.utils.threading import ThreadInitializedInstance
 from src.utils.windows import WindowState
 
 if TYPE_CHECKING:
@@ -165,7 +166,7 @@ class TerminalConsole:
         self,
         cfg: AppConfig,
         env: AppEnvironment,
-        app: PhotoshopHandler,
+        app: ThreadInitializedInstance[PhotoshopHandler],
     ):
 
         # Establish global objects
@@ -354,7 +355,7 @@ class TerminalConsole:
         self.update(msg=msg or self.message_waiting, end=end)
         if self.cfg.minimize_photoshop and show_photoshop:
             # Show Photoshop in case it is minimized
-            self.app.set_window_state(WindowState.SHOWDEFAULT)
+            self.app.instance.set_window_state(WindowState.SHOWDEFAULT)
         response = input("[Y / Enter] Continue — [N] Cancel")
 
         # Signal the choice
@@ -366,7 +367,7 @@ class TerminalConsole:
             self.cancel_thread(thr) if not choice else self.start_await_cancel(thr)
 
         if choice and self.cfg.minimize_photoshop:
-            self.app.set_window_state(WindowState.MINIMIZE)
+            self.app.instance.set_window_state(WindowState.MINIMIZE)
 
         return choice
 

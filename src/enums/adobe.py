@@ -23,7 +23,7 @@ class DescriptorEnum(Enum):
 
     @property
     def value(self) -> int:
-        return int(APP.stringIDToTypeID(self._value_))
+        return int(APP.instance.sID(self._value_))
 
 
 class Dimensions(StrConstant):

@@ -64,6 +64,7 @@ from src.templates import BaseTemplate
 from src.utils.adobe import get_photoshop_error_message, PhotoshopHandler, PS_EXCEPTIONS
 from src.utils.hexapi import update_hexproof_cache, get_api_key
 from src.utils.fonts import check_app_fonts
+from src.utils.threading import ThreadInitializedInstance
 
 
 """
@@ -74,9 +75,13 @@ from src.utils.fonts import check_app_fonts
 class AppContainer(BoxLayout, GlobalAccess):
     """Container for overall app."""
 
+    @cached_property
+    def app_tabs(self) -> "AppTabs":
+        return AppTabs()
+
     def on_load(self, *args) -> None:
         """Add tab panel."""
-        self.add_widget(AppTabs())
+        self.add_widget(self.app_tabs)
 
 
 class AppTabs(TabbedPanel, GlobalAccess):
@@ -86,10 +91,14 @@ class AppTabs(TabbedPanel, GlobalAccess):
         super().__init__(**kwargs)
         self._tab_layout.padding = (
             '0dp', '0dp', '0dp', '0dp')
+        
+    @cached_property
+    def main_tab(self) -> "MainTab":
+        return MainTab()
 
     def on_load(self, *args) -> None:
         """Add tabs."""
-        self.add_widget(MainTab())
+        self.add_widget(self.main_tab)
         self.add_widget(CreatorTab())
         self.add_widget(ToolsTab())
 
@@ -97,9 +106,13 @@ class AppTabs(TabbedPanel, GlobalAccess):
 class MainTab(TabbedPanelItem, GlobalAccess):
     """Main rendering tab."""
 
+    @cached_property
+    def main_panel(self) -> MainPanel:
+        return MainPanel()
+
     def on_load(self, *args) -> None:
         """Add content."""
-        self.content = MainPanel()
+        self.content = self.main_panel
 
 
 class CreatorTab(TabbedPanelItem, GlobalAccess):
@@ -129,7 +142,7 @@ class ProxyshopGUIApp(App):
 
     def __init__(
             self,
-            app: PhotoshopHandler,
+            app: ThreadInitializedInstance[PhotoshopHandler],
             con: AppConstants,
             cfg: AppConfig,
             env: AppEnvironment,
@@ -183,7 +196,7 @@ class ProxyshopGUIApp(App):
     @property
     def app(self) -> PhotoshopHandler:
         """PhotoshopHandler: Global Photoshop application object."""
-        return self._app
+        return self._app.instance
 
     @property
     def cfg(self) -> AppConfig:
@@ -277,6 +290,18 @@ class ProxyshopGUIApp(App):
     """
     * UI Properties
     """
+
+    @cached_property
+    def render_target_button(self) -> Button:
+        return self._app_layout.app_tabs.main_tab.main_panel.render_target_button
+    
+    @cached_property
+    def render_all_button(self) -> Button:
+        return self._app_layout.app_tabs.main_tab.main_panel.render_all_button
+    
+    @cached_property
+    def app_settings_button(self) -> Button:
+        return self._app_layout.app_tabs.main_tab.main_panel.app_settings_button
 
     @cached_property
     def toggle_buttons(self) -> list[Button]:
@@ -927,66 +952,120 @@ class ProxyshopGUIApp(App):
 
     def on_start(self) -> None:
         """Fired after build is fired. Run a diagnostic check to see what works."""
-        self.console.update(msg_success("--- STATUS ---"))
+        self.disable_buttons()
+        self.app_settings_button.disabled = False
 
-        # Check if using latest version
-        self.console.update(
-            f"Proxyshop Version ... {msg_success('Using latest version!')}" if (
-                self.check_app_version()
-            ) else f"Proxyshop Version ... {msg_info('New release available!')}"
-        )
+        self.console.update("Running startup checks...")
 
-        # Update set data if needed
-        check, error = update_hexproof_cache()
-        if check:
-            self.con.reload()
-        message = msg_error(error) if error else msg_success(
-            'Update was applied!' if check else 'Using latest data!')
-        self.console.update(f"Hexproof API Data ... {message}")
+        def photoshop_checks(app: PhotoshopHandler) -> None:
+            try:
+                # Check Photoshop connection
+                result = app.refresh_app()
+                if isinstance(result, OSError):
+                    # Photoshop test failed
+                    self.console.log_exception(result)
+                    self.console.update(
+                        f"Photoshop ... {msg_error('Cannot make connection with Photoshop!')}\n"
+                        f"Check [b]logs/error.txt[/b] for more details."
+                    )
+                    self.console.update(
+                        f"Fonts ... {msg_warn('Cannot test fonts without Photoshop.')}"
+                    )
+                    return
+                # Photoshop test passed
+                self.console.update(
+                    f"Photoshop ... {msg_success('Connection established!')}"
+                )
+    
+                # Check for missing or outdated fonts
+                missing, outdated = check_app_fonts(app, [PATH.FONTS])
+    
+                # Font test passed
+                if not missing and not outdated:
+                    self.console.update(
+                        f"Fonts ... {msg_success('All essential fonts installed!')}"
+                    )
+                    return
+    
+                # Missing fonts
+                self.console.update(
+                    f"Fonts ... {msg_warn('Missing or outdated fonts:')}", end=""
+                )
+                if missing:
+                    self.console.update(
+                        get_bullet_points(
+                            [
+                                f"{f['name']} — {msg_warn('Not Installed')}"
+                                for f in missing.values()
+                            ]
+                        ),
+                        end="",
+                    )
+                if outdated:
+                    self.console.update(
+                        get_bullet_points(
+                            [
+                                f"{f['name']} — {msg_info('New Version')}"
+                                for f in outdated.values()
+                            ]
+                        ),
+                        end="",
+                    )
+            finally:
+                self.render_target_button.disabled = False
+                self.render_all_button.disabled = False
 
-        # Check if API keys are valid
-        if not self.env.API_GOOGLE:
-            self.env.API_GOOGLE = get_api_key('proxyshop.google.drive')
-        if not self.env.API_AMAZON:
-            self.env.API_AMAZON = get_api_key('proxyshop.amazon.s3')
-        keys_missing = [k for k, v in [
-            ('Google Drive', self.env.API_GOOGLE),
-            ('Amazon S3', self.env.API_AMAZON)
-        ] if not v]
-        message = msg_warn(
-            f"Keys disabled: {', '.join(keys_missing)}"
-        ) if keys_missing else msg_success('Keys retrieved!')
-        self.console.update(f"Updater API Keys ... {message}")
+        if self._app.ready:
+            photoshop_checks(self.app)
+        else:
+            self._app.add_listener(photoshop_checks)
 
-        # Check Photoshop status
-        result = self.app.refresh_app()
-        if isinstance(result, OSError):
-            # Photoshop test failed
-            self.console.log_exception(result)
-            self.console.update(f"Photoshop ... {msg_error('Cannot make connection with Photoshop!')}\n"
-                                f"Check [b]logs/error.txt[/b] for more details.")
-            self.console.update(f"Fonts ... {msg_warn('Cannot test fonts without Photoshop.')}")
-            return
-        # Photoshop test passed
-        self.console.update(f"Photoshop ... {msg_success('Connection established!')}")
-
-        # Check for missing or outdated fonts
-        missing, outdated = check_app_fonts(self.app, [PATH.FONTS])
-
-        # Font test passed
-        if not missing and not outdated:
-            self.console.update(f"Fonts ... {msg_success('All essential fonts installed!')}")
-            return
-
-        # Missing fonts
-        self.console.update(f"Fonts ... {msg_warn('Missing or outdated fonts:')}", end='')
-        if missing:
+        def check_latest_version() -> None:
+            # Check if using latest version
             self.console.update(
-                get_bullet_points([f"{f['name']} — {msg_warn('Not Installed')}" for f in missing.values()]), end="")
-        if outdated:
-            self.console.update(
-                get_bullet_points([f"{f['name']} — {msg_info('New Version')}" for f in outdated.values()]), end="")
-        self.console.update()
+                f"Proxyshop Version ... {msg_success('Using latest version!')}"
+                if (self.check_app_version())
+                else f"Proxyshop Version ... {msg_info('New release available!')}"
+            )
+
+        def update_set_data() -> None:
+            # Update set data if needed
+            check, error = update_hexproof_cache()
+            if check:
+                self.con.reload()
+            message = (
+                msg_error(error)
+                if error
+                else msg_success(
+                    "Update was applied!" if check else "Using latest data!"
+                )
+            )
+            self.console.update(f"Hexproof API Data ... {message}")
+
+        def check_api_keys() -> None:
+            # Check if API keys are valid
+            if not self.env.API_GOOGLE:
+                self.env.API_GOOGLE = get_api_key("proxyshop.google.drive")
+            if not self.env.API_AMAZON:
+                self.env.API_AMAZON = get_api_key("proxyshop.amazon.s3")
+            keys_missing = [
+                k
+                for k, v in [
+                    ("Google Drive", self.env.API_GOOGLE),
+                    ("Amazon S3", self.env.API_AMAZON),
+                ]
+                if not v
+            ]
+            message = (
+                msg_warn(f"Keys disabled: {', '.join(keys_missing)}")
+                if keys_missing
+                else msg_success("Keys retrieved!")
+            )
+            self.console.update(f"Updater API Keys ... {message}")
+            self.console.update_btn.disabled = False
+
+        for check in (check_latest_version, update_set_data, check_api_keys):
+            Thread(target=check).start()
 
     def add_console(self) -> None:
         """Adds the console to the app window. Label gets frozen if loaded beforehand."""

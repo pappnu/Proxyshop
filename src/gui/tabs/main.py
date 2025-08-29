@@ -34,12 +34,24 @@ class MainPanel(BoxLayout, GlobalAccess):
     Builder.load_file(os.path.join(PATH.SRC_DATA_KV, "main.kv"))
 
     @cached_property
+    def render_target_button(self) -> Button:
+        return self.ids.rend_targ_btn
+    
+    @cached_property
+    def render_all_button(self) -> Button:
+        return self.ids.rend_all_btn
+    
+    @cached_property
+    def app_settings_button(self) -> Button:
+        return self.ids.app_settings_btn
+
+    @cached_property
     def toggle_buttons(self) -> list[Button]:
         """Add render and settings buttons."""
         return [
-            self.ids.rend_targ_btn,
-            self.ids.rend_all_btn,
-            self.ids.app_settings_btn
+            self.render_target_button,
+            self.render_all_button,
+            self.app_settings_button,
         ]
 
 

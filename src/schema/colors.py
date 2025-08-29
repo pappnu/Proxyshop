@@ -101,8 +101,8 @@ class GradientColor(ArbitrarySchema):
     """Defines a color within a gradient."""
 
     color: ColorObject = (0, 0, 0)
-    location: float = 0
-    midpoint: float = 50
+    location: int = 0
+    midpoint: int = 50
 
 
 class GradientConfig(TypedDict):

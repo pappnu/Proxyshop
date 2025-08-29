@@ -9,6 +9,8 @@ import sys
 from dynaconf import Validator
 from omnitils.files import get_project_version
 
+from src.utils.threading import ThreadInitializedInstance
+
 # Local Imports
 from ._config import AppConfig
 from ._loader import get_all_plugins, get_all_templates, get_template_map, get_template_map_defaults
@@ -50,7 +52,7 @@ CON = AppConstants()
 CFG = AppConfig(env=ENV)
 
 # Global Photoshop handler
-APP = PhotoshopHandler(env=ENV)
+APP = ThreadInitializedInstance(lambda: PhotoshopHandler(env=ENV))
 
 # Conditionally import the GUI console
 if not ENV.HEADLESS:

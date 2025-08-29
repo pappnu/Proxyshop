@@ -185,7 +185,7 @@ def get_font_details(path: str) -> tuple[str, FontDetails] | None:
     return
 
 
-def get_fonts_from_folder(folder: str) -> dict[str, FontDetails]:
+def get_fonts_from_folder(folder: str | os.PathLike[str]) -> dict[str, FontDetails]:
     """Return a dictionary of font details for the fonts contained in a target directory.
 
     Args:
@@ -295,7 +295,7 @@ def get_missing_fonts(
 
 def check_app_fonts(
     ps_app: PhotoshopHandler,
-    folders: list[str]
+    folders: list[str | os.PathLike[str]]
 ) -> tuple[dict[str, FontDetails], dict[str, FontDetails]]:
     """Checks each font in a folder to see if it is installed or outdated.
 

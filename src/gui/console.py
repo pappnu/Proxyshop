@@ -23,6 +23,7 @@ from src._config import AppConfig
 from src._state import AppEnvironment, PATH
 from src.gui._state import get_root_app
 from src.gui.utils import HoverButton
+from src.utils.threading import ThreadInitializedInstance
 from src.utils.windows import WindowState
 
 if TYPE_CHECKING:
@@ -41,7 +42,7 @@ class GUIConsole(BoxLayout):
         self,
         cfg: AppConfig,
         env: AppEnvironment,
-        app: PhotoshopHandler,
+        app: ThreadInitializedInstance[PhotoshopHandler],
         **kwargs
     ):
         # Establish global objects
@@ -273,7 +274,7 @@ class GUIConsole(BoxLayout):
         self.enable_buttons()
         if self.cfg.minimize_photoshop and show_photoshop:
             # Show Photoshop in case it is minimized
-            self.app.set_window_state(WindowState.SHOWDEFAULT)
+            self.app.instance.set_window_state(WindowState.SHOWDEFAULT)
         self.start_await()
 
         # Cancel the current thread or continue based on user signal
@@ -282,7 +283,7 @@ class GUIConsole(BoxLayout):
 
         # Minimize Photoshop if the setting for that is active
         if self.running and self.cfg.minimize_photoshop:
-            self.app.set_window_state(WindowState.MINIMIZE)
+            self.app.instance.set_window_state(WindowState.MINIMIZE)
 
         return self.running
 

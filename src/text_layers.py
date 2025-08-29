@@ -53,8 +53,6 @@ from src.schema.colors import ColorObject
 from src.utils.adobe import ReferenceLayer
 
 # QOL Definitions
-sID = APP.stringIDToTypeID
-cID = APP.charIDToTypeID
 NO_DIALOG = DialogModes.DisplayNoDialogs
 
 """
@@ -169,7 +167,7 @@ class TextField:
     @cached_property
     def docref(self) -> Document:
         """The currently active Photoshop document."""
-        return APP.activeDocument
+        return APP.instance.activeDocument
 
     @cached_property
     def doc_selection(self) -> Selection:
@@ -578,31 +576,31 @@ class FormattedTextField(TextField):
         main_list = ActionList()
 
         # Descriptor ID's
-        idTo = sID("to")
-        size = sID("size")
-        idFrom = sID("from")
-        textLayer = sID("textLayer")
-        textStyle = sID("textStyle")
-        ptUnit = sID("pointsUnit")
-        spaceAfter = sID("spaceAfter")
-        autoLeading = sID("autoLeading")
-        startIndent = sID("startIndent")
-        spaceBefore = sID("spaceBefore")
-        leadingType = sID("leadingType")
-        styleRange = sID("textStyleRange")
-        paragraphStyle = sID("paragraphStyle")
-        firstLineIndent = sID("firstLineIndent")
-        fontPostScriptName = sID("fontPostScriptName")
-        paragraphStyleRange = sID("paragraphStyleRange")
+        idTo = APP.instance.sID("to")
+        size = APP.instance.sID("size")
+        idFrom = APP.instance.sID("from")
+        textLayer = APP.instance.sID("textLayer")
+        textStyle = APP.instance.sID("textStyle")
+        ptUnit = APP.instance.sID("pointsUnit")
+        spaceAfter = APP.instance.sID("spaceAfter")
+        autoLeading = APP.instance.sID("autoLeading")
+        startIndent = APP.instance.sID("startIndent")
+        spaceBefore = APP.instance.sID("spaceBefore")
+        leadingType = APP.instance.sID("leadingType")
+        styleRange = APP.instance.sID("textStyleRange")
+        paragraphStyle = APP.instance.sID("paragraphStyle")
+        firstLineIndent = APP.instance.sID("firstLineIndent")
+        fontPostScriptName = APP.instance.sID("fontPostScriptName")
+        paragraphStyleRange = APP.instance.sID("paragraphStyleRange")
 
         # Spin up the text insertion action
-        main_desc.putString(sID("textKey"), self.input)
+        main_desc.putString(APP.instance.sID("textKey"), self.input)
         main_range.putInteger(idFrom, 0)
         main_range.putInteger(idTo, len(self.input))
         apply_color(main_style, self.color)
         main_style.putBoolean(autoLeading, False)
         main_style.putUnitDouble(size, ptUnit, self.font_size)
-        main_style.putUnitDouble(sID("leading"), ptUnit, self.font_size)
+        main_style.putUnitDouble(APP.instance.sID("leading"), ptUnit, self.font_size)
         main_style.putString(fontPostScriptName, self.font)
         main_range.putObject(textStyle, textStyle, main_style)
         main_list.putObject(styleRange, main_range)
@@ -641,11 +639,13 @@ class FormattedTextField(TextField):
             para_range.putInteger(idTo, len(self.input))
             para_style.putUnitDouble(firstLineIndent, ptUnit, 0)
             para_style.putUnitDouble(startIndent, ptUnit, 0)
-            para_style.putUnitDouble(sID("endIndent"), ptUnit, 0)
+            para_style.putUnitDouble(APP.instance.sID("endIndent"), ptUnit, 0)
             para_style.putUnitDouble(spaceBefore, ptUnit, self.line_break_lead)
             para_style.putUnitDouble(spaceAfter, ptUnit, 0)
-            para_style.putInteger(sID("dropCapMultiplier"), 1)
-            para_style.putEnumerated(leadingType, leadingType, sID("leadingBelow"))
+            para_style.putInteger(APP.instance.sID("dropCapMultiplier"), 1)
+            para_style.putEnumerated(
+                leadingType, leadingType, APP.instance.sID("leadingBelow")
+            )
 
         # Adjust paragraph formatting for modal card with bullet points
         if self.is_modal:
@@ -658,7 +658,9 @@ class FormattedTextField(TextField):
             default_style.putString(fontPostScriptName, self.font_mana)
             default_style.putUnitDouble(size, ptUnit, 12)
             default_style.putBoolean(autoLeading, False)
-            para_style.putObject(sID("defaultStyle"), textStyle, default_style)
+            para_style.putObject(
+                APP.instance.sID("defaultStyle"), textStyle, default_style
+            )
             para_range.putObject(paragraphStyle, paragraphStyle, para_style)
             style_list.putObject(paragraphStyleRange, para_range)
 
@@ -669,8 +671,10 @@ class FormattedTextField(TextField):
             para_range.putInteger(idTo, self.flavor_start + 4)
             para_style.putUnitDouble(startIndent, ptUnit, 0)
             para_style.putUnitDouble(firstLineIndent, ptUnit, 0)
-            para_style.putUnitDouble(sID("impliedStartIndent"), ptUnit, 0)
-            para_style.putUnitDouble(sID("impliedFirstLineIndent"), ptUnit, 0)
+            para_style.putUnitDouble(APP.instance.sID("impliedStartIndent"), ptUnit, 0)
+            para_style.putUnitDouble(
+                APP.instance.sID("impliedFirstLineIndent"), ptUnit, 0
+            )
             para_style.putUnitDouble(spaceBefore, ptUnit, self.flavor_text_lead)
             para_range.putObject(paragraphStyle, paragraphStyle, para_style)
             style_list.putObject(paragraphStyleRange, para_range)
@@ -697,9 +701,11 @@ class FormattedTextField(TextField):
                 if self.right_align_quote and '"\r—' in self.flavor_text:
                     para_range.putInteger(idFrom, self.input.find('"\r—') + 2)
                     para_range.putInteger(idTo, self.flavor_end)
-                    para_style.putBoolean(sID("styleSheetHasParent"), True)
+                    para_style.putBoolean(APP.instance.sID("styleSheetHasParent"), True)
                     para_range.putEnumerated(
-                        sID("align"), sID("alignmentType"), sID("right")
+                        APP.instance.sID("align"),
+                        APP.instance.sID("alignmentType"),
+                        APP.instance.sID("right"),
                     )
                     para_range.putObject(paragraphStyle, paragraphStyle, para_style)
                     style_list.putObject(paragraphStyleRange, para_range)
@@ -709,10 +715,12 @@ class FormattedTextField(TextField):
         main_desc.putList(styleRange, main_list)
 
         # Push changes to text layer
-        main_ref.putEnumerated(textLayer, sID("ordinal"), sID("targetEnum"))
-        main_target.putReference(sID("target"), main_ref)
+        main_ref.putEnumerated(
+            textLayer, APP.instance.sID("ordinal"), APP.instance.sID("targetEnum")
+        )
+        main_target.putReference(APP.instance.sID("target"), main_ref)
         main_target.putObject(idTo, textLayer, main_desc)
-        APP.executeAction(sID("set"), main_target, NO_DIALOG)
+        APP.instance.executeAction(APP.instance.sID("set"), main_target, NO_DIALOG)
 
     def execute(self):
         super().execute()

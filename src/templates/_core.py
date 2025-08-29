@@ -4,12 +4,12 @@
 
 # Standard Library Imports
 import os.path as osp
+from collections.abc import Callable, Sequence
 from contextlib import suppress
 from functools import cached_property
 from pathlib import Path
 from threading import Event
 from typing import Any, Unpack
-from collections.abc import Callable, Sequence
 
 from omnitils.files import get_unique_filename
 
@@ -22,7 +22,6 @@ from photoshop.api._layerSet import LayerSet
 from photoshop.api._selection import Selection
 from PIL import Image
 
-from src.gui.console import GUIConsole
 import src.helpers as psd
 
 # Local Imports
@@ -39,8 +38,8 @@ from src.enums.settings import (
     WatermarkMode,
 )
 from src.frame_logic import is_multicolor_string
+from src.gui.console import GUIConsole
 from src.helpers.adjustments import CreateColorLayerKwargs
-from src.schema.colors import GradientConfig, is_rgb_or_cmyk_tuple
 from src.helpers.effects import LayerEffects
 from src.helpers.position import DimensionNames
 from src.layouts import NormalLayout, SplitLayout
@@ -48,7 +47,9 @@ from src.schema.adobe import EffectBevel, EffectColorOverlay, EffectGradientOver
 from src.schema.colors import (
     ColorObject,
     GradientColor,
+    GradientConfig,
     basic_watermark_color_map,
+    is_rgb_or_cmyk_tuple,
     watermark_color_map,
 )
 from src.text_layers import (
@@ -215,7 +216,7 @@ class BaseTemplate:
     @property
     def app(self) -> PhotoshopHandler:
         """PhotoshopHandler: Photoshop Application object used to communicate with Photoshop."""
-        return APP
+        return APP.instance
 
     @cached_property
     def docref(self) -> Document:
@@ -1586,7 +1587,7 @@ class BaseTemplate:
             return False
 
         if CFG.minimize_photoshop:
-            APP.set_window_state(WindowState.MINIMIZE)
+            APP.instance.set_window_state(WindowState.MINIMIZE)
 
         # Pre-process layout data
         if not self.run_tasks(

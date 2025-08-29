@@ -27,7 +27,6 @@ from src.helpers.selection import select_layer_pixels
 from src.utils.adobe import PS_EXCEPTIONS
 
 # QOL Definitions
-sID, cID = APP.stringIDToTypeID, APP.charIDToTypeID
 NO_DIALOG = DialogModes.DisplayNoDialogs
 
 """
@@ -35,9 +34,7 @@ NO_DIALOG = DialogModes.DisplayNoDialogs
 """
 
 
-def fill_empty_area(
-    reference: ArtLayer, color: SolidColor | None = None
-) -> ArtLayer:
+def fill_empty_area(reference: ArtLayer, color: SolidColor | None = None) -> ArtLayer:
     """Fills empty gaps on an art layer, such as a symbol, with a solid color.
 
     Args:
@@ -45,22 +42,22 @@ def fill_empty_area(
         color: Color of the background fill
     """
     # Magic Wand contiguous outside symbol
-    docref = APP.activeDocument
+    docref = APP.instance.activeDocument
     docsel = docref.selection
     coords = ActionDescriptor()
     click1 = ActionDescriptor()
     ref1 = ActionReference()
-    idPaint = sID("paint")
-    idPixel = sID("pixelsUnit")
-    idTolerance = sID("tolerance")
-    coords.putUnitDouble(sID("horizontal"), idPixel, 5)
-    coords.putUnitDouble(sID("vertical"), idPixel, 5)
-    ref1.putProperty(sID("channel"), sID("selection"))
-    click1.putReference(sID("target"), ref1)
-    click1.putObject(sID("to"), idPaint, coords)
+    idPaint = APP.instance.sID("paint")
+    idPixel = APP.instance.sID("pixelsUnit")
+    idTolerance = APP.instance.sID("tolerance")
+    coords.putUnitDouble(APP.instance.sID("horizontal"), idPixel, 5)
+    coords.putUnitDouble(APP.instance.sID("vertical"), idPixel, 5)
+    ref1.putProperty(APP.instance.sID("channel"), APP.instance.sID("selection"))
+    click1.putReference(APP.instance.sID("target"), ref1)
+    click1.putObject(APP.instance.sID("to"), idPaint, coords)
     click1.putInteger(idTolerance, 12)
-    click1.putBoolean(sID("antiAlias"), True)
-    APP.executeAction(sID("set"), click1)
+    click1.putBoolean(APP.instance.sID("antiAlias"), True)
+    APP.instance.executeAction(APP.instance.sID("set"), click1)
 
     # Invert selection
     docsel.invert()
@@ -73,13 +70,17 @@ def fill_empty_area(
     layer.move(reference, ElementPlacement.PlaceAfter)
 
     # Fill selection with stroke color
-    APP.foregroundColor = color or rgb_black()
+    APP.instance.foregroundColor = color or rgb_black()
     click3 = ActionDescriptor()
-    click3.putObject(sID("from"), idPaint, coords)
+    click3.putObject(APP.instance.sID("from"), idPaint, coords)
     click3.putInteger(idTolerance, 0)
-    click3.putEnumerated(sID("using"), sID("fillContents"), sID("foregroundColor"))
-    click3.putBoolean(sID("contiguous"), False)
-    APP.executeAction(sID("fill"), click3)
+    click3.putEnumerated(
+        APP.instance.sID("using"),
+        APP.instance.sID("fillContents"),
+        APP.instance.sID("foregroundColor"),
+    )
+    click3.putBoolean(APP.instance.sID("contiguous"), False)
+    APP.instance.executeAction(APP.instance.sID("fill"), click3)
 
     # Clear Selection
     docsel.deselect()
@@ -96,7 +97,7 @@ def content_aware_fill_edges(
         feather: Whether to feather the selection before performing the fill operation.
     """
     # Set active layer if needed, then rasterize
-    docref = APP.activeDocument
+    docref = APP.instance.activeDocument
     if layer:
         docref.activeLayer = layer
         active_layer = layer
@@ -150,7 +151,7 @@ def generative_fill_edges(
         Smart layer document if Generative Fill operation succeeded, otherwise None.
     """
     # Set docref and use active layer if not provided
-    docref = docref or APP.activeDocument
+    docref = docref or APP.instance.activeDocument
     if layer:
         docref.activeLayer = layer
         active_layer = layer
@@ -171,7 +172,7 @@ def generative_fill_edges(
     edit_smart_layer()
 
     # Select pixels of active layer and invert
-    docref = APP.activeDocument
+    docref = APP.instance.activeDocument
     select_layer_pixels(active_layer)
     selection = docref.selection
 
@@ -214,10 +215,20 @@ def generative_fill_edges(
 def content_aware_fill() -> None:
     """Fills the current selection using content aware fill."""
     desc = ActionDescriptor()
-    desc.putEnumerated(sID("using"), sID("fillContents"), sID("contentAware"))
-    desc.putUnitDouble(sID("opacity"), sID("percentUnit"), 100)
-    desc.putEnumerated(sID("mode"), sID("blendMode"), sID("normal"))
-    APP.executeAction(sID("fill"), desc, NO_DIALOG)
+    desc.putEnumerated(
+        APP.instance.sID("using"),
+        APP.instance.sID("fillContents"),
+        APP.instance.sID("contentAware"),
+    )
+    desc.putUnitDouble(
+        APP.instance.sID("opacity"), APP.instance.sID("percentUnit"), 100
+    )
+    desc.putEnumerated(
+        APP.instance.sID("mode"),
+        APP.instance.sID("blendMode"),
+        APP.instance.sID("normal"),
+    )
+    APP.instance.executeAction(APP.instance.sID("fill"), desc, NO_DIALOG)
 
 
 def generative_fill() -> None:
@@ -226,26 +237,36 @@ def generative_fill() -> None:
     ref1 = ActionReference()
     desc2 = ActionDescriptor()
     desc3 = ActionDescriptor()
-    ref1.putEnumerated(sID("document"), sID("ordinal"), sID("targetEnum"))
-    desc1.putReference(sID("target"), ref1)
-    desc1.putString(sID("prompt"), """""")
-    desc1.putString(sID("serviceID"), """clio""")
-    desc1.putEnumerated(sID("mode"), sID("syntheticFillMode"), sID("inpaint"))
-    desc3.putString(sID("gi_PROMPT"), """""")
-    desc3.putString(sID("gi_MODE"), """ginp""")
-    desc3.putInteger(sID("gi_SEED"), -1)
-    desc3.putInteger(sID("gi_NUM_STEPS"), -1)
-    desc3.putInteger(sID("gi_GUIDANCE"), 6)
-    desc3.putInteger(sID("gi_SIMILARITY"), 0)
-    desc3.putBoolean(sID("gi_CROP"), False)
-    desc3.putBoolean(sID("gi_DILATE"), False)
-    desc3.putInteger(sID("gi_CONTENT_PRESERVE"), 0)
-    desc3.putBoolean(sID("gi_ENABLE_PROMPT_FILTER"), True)
-    desc3.putBoolean(sID("dualCrop"), True)
-    desc3.putString(sID("gi_ADVANCED"), """{"enable_mts":true}""")
-    desc2.putObject(sID("clio"), sID("clio"), desc3)
-    desc1.putObject(sID("serviceOptionsList"), sID("target"), desc2)
-    APP.executeAction(sID("syntheticFill"), desc1, NO_DIALOG)
+    ref1.putEnumerated(
+        APP.instance.sID("document"),
+        APP.instance.sID("ordinal"),
+        APP.instance.sID("targetEnum"),
+    )
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    desc1.putString(APP.instance.sID("prompt"), """""")
+    desc1.putString(APP.instance.sID("serviceID"), """clio""")
+    desc1.putEnumerated(
+        APP.instance.sID("mode"),
+        APP.instance.sID("syntheticFillMode"),
+        APP.instance.sID("inpaint"),
+    )
+    desc3.putString(APP.instance.sID("gi_PROMPT"), """""")
+    desc3.putString(APP.instance.sID("gi_MODE"), """ginp""")
+    desc3.putInteger(APP.instance.sID("gi_SEED"), -1)
+    desc3.putInteger(APP.instance.sID("gi_NUM_STEPS"), -1)
+    desc3.putInteger(APP.instance.sID("gi_GUIDANCE"), 6)
+    desc3.putInteger(APP.instance.sID("gi_SIMILARITY"), 0)
+    desc3.putBoolean(APP.instance.sID("gi_CROP"), False)
+    desc3.putBoolean(APP.instance.sID("gi_DILATE"), False)
+    desc3.putInteger(APP.instance.sID("gi_CONTENT_PRESERVE"), 0)
+    desc3.putBoolean(APP.instance.sID("gi_ENABLE_PROMPT_FILTER"), True)
+    desc3.putBoolean(APP.instance.sID("dualCrop"), True)
+    desc3.putString(APP.instance.sID("gi_ADVANCED"), """{"enable_mts":true}""")
+    desc2.putObject(APP.instance.sID("clio"), APP.instance.sID("clio"), desc3)
+    desc1.putObject(
+        APP.instance.sID("serviceOptionsList"), APP.instance.sID("target"), desc2
+    )
+    APP.instance.executeAction(APP.instance.sID("syntheticFill"), desc1, NO_DIALOG)
 
 
 def repair_edges(edge: int = 6) -> None:
@@ -257,42 +278,48 @@ def repair_edges(edge: int = 6) -> None:
     # Select all
     desc632724 = ActionDescriptor()
     ref489 = ActionReference()
-    ref489.putProperty(sID("channel"), sID("selection"))
-    desc632724.putReference(sID("target"), ref489)
-    desc632724.putEnumerated(sID("to"), sID("ordinal"), sID("allEnum"))
-    APP.executeAction(sID("set"), desc632724, NO_DIALOG)
+    ref489.putProperty(APP.instance.sID("channel"), APP.instance.sID("selection"))
+    desc632724.putReference(APP.instance.sID("target"), ref489)
+    desc632724.putEnumerated(
+        APP.instance.sID("to"), APP.instance.sID("ordinal"), APP.instance.sID("allEnum")
+    )
+    APP.instance.executeAction(APP.instance.sID("set"), desc632724, NO_DIALOG)
 
     # Contract selection
     contract = ActionDescriptor()
-    contract.putUnitDouble(sID("by"), sID("pixelsUnit"), edge)
-    contract.putBoolean(sID("selectionModifyEffectAtCanvasBounds"), True)
-    APP.executeAction(sID("contract"), contract, NO_DIALOG)
+    contract.putUnitDouble(APP.instance.sID("by"), APP.instance.sID("pixelsUnit"), edge)
+    contract.putBoolean(APP.instance.sID("selectionModifyEffectAtCanvasBounds"), True)
+    APP.instance.executeAction(APP.instance.sID("contract"), contract, NO_DIALOG)
 
     # Inverse the selection
-    APP.executeAction(sID("inverse"), None, NO_DIALOG)
+    APP.instance.executeAction(APP.instance.sID("inverse"), None, NO_DIALOG)
 
     # Content aware fill
     desc_caf = ActionDescriptor()
     desc_caf.putEnumerated(
-        sID("cafSamplingRegion"),
-        sID("cafSamplingRegion"),
-        sID("cafSamplingRegionRectangular"),
+        APP.instance.sID("cafSamplingRegion"),
+        APP.instance.sID("cafSamplingRegion"),
+        APP.instance.sID("cafSamplingRegionRectangular"),
     )
-    desc_caf.putBoolean(sID("cafSampleAllLayers"), False)
+    desc_caf.putBoolean(APP.instance.sID("cafSampleAllLayers"), False)
     desc_caf.putEnumerated(
-        sID("cafColorAdaptationLevel"),
-        sID("cafColorAdaptationLevel"),
-        sID("cafColorAdaptationDefault"),
+        APP.instance.sID("cafColorAdaptationLevel"),
+        APP.instance.sID("cafColorAdaptationLevel"),
+        APP.instance.sID("cafColorAdaptationDefault"),
     )
     desc_caf.putEnumerated(
-        sID("cafRotationAmount"), sID("cafRotationAmount"), sID("cafRotationAmountNone")
+        APP.instance.sID("cafRotationAmount"),
+        APP.instance.sID("cafRotationAmount"),
+        APP.instance.sID("cafRotationAmountNone"),
     )
-    desc_caf.putBoolean(sID("cafScale"), False)
-    desc_caf.putBoolean(sID("cafMirror"), False)
+    desc_caf.putBoolean(APP.instance.sID("cafScale"), False)
+    desc_caf.putBoolean(APP.instance.sID("cafMirror"), False)
     desc_caf.putEnumerated(
-        sID("cafOutput"), sID("cafOutput"), sID("cafOutputToNewLayer")
+        APP.instance.sID("cafOutput"),
+        APP.instance.sID("cafOutput"),
+        APP.instance.sID("cafOutputToNewLayer"),
     )
-    APP.executeAction(sID("cafWorkspace"), desc_caf, NO_DIALOG)
+    APP.instance.executeAction(APP.instance.sID("cafWorkspace"), desc_caf, NO_DIALOG)
 
     # Deselect
-    APP.activeDocument.selection.deselect()
+    APP.instance.activeDocument.selection.deselect()

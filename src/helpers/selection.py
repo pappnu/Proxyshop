@@ -1,6 +1,7 @@
 """
 * Helpers: Selection
 """
+
 # Standard Library Imports
 from contextlib import suppress
 
@@ -9,18 +10,13 @@ from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
 from photoshop.api._selection import Selection
-from photoshop.api import (
-    ActionDescriptor,
-    ActionReference,
-    DialogModes,
-    LayerKind)
+from photoshop.api import ActionDescriptor, ActionReference, DialogModes, LayerKind
 
 # Local Imports
 from src import APP
 from src.utils.adobe import PS_EXCEPTIONS
 
 # Photoshop infrastructure
-cID, sID = APP.charIDToTypeID, APP.stringIDToTypeID
 NO_DIALOG = DialogModes.DisplayNoDialogs
 
 """
@@ -29,8 +25,7 @@ NO_DIALOG = DialogModes.DisplayNoDialogs
 
 
 def select_bounds(
-    bounds: tuple[float,float,float,float],
-    selection: Selection | None = None
+    bounds: tuple[float, float, float, float], selection: Selection | None = None
 ) -> None:
     """Create a selection using a list of bound values.
 
@@ -38,16 +33,14 @@ def select_bounds(
         bounds: List of bound values (left, top, right, bottom).
         selection: App selection object, pull from active document if not provided.
     """
-    selection = selection or APP.activeDocument.selection
+    selection = selection or APP.instance.activeDocument.selection
     left, top, right, bottom = bounds
-    selection.select(
-        ((left, top),
-        (right, top),
-        (right, bottom),
-        (left, bottom)))
+    selection.select(((left, top), (right, top), (right, bottom), (left, bottom)))
 
 
-def select_layer_bounds(layer: ArtLayer | LayerSet | None = None, selection: Selection | None = None) -> None:
+def select_layer_bounds(
+    layer: ArtLayer | LayerSet | None = None, selection: Selection | None = None
+) -> None:
     """Select the bounding box of a given layer.
 
     Args:
@@ -55,7 +48,7 @@ def select_layer_bounds(layer: ArtLayer | LayerSet | None = None, selection: Sel
         selection: App selection object, pull from active document if not provided.
     """
     if not layer:
-        layer = APP.activeDocument.activeLayer
+        layer = APP.instance.activeDocument.activeLayer
     select_bounds(layer.bounds, selection)
 
 
@@ -66,14 +59,16 @@ def select_overlapping(layer: ArtLayer) -> None:
         layer: Layer with pixels to select.
     """
     with suppress(*PS_EXCEPTIONS):
-        idChannel = sID('channel')
+        idChannel = APP.instance.sID("channel")
         desc1, ref1, ref2 = ActionDescriptor(), ActionReference(), ActionReference()
-        ref1.putEnumerated(idChannel, idChannel, sID("transparencyEnum"))
-        ref1.putIdentifier(sID("layer"), layer.id)
-        desc1.putReference(sID("target"), ref1)
-        ref2.putProperty(idChannel, sID("selection"))
-        desc1.putReference(sID("with"), ref2)
-        APP.executeAction(sID("interfaceIconFrameDimmed"), desc1, NO_DIALOG)
+        ref1.putEnumerated(idChannel, idChannel, APP.instance.sID("transparencyEnum"))
+        ref1.putIdentifier(APP.instance.sID("layer"), layer.id)
+        desc1.putReference(APP.instance.sID("target"), ref1)
+        ref2.putProperty(idChannel, APP.instance.sID("selection"))
+        desc1.putReference(APP.instance.sID("with"), ref2)
+        APP.instance.executeAction(
+            APP.instance.sID("interfaceIconFrameDimmed"), desc1, NO_DIALOG
+        )
 
 
 def select_canvas(docref: Document | None = None, bleed: int = 0):
@@ -83,12 +78,14 @@ def select_canvas(docref: Document | None = None, bleed: int = 0):
         docref: Document reference, use active if not provided.
         bleed: Amount of bleed edge to leave around selection, defaults to 0.
     """
-    docref = docref or APP.activeDocument
+    docref = docref or APP.instance.activeDocument
     docref.selection.select(
-        ((0 + bleed, 0 + bleed),
-        (docref.width - bleed, 0 + bleed),
-        (docref.width - bleed, docref.height - bleed),
-        (0 + bleed, docref.height - bleed))
+        (
+            (0 + bleed, 0 + bleed),
+            (docref.width - bleed, 0 + bleed),
+            (docref.width - bleed, docref.height - bleed),
+            (0 + bleed, docref.height - bleed),
+        )
     )
 
 
@@ -108,13 +105,17 @@ def select_layer_pixels(layer: ArtLayer | None = None) -> None:
     des1 = ActionDescriptor()
     ref1 = ActionReference()
     ref2 = ActionReference()
-    ref1.putProperty(sID("channel"), sID("selection"))
-    des1.putReference(sID("target"), ref1)
-    ref2.putEnumerated(sID("channel"), sID("channel"), sID("transparencyEnum"))
+    ref1.putProperty(APP.instance.sID("channel"), APP.instance.sID("selection"))
+    des1.putReference(APP.instance.sID("target"), ref1)
+    ref2.putEnumerated(
+        APP.instance.sID("channel"),
+        APP.instance.sID("channel"),
+        APP.instance.sID("transparencyEnum"),
+    )
     if layer:
-        ref2.putIdentifier(sID("layer"), layer.id)
-    des1.putReference(sID("to"), ref2)
-    APP.executeAction(sID("set"), des1, NO_DIALOG)
+        ref2.putIdentifier(APP.instance.sID("layer"), layer.id)
+    des1.putReference(APP.instance.sID("to"), ref2)
+    APP.instance.executeAction(APP.instance.sID("set"), des1, NO_DIALOG)
 
 
 def select_vector_layer_pixels(layer: ArtLayer | None = None) -> None:
@@ -126,15 +127,19 @@ def select_vector_layer_pixels(layer: ArtLayer | None = None) -> None:
     desc1 = ActionDescriptor()
     ref1 = ActionReference()
     ref2 = ActionReference()
-    ref1.putProperty(sID("channel"), sID("selection"))
-    desc1.putReference(sID("target"), ref1)
-    ref2.putEnumerated(sID("path"), sID("path"), sID("vectorMask"))
+    ref1.putProperty(APP.instance.sID("channel"), APP.instance.sID("selection"))
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    ref2.putEnumerated(
+        APP.instance.sID("path"),
+        APP.instance.sID("path"),
+        APP.instance.sID("vectorMask"),
+    )
     if layer:
-        ref2.putIdentifier(sID("layer"), layer.id)
-    desc1.putReference(sID("to"), ref2)
-    desc1.putInteger(sID("version"), 1)
-    desc1.putBoolean(sID("vectorMaskParams"), True)
-    APP.executeAction(sID("set"), desc1, NO_DIALOG)
+        ref2.putIdentifier(APP.instance.sID("layer"), layer.id)
+    desc1.putReference(APP.instance.sID("to"), ref2)
+    desc1.putInteger(APP.instance.sID("version"), 1)
+    desc1.putBoolean(APP.instance.sID("vectorMaskParams"), True)
+    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
 
 
 """
@@ -142,7 +147,9 @@ def select_vector_layer_pixels(layer: ArtLayer | None = None) -> None:
 """
 
 
-def check_selection_bounds(selection: Selection | None = None) -> tuple[float, float, float, float] | None:
+def check_selection_bounds(
+    selection: Selection | None = None,
+) -> tuple[float, float, float, float] | None:
     """Verifies if a selection has valid bounds.
 
     Args:
@@ -151,7 +158,7 @@ def check_selection_bounds(selection: Selection | None = None) -> tuple[float, f
     Returns:
         An empty list if selection is invalid, otherwise return bounds of selection.
     """
-    selection = selection or APP.activeDocument.selection
+    selection = selection or APP.instance.activeDocument.selection
     with suppress(*PS_EXCEPTIONS):
         if selection.bounds != (0, 0, 0, 0):
             return selection.bounds

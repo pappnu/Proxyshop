@@ -23,7 +23,6 @@ from src.schema.colors import pinlines_color_map, ColorObject
 from src.schema.colors import GradientConfig
 
 # QOL Definitions
-sID, cID = APP.stringIDToTypeID, APP.charIDToTypeID
 NO_DIALOG = DialogModes.DisplayNoDialogs
 
 """
@@ -253,10 +252,10 @@ def apply_rgb_from_list(
         color_type: Color action descriptor type, defaults to 'color'.
     """
     ad = ActionDescriptor()
-    ad.putDouble(sID("red"), color[0])
-    ad.putDouble(sID("green"), color[1])
-    ad.putDouble(sID("blue"), color[2])
-    action.putObject(sID(color_type), sID("RGBColor"), ad)
+    ad.putDouble(APP.instance.sID("red"), color[0])
+    ad.putDouble(APP.instance.sID("green"), color[1])
+    ad.putDouble(APP.instance.sID("blue"), color[2])
+    action.putObject(APP.instance.sID(color_type), APP.instance.sID("RGBColor"), ad)
 
 
 def apply_cmyk_from_list(
@@ -272,11 +271,13 @@ def apply_cmyk_from_list(
         color_type: Color action descriptor type, defaults to 'color'.
     """
     ad = ActionDescriptor()
-    ad.putDouble(sID("cyan"), color[0])
-    ad.putDouble(sID("magenta"), color[1])
-    ad.putDouble(sID("yellowColor"), color[2])
-    ad.putDouble(sID("black"), color[3])
-    action.putObject(sID(color_type), sID("CMYKColorClass"), ad)
+    ad.putDouble(APP.instance.sID("cyan"), color[0])
+    ad.putDouble(APP.instance.sID("magenta"), color[1])
+    ad.putDouble(APP.instance.sID("yellowColor"), color[2])
+    ad.putDouble(APP.instance.sID("black"), color[3])
+    action.putObject(
+        APP.instance.sID(color_type), APP.instance.sID("CMYKColorClass"), ad
+    )
 
 
 def apply_rgb(
@@ -348,14 +349,22 @@ def add_color_to_gradient(
     """
     action = ActionDescriptor()
     apply_color(action, color)
-    action.putEnumerated(sID("type"), sID("colorStopType"), sID("userStop"))
-    action.putInteger(sID("location"), location)
-    action.putInteger(sID("midpoint"), midpoint)
-    action_list.putObject(sID("colorStop"), action)
+    action.putEnumerated(
+        APP.instance.sID("type"),
+        APP.instance.sID("colorStopType"),
+        APP.instance.sID("userStop"),
+    )
+    action.putInteger(APP.instance.sID("location"), location)
+    action.putInteger(APP.instance.sID("midpoint"), midpoint)
+    action_list.putObject(APP.instance.sID("colorStop"), action)
 
 
 def fill_layer_primary():
     """Fill active layer using foreground color."""
     desc1 = ActionDescriptor()
-    desc1.putEnumerated(sID("using"), sID("fillContents"), sID("foregroundColor"))
-    APP.executeAction(sID("fill"), desc1, NO_DIALOG)
+    desc1.putEnumerated(
+        APP.instance.sID("using"),
+        APP.instance.sID("fillContents"),
+        APP.instance.sID("foregroundColor"),
+    )
+    APP.instance.executeAction(APP.instance.sID("fill"), desc1, NO_DIALOG)

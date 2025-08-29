@@ -2,6 +2,7 @@
 * General Testing Utility
 * For contributors and plugin development.
 """
+
 # Standard Library Imports
 from contextlib import suppress
 from _ctypes import COMError
@@ -19,7 +20,8 @@ from photoshop.api import (
     ActionReference,
     ElementPlacement,
     DialogModes,
-    LayerKind)
+    LayerKind,
+)
 from psd_tools.constants import Resource
 from psd_tools import PSDImage
 from psd_tools.psd.image_resources import ImageResource
@@ -32,7 +34,6 @@ from src.schema.colors import ColorObject
 from src.utils.adobe import LayerContainer
 
 # Photoshop infrastructure
-cID, sID = APP.charIDToTypeID, APP.stringIDToTypeID
 NO_DIALOG = DialogModes.DisplayNoDialogs
 
 # Reference Box colors
@@ -47,7 +48,9 @@ BLACK = [0, 0, 0]
 """
 
 
-def test_new_color(new: str, old: str | None = None, ignore: list[str] | None = None) -> None:
+def test_new_color(
+    new: str, old: str | None = None, ignore: list[str] | None = None
+) -> None:
     """Enables given color in all necessary groups. Optionally disable a color in those groups.
 
     Args:
@@ -57,7 +60,13 @@ def test_new_color(new: str, old: str | None = None, ignore: list[str] | None = 
     """
     if ignore is None:
         ignore = ["Pinlines & Textbox"]
-    groups = ["Name & Title Boxes", "Legendary Crown", "Pinlines & Textbox", "Background", "PT Box"]
+    groups = [
+        "Name & Title Boxes",
+        "Legendary Crown",
+        "Pinlines & Textbox",
+        "Background",
+        "PT Box",
+    ]
     for r in ignore:
         groups.remove(r)
     for g in groups:
@@ -71,7 +80,7 @@ def test_new_color(new: str, old: str | None = None, ignore: list[str] | None = 
 def make_duals(
     name: str = "Pinlines & Textbox",
     mask_top: ArtLayer | None = None,
-    mask_bottom: ArtLayer | None = None
+    mask_bottom: ArtLayer | None = None,
 ):
     """Creates dual color layers for a given group.
 
@@ -86,10 +95,11 @@ def make_duals(
 
     # Loop through each dual
     for dual in duals:
-
         # Change layer visibility
         top = psd.getLayer(dual[0], group).duplicate(ref, ElementPlacement.PlaceBefore)
-        bottom = psd.getLayer(dual[1], group).duplicate(top, ElementPlacement.PlaceAfter)
+        bottom = psd.getLayer(dual[1], group).duplicate(
+            top, ElementPlacement.PlaceAfter
+        )
         top.visible = True
         bottom.visible = True
 
@@ -107,7 +117,7 @@ def make_duals(
 def create_blended_layer(
     colors: str | list[str],
     group: LayerSet,
-    masks: None | ArtLayer | list[ArtLayer] = None
+    masks: None | ArtLayer | list[ArtLayer] = None,
 ):
     """Create a multicolor layer using a gradient mask.
 
@@ -153,8 +163,8 @@ def check_if_needed(key, keys_stored):
     Returns:
         True if needed, False if skipped.
     """
-    if 'double' in keys_stored:
-        if key in ['largeInt', 'int']:
+    if "double" in keys_stored:
+        if key in ["largeInt", "int"]:
             return False
     return True
 
@@ -171,20 +181,20 @@ def try_all_getters(desc: ActionDescriptor, type_id) -> dict:
     """
     values = {}
     getters = {
-        'bool': 'getBoolean',
-        'class': 'getClass',
-        'enumType': 'getEnumerationType',
-        'enumVal': 'getEnumerationValue',
-        'list': 'getList',
-        'objType': 'getObjectType',
-        'objValue': 'getObjectValue',
-        'path': 'getPath',
-        'ref': 'getReference',
-        'str': 'getString',
-        'type': 'getType',
-        'double': 'getUnitDoubleValue',
-        'int': 'getInteger',
-        'largeInt': 'getLargeInteger',
+        "bool": "getBoolean",
+        "class": "getClass",
+        "enumType": "getEnumerationType",
+        "enumVal": "getEnumerationValue",
+        "list": "getList",
+        "objType": "getObjectType",
+        "objValue": "getObjectValue",
+        "path": "getPath",
+        "ref": "getReference",
+        "str": "getString",
+        "type": "getType",
+        "double": "getUnitDoubleValue",
+        "int": "getInteger",
+        "largeInt": "getLargeInteger",
     }
     for k, func in getters.items():
         if not check_if_needed(k, values.keys()):
@@ -193,7 +203,7 @@ def try_all_getters(desc: ActionDescriptor, type_id) -> dict:
         try:
             # Send the getter
             result = getattr(desc, func)(type_id)
-            if k == 'list':
+            if k == "list":
                 # Getter may have returned an ActionList, grab the first object
                 result = get_action_items(result.getObjectValue(0))
             values[k] = result
@@ -219,7 +229,7 @@ def get_action_items(desc) -> dict:
         count = 0
     for i in range(count):
         type_id: int = desc.getKey(i)
-        string_id: str = APP.typeIDToStringID(type_id)
+        string_id: str = APP.instance.typeIDToStringID(type_id)
         if desc.hasKey(type_id):
             try:
                 result = get_action_items(desc.getObjectValue(type_id))
@@ -247,8 +257,8 @@ def dump_layer_action_descriptors(layer: ArtLayer, path: str) -> dict:
     """
     # Get the layer descriptor
     reference = ActionReference()
-    reference.putIdentifier(sID('layer'), layer.id)
-    descriptor = APP.executeActionGet(reference)
+    reference.putIdentifier(APP.instance.sID("layer"), layer.id)
+    descriptor = APP.instance.executeActionGet(reference)
 
     # Generate a dict of all descriptors
     actions = get_action_items(descriptor)
@@ -297,13 +307,13 @@ def apply_single_line_composer(layer: ArtLayer) -> None:
     desc1 = ActionDescriptor()
     ref1 = ActionReference()
     desc2 = ActionDescriptor()
-    ref1.putProperty(sID("property"), sID("paragraphStyle"))
-    ref1.putIdentifier(sID("textLayer"), layer.id)
-    desc1.putReference(sID("target"), ref1)
-    desc2.putInteger(sID("textOverrideFeatureName"), 808464691)
-    desc2.putBoolean(sID("textEveryLineComposer"), False)
-    desc1.putObject(sID("to"), sID("paragraphStyle"), desc2)
-    APP.executeAction(sID("set"), desc1, NO_DIALOG)
+    ref1.putProperty(APP.instance.sID("property"), APP.instance.sID("paragraphStyle"))
+    ref1.putIdentifier(APP.instance.sID("textLayer"), layer.id)
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    desc2.putInteger(APP.instance.sID("textOverrideFeatureName"), 808464691)
+    desc2.putBoolean(APP.instance.sID("textEveryLineComposer"), False)
+    desc1.putObject(APP.instance.sID("to"), APP.instance.sID("paragraphStyle"), desc2)
+    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
 
 
 def combine_text_items(from_layer: ArtLayer, to_layer: ArtLayer, sep: str | None = " "):
@@ -320,23 +330,35 @@ def combine_text_items(from_layer: ArtLayer, to_layer: ArtLayer, sep: str | None
     to_tk = psd.get_text_key(to_layer)
 
     # Grab the style range of each layer and establish our offset
-    from_range = from_tk.getList(sID("textStyleRange"))
-    to_range = to_tk.getList(sID("textStyleRange"))
+    from_range = from_tk.getList(APP.instance.sID("textStyleRange"))
+    to_range = to_tk.getList(APP.instance.sID("textStyleRange"))
     offset = len(sep) if sep else 0
 
     # For each item in the "from" style range, update the position and apply style to target
     for i in range(from_range.count):
         from_style = from_range.getObjectValue(i)
-        id_from = from_style.getInteger(sID("from"))
-        id_to = from_style.getInteger(sID("to"))
-        from_style.putInteger(sID("from"), id_from + len(to_tk.getString(sID("textKey"))) + (offset if i != 0 else 0))
-        from_style.putInteger(sID("to"), id_to + len(to_tk.getString(sID("textKey"))) + offset)
-        to_range.putObject(sID("textStyleRange"), from_style)
+        id_from = from_style.getInteger(APP.instance.sID("from"))
+        id_to = from_style.getInteger(APP.instance.sID("to"))
+        from_style.putInteger(
+            APP.instance.sID("from"),
+            id_from
+            + len(to_tk.getString(APP.instance.sID("textKey")))
+            + (offset if i != 0 else 0),
+        )
+        from_style.putInteger(
+            APP.instance.sID("to"),
+            id_to + len(to_tk.getString(APP.instance.sID("textKey"))) + offset,
+        )
+        to_range.putObject(APP.instance.sID("textStyleRange"), from_style)
 
     # Combine the contents and apply the updated style range
-    contents = str(to_tk.getString(sID("textKey")) + sep + from_tk.getString(sID("textKey")))
-    to_tk.putString(sID("textKey"), contents)
-    to_tk.putList(sID("textStyleRange"), to_range)
+    contents = str(
+        to_tk.getString(APP.instance.sID("textKey"))
+        + sep
+        + from_tk.getString(APP.instance.sID("textKey"))
+    )
+    to_tk.putString(APP.instance.sID("textKey"), contents)
+    to_tk.putList(APP.instance.sID("textStyleRange"), to_range)
 
     # Apply the updated text key to the target layer
     psd.apply_text_key(to_layer, to_tk)
@@ -349,23 +371,32 @@ def reset_transform_factor(layer: ArtLayer) -> None:
         layer: TextLayer to reset transform factors for.
     """
     key = psd.get_text_key(layer)
-    if key.hasKey(sID('transform')):
-
+    if key.hasKey(APP.instance.sID("transform")):
         # Check the scale factor
-        desc = key.getObjectValue(sID("transform"))
-        xx = desc.getUnitDoubleValue(sID("xx")) if desc.hasKey(sID("xx")) else 1
-        yy = desc.getUnitDoubleValue(sID("yy")) if desc.hasKey(sID("xx")) else 1
+        desc = key.getObjectValue(APP.instance.sID("transform"))
+        xx = (
+            desc.getUnitDoubleValue(APP.instance.sID("xx"))
+            if desc.hasKey(APP.instance.sID("xx"))
+            else 1
+        )
+        yy = (
+            desc.getUnitDoubleValue(APP.instance.sID("yy"))
+            if desc.hasKey(APP.instance.sID("xx"))
+            else 1
+        )
 
         # Fix the scale factor
         if xx == 1 and yy == 1:
             return
         if xx != 1:
-            desc.putDouble(sID("xx"), 1)
+            desc.putDouble(APP.instance.sID("xx"), 1)
         if yy != 1:
-            desc.putDouble(sID("yy"), 1)
+            desc.putDouble(APP.instance.sID("yy"), 1)
 
         # Update the scale factor
-        key.putObject(sID("transform"), sID("transform"), desc)
+        key.putObject(
+            APP.instance.sID("transform"), APP.instance.sID("transform"), desc
+        )
         psd.apply_text_key(layer, key)
 
 
@@ -378,19 +409,19 @@ def xmp_remove_ancestors() -> None:
     """Remove DocumentAncestors property from XMP data."""
 
     # Check that a document is open
-    if not APP.documents:
-        print('No documents open!')
+    if not APP.instance.documents:
+        print("No documents open!")
         return
 
     # XMP data
-    APP.eval_javascript('''
+    APP.instance.eval_javascript("""
         if (ExternalObject.AdobeXMPScript == undefined) {
           ExternalObject.AdobeXMPScript = new ExternalObject("lib:AdobeXMPScript");
         }
         var xmp = new XMPMeta( activeDocument.xmpMetadata.rawData);  
         xmp.deleteProperty(XMPConst.NS_PHOTOSHOP, "DocumentAncestors");
-        APP.activeDocument.xmpMetadata.rawData = xmp.serialize();
-    ''')
+        APP.instance.activeDocument.xmpMetadata.rawData = xmp.serialize();
+    """)
 
 
 """
@@ -401,7 +432,7 @@ def xmp_remove_ancestors() -> None:
 def create_color_shape(layer: ArtLayer, color: ColorObject) -> ArtLayer:
     layer_name = layer.name
     color = psd.get_color(color)
-    docref = APP.activeDocument
+    docref = APP.instance.activeDocument
     docsel = docref.selection
     docref.activeLayer = layer
     psd.select_layer_bounds(layer, docsel)
@@ -409,34 +440,38 @@ def create_color_shape(layer: ArtLayer, color: ColorObject) -> ArtLayer:
     desc1 = ActionDescriptor()
     ref1 = ActionReference()
     ref2 = ActionReference()
-    ref1.putClass(sID("path"))
-    desc1.putReference(sID("target"), ref1)
-    ref2.putProperty(sID("selectionClass"), sID("selection"))
-    desc1.putReference(sID("from"), ref2)
-    desc1.putUnitDouble(sID("tolerance"), sID("pixelsUnit"), 2.000000)
-    APP.executeAction(sID("make"), desc1, NO_DIALOG)
+    ref1.putClass(APP.instance.sID("path"))
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    ref2.putProperty(APP.instance.sID("selectionClass"), APP.instance.sID("selection"))
+    desc1.putReference(APP.instance.sID("from"), ref2)
+    desc1.putUnitDouble(
+        APP.instance.sID("tolerance"), APP.instance.sID("pixelsUnit"), 2.000000
+    )
+    APP.instance.executeAction(APP.instance.sID("make"), desc1, NO_DIALOG)
 
     ref1 = ActionReference()
     desc1 = ActionDescriptor()
     desc2 = ActionDescriptor()
     desc3 = ActionDescriptor()
     desc4 = ActionDescriptor()
-    ref1.putClass(sID("contentLayer"))
-    desc1.putReference(sID("target"), ref1)
-    desc4.putDouble(sID("red"), color.rgb.red)
-    desc4.putDouble(sID("green"), color.rgb.green)
-    desc4.putDouble(sID("blue"), color.rgb.blue)
-    desc3.putObject(sID("color"), sID("RGBColor"), desc4)
-    desc2.putObject(sID("type"), sID("solidColorLayer"), desc3)
-    desc1.putObject(sID("using"), sID("contentLayer"), desc2)
-    APP.executeAction(sID("make"), desc1, NO_DIALOG)
-    APP.activeDocument.activeLayer.name = layer_name
+    ref1.putClass(APP.instance.sID("contentLayer"))
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    desc4.putDouble(APP.instance.sID("red"), color.rgb.red)
+    desc4.putDouble(APP.instance.sID("green"), color.rgb.green)
+    desc4.putDouble(APP.instance.sID("blue"), color.rgb.blue)
+    desc3.putObject(APP.instance.sID("color"), APP.instance.sID("RGBColor"), desc4)
+    desc2.putObject(
+        APP.instance.sID("type"), APP.instance.sID("solidColorLayer"), desc3
+    )
+    desc1.putObject(APP.instance.sID("using"), APP.instance.sID("contentLayer"), desc2)
+    APP.instance.executeAction(APP.instance.sID("make"), desc1, NO_DIALOG)
+    APP.instance.activeDocument.activeLayer.name = layer_name
 
     # Check dims
     dims = psd.get_layer_dimensions(layer)
-    dims = (dims['width'], dims['height'])
+    dims = (dims["width"], dims["height"])
     new_dims = psd.get_layer_dimensions(docref.activeLayer)
-    new_dims = (new_dims['width'], new_dims['height'])
+    new_dims = (new_dims["width"], new_dims["height"])
     if not dims == new_dims:
         print("DIMS CHANGED:", layer_name)
         print("Before:", dims)
@@ -456,8 +491,8 @@ def log_all_template_fonts() -> dict:
     """Create a log of every font found for each PSD template."""
 
     # Ignore warnings from the psd_tools module
-    logging.getLogger('psd_tools').setLevel(logging.FATAL)
-    warnings.filterwarnings("ignore", module='psd_tools')
+    logging.getLogger("psd_tools").setLevel(logging.FATAL)
+    warnings.filterwarnings("ignore", module="psd_tools")
 
     def _get_fonts_from_psd(doc_path: str) -> set[str]:
         """
@@ -466,10 +501,10 @@ def log_all_template_fonts() -> dict:
         @return: Set of font names found in the document.
         """
         file, fonts = PSDImage.open(doc_path), set()
-        for layer in [n for n in file.descendants() if n.kind == 'type']:
-            for style in layer.engine_dict['StyleRun']['RunArray']:
-                font_key = style['StyleSheet']['StyleSheetData']['Font']
-                fonts.add(layer.resource_dict['FontSet'][font_key]['Name'])
+        for layer in [n for n in file.descendants() if n.kind == "type"]:
+            for style in layer.engine_dict["StyleRun"]["RunArray"]:
+                font_key = style["StyleSheet"]["StyleSheetData"]["Font"]
+                fonts.add(layer.resource_dict["FontSet"][font_key]["Name"])
         return fonts
 
     # PSD documents to test
@@ -484,7 +519,6 @@ def log_all_template_fonts() -> dict:
     # Check each document
     logging.basicConfig(level=logging.INFO)
     for f, temp_name in docs.items():
-
         # Alert the user
         logging.info(f"READING FONTS — {temp_name} [{f.name}] [{current}/{total}]")
         current += 1
@@ -498,8 +532,10 @@ def log_all_template_fonts() -> dict:
             master.setdefault(str(f), []).append(doc)
 
     # Log a sorted master list
-    master: dict[str, list] = {k: v for k, v in sorted(master.items(), key=lambda item: len(item[1]))}
-    with open('logs/FONTS.json', 'w', encoding='utf-8') as f:
+    master: dict[str, list] = {
+        k: v for k, v in sorted(master.items(), key=lambda item: len(item[1]))
+    }
+    with open("logs/FONTS.json", "w", encoding="utf-8") as f:
         json.dump(master, f, indent=2)
     return master
 
@@ -511,7 +547,9 @@ def log_all_template_fonts() -> dict:
 """
 
 
-def insert_data_set_variables(xml_data: str, from_path: str, to_path: str | None = None) -> None:
+def insert_data_set_variables(
+    xml_data: str, from_path: str, to_path: str | None = None
+) -> None:
     """Inserts data set variable XML into a PSD document.
 
     Args:
@@ -523,15 +561,19 @@ def insert_data_set_variables(xml_data: str, from_path: str, to_path: str | None
     to_path = to_path or from_path
 
     # Ignore warnings from the psd_tools module
-    logging.getLogger('psd_tools').setLevel(logging.FATAL)
-    warnings.filterwarnings("ignore", module='psd_tools')
+    logging.getLogger("psd_tools").setLevel(logging.FATAL)
+    warnings.filterwarnings("ignore", module="psd_tools")
 
     # Open the PSD file
     f = PSDImage.open(from_path)
 
     # Replace the image variables data
-    new_resource = ImageResource(b'MeSa', key=Resource.IMAGE_READY_VARIABLES, name='', data=xml_data.encode(
-        encoding='UTF-8', errors='strict'))
+    new_resource = ImageResource(
+        b"MeSa",
+        key=Resource.IMAGE_READY_VARIABLES,
+        name="",
+        data=xml_data.encode(encoding="UTF-8", errors="strict"),
+    )
     f.image_resources[Resource.IMAGE_READY_VARIABLES] = new_resource
 
     # Save the PSD file
@@ -544,12 +586,11 @@ def print_data_set_variables(path: str) -> None:
     Args:
         path: Path to a PSD document.
     """
-    data = PSDImage.open(path).image_resources.get_data(
-        Resource.IMAGE_READY_DATA_SETS)
+    data = PSDImage.open(path).image_resources.get_data(Resource.IMAGE_READY_DATA_SETS)
     pretty_xml = minidom.parseString(data).toprettyxml()
 
     # Print without excess newlines
-    print('\n'.join([line for line in pretty_xml.split('\n') if line.strip()]))
+    print("\n".join([line for line in pretty_xml.split("\n") if line.strip()]))
 
 
 def format_data_set_variable_name(text: str) -> str:
@@ -561,15 +602,11 @@ def format_data_set_variable_name(text: str) -> str:
     Returns:
         Properly formatted data set variable name.
     """
-    return text.title().replace(
-        ' ', '').replace(
-        '-', '').replace(
-        '&', '')
+    return text.title().replace(" ", "").replace("-", "").replace("&", "")
 
 
 def get_data_set_variables(
-    group: LayerContainer | None = None,
-    tree: str | None = None
+    group: LayerContainer | None = None, tree: str | None = None
 ) -> list[dict[str, str]]:
     """Get data set variables for all ArtLayer and LayerSet objects in document or LayerSet.
 
@@ -582,46 +619,57 @@ def get_data_set_variables(
     """
 
     # Establish current tree
-    tree = f'{tree}{format_data_set_variable_name(group.name)}.' if tree and group else (
-        f'{format_data_set_variable_name(group.name)}.' if group else '')
+    tree = (
+        f"{tree}{format_data_set_variable_name(group.name)}."
+        if tree and group
+        else (f"{format_data_set_variable_name(group.name)}." if group else "")
+    )
 
     # Establish group or top level document container
-    group = group or APP.activeDocument
+    group = group or APP.instance.activeDocument
     layer_vars: list[dict[str, str]] = []
 
     # Add layer variables
     for n in group.artLayers:
         with suppress(Exception):
             if n.kind == LayerKind.TextLayer:
-                layer_vars.append({
-                    'varName': f'{tree}{format_data_set_variable_name(n.name)}.Text',
-                    'trait': 'textcontent',
-                    'docRef': f"id('{n.id}')"
-                })
-            elif 'Frame' in n.name:
-                layer_vars.append({
-                    'varName': f'{tree}{format_data_set_variable_name(n.name)}.Image',
-                    'trait': 'fileref',
-                    'placementMethod': 'fill',
-                    'align': 'center',
-                    'valign': 'middle',
-                    'clip': 'false',
-                    'docRef': f"id('{n.id}')"
-                })
-            layer_vars.append({
-                'varName': f'{tree}{format_data_set_variable_name(n.name)}.Visible',
-                'trait': 'visibility',
-                'docRef': f"id('{n.id}')"
-            })
+                layer_vars.append(
+                    {
+                        "varName": f"{tree}{format_data_set_variable_name(n.name)}.Text",
+                        "trait": "textcontent",
+                        "docRef": f"id('{n.id}')",
+                    }
+                )
+            elif "Frame" in n.name:
+                layer_vars.append(
+                    {
+                        "varName": f"{tree}{format_data_set_variable_name(n.name)}.Image",
+                        "trait": "fileref",
+                        "placementMethod": "fill",
+                        "align": "center",
+                        "valign": "middle",
+                        "clip": "false",
+                        "docRef": f"id('{n.id}')",
+                    }
+                )
+            layer_vars.append(
+                {
+                    "varName": f"{tree}{format_data_set_variable_name(n.name)}.Visible",
+                    "trait": "visibility",
+                    "docRef": f"id('{n.id}')",
+                }
+            )
 
     # Add layer group variables
     for n in group.layerSets:
         with suppress(Exception):
-            layer_vars.append({
-                'varName': f'{tree}{format_data_set_variable_name(n.name)}.Visible',
-                'trait': 'visibility',
-                'docRef': f"id('{n.id}')"
-            })
+            layer_vars.append(
+                {
+                    "varName": f"{tree}{format_data_set_variable_name(n.name)}.Visible",
+                    "trait": "visibility",
+                    "docRef": f"id('{n.id}')",
+                }
+            )
             layer_vars.extend(get_data_set_variables(n, tree))
     return layer_vars
 
@@ -630,23 +678,27 @@ def get_data_set_variable_xml():
     """Generate data set variable XML for all layers in document."""
 
     # Create the root element
-    root = ET.Element('variableSets', xmlns="https://ns.adobe.com/Variables/1.0/")
+    root = ET.Element("variableSets", xmlns="https://ns.adobe.com/Variables/1.0/")
 
     # Create variableSet -> variables
-    variableSet = ET.SubElement(root, 'variableSet')
-    variableSet.set('locked', 'none')
-    variableSet.set('varSetName', 'binding1')
-    variables = ET.SubElement(variableSet, 'variables')
+    variableSet = ET.SubElement(root, "variableSet")
+    variableSet.set("locked", "none")
+    variableSet.set("varSetName", "binding1")
+    variables = ET.SubElement(variableSet, "variables")
 
     # Add your variables, could do this programmatically for each layer
     for var in get_data_set_variables():
-        variable = ET.SubElement(variables, 'variable')
+        variable = ET.SubElement(variables, "variable")
         for k, v in var.items():
             variable.set(k, v)
 
     # Convert the XML to a string
-    return (ET.tostring(root, encoding='utf8', method='xml', short_empty_elements=False)
-            .decode().replace('<?xml version=\'1.0\' encoding=\'utf8\'?>\n', '', 1).replace('><', '>\n<')) + '\n'
+    return (
+        ET.tostring(root, encoding="utf8", method="xml", short_empty_elements=False)
+        .decode()
+        .replace("<?xml version='1.0' encoding='utf8'?>\n", "", 1)
+        .replace("><", ">\n<")
+    ) + "\n"
 
 
 def create_data_set_csv(data_set: dict[str, str], path: str) -> None:
@@ -656,7 +708,7 @@ def create_data_set_csv(data_set: dict[str, str], path: str) -> None:
         data_set: A dictionary where variable names are the keys and variable values are the values.
         path: Path to save the CSV to.
     """
-    with open(path, 'w', newline='') as file:
+    with open(path, "w", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(data_set.keys())
         writer.writerow(data_set.values())
@@ -670,13 +722,17 @@ def import_data_set(path: str) -> None:
     """
     desc = ActionDescriptor()
     ref = ActionReference()
-    ref.putClass(sID("dataSetClass"))
-    desc.putReference(sID("null"), ref)
-    desc.putPath(sID("using"), path)
-    desc.putEnumerated(sID("encoding"), sID("dataSetEncoding"), sID("dataSetEncodingAuto"))
-    desc.putBoolean(sID("eraseAll"), True)
-    desc.putBoolean(sID("useFirstColumn"), True)
-    APP.executeAction(sID("importDataSets"), desc, NO_DIALOG)
+    ref.putClass(APP.instance.sID("dataSetClass"))
+    desc.putReference(APP.instance.sID("null"), ref)
+    desc.putPath(APP.instance.sID("using"), path)
+    desc.putEnumerated(
+        APP.instance.sID("encoding"),
+        APP.instance.sID("dataSetEncoding"),
+        APP.instance.sID("dataSetEncodingAuto"),
+    )
+    desc.putBoolean(APP.instance.sID("eraseAll"), True)
+    desc.putBoolean(APP.instance.sID("useFirstColumn"), True)
+    APP.instance.executeAction(APP.instance.sID("importDataSets"), desc, NO_DIALOG)
 
 
 def apply_data_set(data_set_name: str) -> None:
@@ -687,15 +743,15 @@ def apply_data_set(data_set_name: str) -> None:
     """
     desc = ActionDescriptor()
     setRef = ActionReference()
-    setRef.putName(sID("dataSetClass"), data_set_name)
-    desc.putReference(sID("null"), setRef)
-    APP.executeAction(sID("apply"), desc, NO_DIALOG)
+    setRef.putName(APP.instance.sID("dataSetClass"), data_set_name)
+    desc.putReference(APP.instance.sID("null"), setRef)
+    APP.instance.executeAction(APP.instance.sID("apply"), desc, NO_DIALOG)
 
 
 """
 * Testing Stuff
 """
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     """Insert any test actions here."""
     pass

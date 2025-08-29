@@ -1,36 +1,38 @@
 """
 * Helpers: Positioning
 """
+
 # Standard Library Imports
 import math
-from typing import Literal
 from collections.abc import Sequence
+from typing import Literal
 
 # Third Party Imports
-from photoshop.api import DialogModes, AnchorPosition
+from photoshop.api import AnchorPosition, DialogModes
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
-from photoshop.api._selection import Selection
 from photoshop.api._layerSet import LayerSet
+from photoshop.api._selection import Selection
 
 # Local Imports
 from src import APP
 from src.enums.adobe import Dimensions
 from src.helpers.bounds import (
-    get_layer_dimensions,
-    get_dimensions_from_bounds,
     LayerDimensions,
+    get_dimensions_from_bounds,
+    get_layer_dimensions,
+    get_layer_height,
     get_layer_width,
-    get_layer_height)
+)
 from src.helpers.selection import (
-    select_overlapping,
     check_selection_bounds,
-    select_bounds)
+    select_bounds,
+    select_overlapping,
+)
 from src.helpers.text import get_font_size, set_text_size_and_leading
 from src.utils.adobe import ReferenceLayer
 
 # QOL Definitions
-sID, cID = APP.stringIDToTypeID, APP.charIDToTypeID
 NO_DIALOG = DialogModes.DisplayNoDialogs
 
 # Positioning
@@ -41,7 +43,10 @@ positions_vertical = [Dimensions.Top, Dimensions.Bottom, Dimensions.CenterY]
 * Alignment Funcs
 """
 
-DimensionNames = Literal["width", "height", "center_x", "center_y", "left", "right", "top", "bottom"]
+DimensionNames = Literal[
+    "width", "height", "center_x", "center_y", "left", "right", "top", "bottom"
+]
+
 
 def align(
     axis: DimensionNames | Sequence[DimensionNames] | None = None,
@@ -61,11 +66,17 @@ def align(
     x, y = 0, 0
 
     # Get the dimensions of layer and reference if not provided
-    layer = layer or APP.activeDocument.activeLayer
+    layer = layer or APP.instance.activeDocument.activeLayer
     item = get_layer_dimensions(layer)
-    area = ref if isinstance(ref, dict) else (
-        get_dimensions_from_bounds(APP.activeDocument.selection.bounds)
-        if not ref else get_layer_dimensions(ref))
+    area = (
+        ref
+        if isinstance(ref, dict)
+        else (
+            get_dimensions_from_bounds(APP.instance.activeDocument.selection.bounds)
+            if not ref
+            else get_layer_dimensions(ref)
+        )
+    )
 
     # Single axis provided
     for n in axis:
@@ -80,7 +91,7 @@ def align(
 
 def align_all(
     layer: ArtLayer | LayerSet | None = None,
-    ref: ArtLayer | LayerSet | ReferenceLayer | LayerDimensions | None = None
+    ref: ArtLayer | LayerSet | ReferenceLayer | LayerDimensions | None = None,
 ) -> None:
     """Utility definition for passing CenterX and CenterY to align function."""
     align(["center_x", "center_y"], layer, ref)
@@ -88,7 +99,7 @@ def align_all(
 
 def align_vertical(
     layer: ArtLayer | LayerSet | None = None,
-    ref: ArtLayer | LayerSet | ReferenceLayer | LayerDimensions | None = None
+    ref: ArtLayer | LayerSet | ReferenceLayer | LayerDimensions | None = None,
 ) -> None:
     """Utility definition for passing CenterY to align function."""
     align("center_y", layer, ref)
@@ -96,7 +107,7 @@ def align_vertical(
 
 def align_horizontal(
     layer: ArtLayer | LayerSet | None = None,
-    ref: ArtLayer | LayerSet | ReferenceLayer | LayerDimensions | None = None
+    ref: ArtLayer | LayerSet | ReferenceLayer | LayerDimensions | None = None,
 ) -> None:
     """Utility definition for passing CenterX to align function."""
     align("center_x", layer, ref)
@@ -104,7 +115,7 @@ def align_horizontal(
 
 def align_left(
     layer: ArtLayer | LayerSet | None = None,
-    ref: ArtLayer | LayerSet | ReferenceLayer | LayerDimensions | None = None
+    ref: ArtLayer | LayerSet | ReferenceLayer | LayerDimensions | None = None,
 ) -> None:
     """Utility definition for passing Left to align function."""
     align("left", layer, ref)
@@ -112,7 +123,7 @@ def align_left(
 
 def align_right(
     layer: ArtLayer | LayerSet | None = None,
-    ref: ArtLayer | LayerSet | ReferenceLayer | LayerDimensions | None = None
+    ref: ArtLayer | LayerSet | ReferenceLayer | LayerDimensions | None = None,
 ) -> None:
     """Utility definition for passing Right to align function."""
     align("right", layer, ref)
@@ -120,7 +131,7 @@ def align_right(
 
 def align_top(
     layer: ArtLayer | LayerSet | None = None,
-    ref: ArtLayer | LayerSet | ReferenceLayer | LayerDimensions | None = None
+    ref: ArtLayer | LayerSet | ReferenceLayer | LayerDimensions | None = None,
 ) -> None:
     """Utility definition for passing Top to align function."""
     align("top", layer, ref)
@@ -128,7 +139,7 @@ def align_top(
 
 def align_bottom(
     layer: ArtLayer | LayerSet | None = None,
-    ref: ArtLayer | LayerSet | ReferenceLayer | LayerDimensions | None = None
+    ref: ArtLayer | LayerSet | ReferenceLayer | LayerDimensions | None = None,
 ) -> None:
     """Utility definition for passing Bottom to align function."""
     align("bottom", layer, ref)
@@ -143,7 +154,7 @@ def position_between_layers(
     layer: ArtLayer | LayerSet,
     top_layer: ArtLayer | LayerSet,
     bottom_layer: ArtLayer | LayerSet,
-    docref: Document | None = None
+    docref: Document | None = None,
 ) -> None:
     """Align layer vertically between two reference layers.
 
@@ -153,7 +164,7 @@ def position_between_layers(
         bottom_layer: Reference layer below the layer to be aligned.
         docref: Document reference, use active if not provided.
     """
-    docref = docref or APP.activeDocument
+    docref = docref or APP.instance.activeDocument
     bounds = (0, top_layer.bounds[3], docref.width, bottom_layer.bounds[1])
     align_vertical(layer, get_dimensions_from_bounds(bounds))
 
@@ -161,7 +172,7 @@ def position_between_layers(
 def position_dividers(
     dividers: Sequence[ArtLayer | LayerSet],
     layers: Sequence[ArtLayer | LayerSet],
-    docref: Document | None = None
+    docref: Document | None = None,
 ) -> None:
     """Positions a list of dividers between a list of layers.
 
@@ -175,7 +186,8 @@ def position_dividers(
             layer=dividers[i],
             top_layer=layers[i],
             bottom_layer=layers[i + 1],
-            docref=docref)
+            docref=docref,
+        )
 
 
 def spread_layers_over_reference(
@@ -183,7 +195,7 @@ def spread_layers_over_reference(
     ref: ReferenceLayer,
     gap: float = 0,
     inside_gap: float = 0,
-    outside_matching: bool = True
+    outside_matching: bool = True,
 ) -> None:
     """Spread layers apart across a reference layer.
 
@@ -195,13 +207,14 @@ def spread_layers_over_reference(
         outside_matching: If enabled, will enforce top and bottom gap to match.
     """
     # Get reference dimensions if not provided
-    height = ref.dims['height']
+    height = ref.dims["height"]
 
     # Calculate outside gap if not provided
     outside_gap = gap
     if not gap:
         total_space = height - sum(
-            [get_layer_dimensions(layer)['height'] for layer in layers])
+            [get_layer_dimensions(layer)["height"] for layer in layers]
+        )
         outside_gap = total_space / (len(layers) + 1)
 
     # Position the top layer relative to the reference
@@ -214,7 +227,8 @@ def spread_layers_over_reference(
         ignored = 2 if outside_matching else 1
         spaces = len(layers) - 1 if outside_matching else len(layers)
         total_space = height - sum(
-            [get_layer_dimensions(layer)['height'] for layer in layers])
+            [get_layer_dimensions(layer)["height"] for layer in layers]
+        )
         inside_gap = (total_space - (ignored * gap)) / spaces
     elif not gap:
         # Use the outside gap uniformly
@@ -267,8 +281,9 @@ def frame_layer(
     # Scale the layer to fit either the largest, or the smallest dimension
     action = min if smallest else max
     scale = scale * action(
-        (ref_dim['width'] / layer_dim['width']),
-        (ref_dim['height'] / layer_dim['height']))
+        (ref_dim["width"] / layer_dim["width"]),
+        (ref_dim["height"] / layer_dim["height"]),
+    )
     layer.resize(scale, scale, anchor)
 
     # Default alignments are center horizontal and vertical
@@ -295,7 +310,7 @@ def frame_layer_by_height(
     ref_dim = ref if isinstance(ref, dict) else get_layer_dimensions(ref)
 
     # Scale the layer to fit the height of the reference
-    scale = scale * (ref_dim['height'] / get_layer_height(layer))
+    scale = scale * (ref_dim["height"] / get_layer_height(layer))
     layer.resize(scale, scale, anchor)
 
     # Default alignments are center horizontal and vertical
@@ -322,7 +337,7 @@ def frame_layer_by_width(
     ref_dim = ref if isinstance(ref, dict) else get_layer_dimensions(ref)
 
     # Scale the layer to fit the height of the reference
-    scale = scale * (ref_dim['width'] / get_layer_width(layer))
+    scale = scale * (ref_dim["width"] / get_layer_width(layer))
     layer.resize(scale, scale, anchor)
 
     # Default alignments are center horizontal and vertical
@@ -336,8 +351,8 @@ def frame_layer_by_width(
 
 def check_reference_overlap(
     layer: ArtLayer,
-    ref_bounds: tuple[float,float,float,float],
-    docsel: Selection | None = None
+    ref_bounds: tuple[float, float, float, float],
+    docsel: Selection | None = None,
 ):
     """Checks if a layer is overlapping with given set of bounds.
 
@@ -349,7 +364,7 @@ def check_reference_overlap(
     Returns:
         Bounds if overlap exists, otherwise None.
     """
-    selection = docsel or APP.activeDocument.selection
+    selection = docsel or APP.instance.activeDocument.selection
     select_bounds(ref_bounds, selection=selection)
     select_overlapping(layer)
     if bounds := check_selection_bounds(selection):
@@ -359,9 +374,7 @@ def check_reference_overlap(
 
 
 def clear_reference_vertical(
-    layer: ArtLayer,
-    ref: ReferenceLayer,
-    docsel: Selection | None = None
+    layer: ArtLayer, ref: ReferenceLayer, docsel: Selection | None = None
 ) -> int | float:
     """Nudges a layer clear vertically of a given reference layer or area.
 
@@ -374,7 +387,7 @@ def clear_reference_vertical(
         The number of pixels layer was translated by (negative or positive indicating direction).
     """
     # Use active layer if not provided
-    docsel = docsel or APP.activeDocument.selection
+    docsel = docsel or APP.instance.activeDocument.selection
     delta = check_reference_overlap(layer=layer, ref_bounds=ref.bounds, docsel=docsel)
 
     # Check if selection is empty, if not translate our layer to clear the reference
@@ -393,7 +406,7 @@ def clear_reference_vertical_multi(
     font_size: float | None = None,
     step: float = 0.2,
     docref: Document | None = None,
-    docsel: Selection | None = None
+    docsel: Selection | None = None,
 ) -> None:
     """Shift or resize multiple text layers to prevent vertical collision with a reference area.
 
@@ -419,21 +432,24 @@ def clear_reference_vertical_multi(
     if font_size is None:
         font_size = get_font_size(text_layers[0])
     layers = text_layers.copy()
-    movable = len(layers)-1
+    movable = len(layers) - 1
 
     # Calculate inside gap
-    total_space = ref.dims['height'] - sum([get_layer_height(layer) for layer in text_layers])
+    total_space = ref.dims["height"] - sum(
+        [get_layer_height(layer) for layer in text_layers]
+    )
     if not uniform_gap:
-        inside_gap = ((total_space - space) - (ref.bounds[3] - layers[-1].bounds[1])) / movable
+        inside_gap = (
+            (total_space - space) - (ref.bounds[3] - layers[-1].bounds[1])
+        ) / movable
     else:
         inside_gap = total_space / (len(layers) + 1)
     leftover = (inside_gap - space) * movable
 
     # Does the bottom layer overlap with the loyalty box?
     delta = check_reference_overlap(
-        layer=layers[-1],
-        ref_bounds=loyalty_ref.bounds,
-        docsel=docsel)
+        layer=layers[-1], ref_bounds=loyalty_ref.bounds, docsel=docsel
+    )
     if delta >= 0:
         return
 
@@ -441,30 +457,28 @@ def clear_reference_vertical_multi(
     total_move = 0
     layers.pop(0)
     for n, lyr in enumerate(layers):
-        total_move += math.fabs(delta) * ((len(layers) - n)/len(layers))
+        total_move += math.fabs(delta) * ((len(layers) - n) / len(layers))
 
     # Text layers can just be shifted upwards
     if total_move < leftover:
         layers.reverse()
         for n, lyr in enumerate(layers):
-            move_y = delta * ((len(layers) - n)/len(layers))
+            move_y = delta * ((len(layers) - n) / len(layers))
             lyr.translate(0, move_y)
         return
 
     # Layer gap would be too small, need to resize text then shift upward
     font_size -= step
     for lyr in text_layers:
-        set_text_size_and_leading(
-            layer=lyr,
-            size=font_size,
-            leading=font_size)
+        set_text_size_and_leading(layer=lyr, size=font_size, leading=font_size)
 
     # Space apart planeswalker text evenly
     spread_layers_over_reference(
         layers=text_layers,
         ref=ref,
         gap=space if not uniform_gap else 0,
-        outside_matching=False)
+        outside_matching=False,
+    )
 
     # Check for another iteration
     clear_reference_vertical_multi(
@@ -475,4 +489,5 @@ def clear_reference_vertical_multi(
         uniform_gap=uniform_gap,
         font_size=font_size,
         docref=docref,
-        docsel=docsel)
+        docsel=docsel,
+    )

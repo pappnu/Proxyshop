@@ -12,7 +12,6 @@ from photoshop.api._layerSet import LayerSet
 from src import APP
 
 # QOL Definitions
-sID, cID = APP.stringIDToTypeID, APP.charIDToTypeID
 NO_DIALOG = DialogModes.DisplayNoDialogs
 
 """
@@ -30,5 +29,5 @@ def get_layer_action_descriptor(layer: ArtLayer | LayerSet) -> ActionDescriptor:
         Action descriptor info object about the layer.
     """
     ref = ActionReference()
-    ref.putIdentifier(sID('layer'), layer.id)
-    return APP.executeActionGet(ref)
+    ref.putIdentifier(APP.instance.sID("layer"), layer.id)
+    return APP.instance.executeActionGet(ref)

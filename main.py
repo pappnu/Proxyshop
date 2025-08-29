@@ -41,6 +41,9 @@ def launch_gui():
     from src.gui.console import GUIConsole
 
     if isinstance(CONSOLE, GUIConsole):
+        # Start Photoshop in the background
+        APP.initialize()
+
         # Kivy Imported Last
         from kivy.resources import resource_add_path
 

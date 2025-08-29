@@ -1,11 +1,12 @@
 """
 * Helpers: Masks
 """
+
 # Standard Library Imports
 from _ctypes import COMError
 
 # Third Party Imports
-from photoshop.api import DialogModes, ActionDescriptor, ActionReference
+from photoshop.api import ActionDescriptor, ActionReference, DialogModes
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
@@ -14,7 +15,6 @@ from src import APP
 from src.helpers.selection import select_canvas
 
 # QOL Definitions
-sID, cID = APP.stringIDToTypeID, APP.charIDToTypeID
 NO_DIALOG = DialogModes.DisplayNoDialogs
 
 """
@@ -23,8 +23,7 @@ NO_DIALOG = DialogModes.DisplayNoDialogs
 
 
 def copy_layer_mask(
-    layer_from: ArtLayer | LayerSet,
-    layer_to: ArtLayer | LayerSet
+    layer_from: ArtLayer | LayerSet, layer_to: ArtLayer | LayerSet
 ) -> None:
     """Copies mask from one layer to another.
 
@@ -35,19 +34,26 @@ def copy_layer_mask(
     desc1 = ActionDescriptor()
     ref17 = ActionReference()
     ref18 = ActionReference()
-    desc1.putClass(sID("new"), sID("channel"))
-    ref17.putEnumerated(sID("channel"), sID("channel"), sID("mask"))
-    ref17.putIdentifier(sID("layer"), layer_to.id)
-    desc1.putReference(sID("at"), ref17)
-    ref18.putEnumerated(sID("channel"), sID("channel"), sID("mask"))
-    ref18.putIdentifier(sID("layer"), layer_from.id)
-    desc1.putReference(sID("using"), ref18)
-    APP.executeAction(sID("make"), desc1, NO_DIALOG)
+    desc1.putClass(APP.instance.sID("new"), APP.instance.sID("channel"))
+    ref17.putEnumerated(
+        APP.instance.sID("channel"),
+        APP.instance.sID("channel"),
+        APP.instance.sID("mask"),
+    )
+    ref17.putIdentifier(APP.instance.sID("layer"), layer_to.id)
+    desc1.putReference(APP.instance.sID("at"), ref17)
+    ref18.putEnumerated(
+        APP.instance.sID("channel"),
+        APP.instance.sID("channel"),
+        APP.instance.sID("mask"),
+    )
+    ref18.putIdentifier(APP.instance.sID("layer"), layer_from.id)
+    desc1.putReference(APP.instance.sID("using"), ref18)
+    APP.instance.executeAction(APP.instance.sID("make"), desc1, NO_DIALOG)
 
 
 def copy_vector_mask(
-    layer_from: ArtLayer | LayerSet,
-    layer_to: ArtLayer | LayerSet
+    layer_from: ArtLayer | LayerSet, layer_to: ArtLayer | LayerSet
 ) -> None:
     """Copies vector mask from one layer to another.
 
@@ -59,15 +65,23 @@ def copy_vector_mask(
     ref1 = ActionReference()
     ref2 = ActionReference()
     ref3 = ActionReference()
-    ref1.putClass(sID("path"))
-    desc1.putReference(sID("target"),  ref1)
-    ref2.putEnumerated(sID("path"), sID("path"), sID("vectorMask"))
-    ref2.putIdentifier(sID("layer"),  layer_to.id)
-    desc1.putReference(sID("at"),  ref2)
-    ref3.putEnumerated(sID("path"), sID("path"), sID("vectorMask"))
-    ref3.putIdentifier(sID("layer"), layer_from.id)
-    desc1.putReference(sID("using"),  ref3)
-    APP.executeAction(sID("make"), desc1, NO_DIALOG)
+    ref1.putClass(APP.instance.sID("path"))
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    ref2.putEnumerated(
+        APP.instance.sID("path"),
+        APP.instance.sID("path"),
+        APP.instance.sID("vectorMask"),
+    )
+    ref2.putIdentifier(APP.instance.sID("layer"), layer_to.id)
+    desc1.putReference(APP.instance.sID("at"), ref2)
+    ref3.putEnumerated(
+        APP.instance.sID("path"),
+        APP.instance.sID("path"),
+        APP.instance.sID("vectorMask"),
+    )
+    ref3.putIdentifier(APP.instance.sID("layer"), layer_from.id)
+    desc1.putReference(APP.instance.sID("using"), ref3)
+    APP.instance.executeAction(APP.instance.sID("make"), desc1, NO_DIALOG)
 
 
 """
@@ -82,21 +96,20 @@ def apply_mask_to_layer_fx(layer: ArtLayer | LayerSet | None = None) -> None:
         layer: ArtLayer or LayerSet object.
     """
     if not layer:
-        layer = APP.activeDocument.activeLayer
+        layer = APP.instance.activeDocument.activeLayer
     ref = ActionReference()
-    ref.putIdentifier(sID("layer"), layer.id)
-    desc = APP.executeActionGet(ref)
-    layer_fx = desc.getObjectValue(sID('layerEffects'))
-    layer_fx.putBoolean(sID("layerMaskAsGlobalMask"), True)
+    ref.putIdentifier(APP.instance.sID("layer"), layer.id)
+    desc = APP.instance.executeActionGet(ref)
+    layer_fx = desc.getObjectValue(APP.instance.sID("layerEffects"))
+    layer_fx.putBoolean(APP.instance.sID("layerMaskAsGlobalMask"), True)
     desc = ActionDescriptor()
-    desc.putReference(sID("target"), ref)
-    desc.putObject(sID("to"), sID("layer"), layer_fx)
-    APP.executeAction(sID("set"), desc,  NO_DIALOG)
+    desc.putReference(APP.instance.sID("target"), ref)
+    desc.putObject(APP.instance.sID("to"), APP.instance.sID("layer"), layer_fx)
+    APP.instance.executeAction(APP.instance.sID("set"), desc, NO_DIALOG)
 
 
 def set_layer_mask(
-    layer: ArtLayer | LayerSet | None = None,
-    visible: bool = True
+    layer: ArtLayer | LayerSet | None = None, visible: bool = True
 ) -> None:
     """Set the visibility of a layer's mask.
 
@@ -105,15 +118,15 @@ def set_layer_mask(
         visible: Whether to make the layer mask visible.
     """
     if not layer:
-        layer = APP.activeDocument.activeLayer
+        layer = APP.instance.activeDocument.activeLayer
     desc1 = ActionDescriptor()
     desc2 = ActionDescriptor()
     ref1 = ActionReference()
-    ref1.putIdentifier(cID("Lyr "), layer.id)
-    desc1.putReference(sID("target"), ref1)
-    desc2.putBoolean(cID("UsrM"), visible)
-    desc1.putObject(cID("T   "), cID("Lyr "), desc2)
-    APP.executeAction(cID("setd"), desc1, NO_DIALOG)
+    ref1.putIdentifier(APP.instance.cID("Lyr "), layer.id)
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    desc2.putBoolean(APP.instance.cID("UsrM"), visible)
+    desc1.putObject(APP.instance.cID("T   "), APP.instance.cID("Lyr "), desc2)
+    APP.instance.executeAction(APP.instance.cID("setd"), desc1, NO_DIALOG)
 
 
 def enable_mask(layer: ArtLayer | LayerSet | None = None) -> None:
@@ -141,18 +154,21 @@ def apply_mask(layer: ArtLayer | LayerSet | None = None) -> None:
         layer: ArtLayer or LayerSet object, use active layer if not provided.
     """
     if layer:
-        APP.activeDocument.activeLayer = layer
+        APP.instance.activeDocument.activeLayer = layer
     desc1 = ActionDescriptor()
     ref1 = ActionReference()
-    ref1.putEnumerated(sID("channel"), sID("channel"), sID("mask"))
-    desc1.putReference(sID("target"),  ref1)
-    desc1.putBoolean(sID("apply"), True)
-    APP.executeAction(sID("delete"), desc1, NO_DIALOG)
+    ref1.putEnumerated(
+        APP.instance.sID("channel"),
+        APP.instance.sID("channel"),
+        APP.instance.sID("mask"),
+    )
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    desc1.putBoolean(APP.instance.sID("apply"), True)
+    APP.instance.executeAction(APP.instance.sID("delete"), desc1, NO_DIALOG)
 
 
 def set_layer_vector_mask(
-    layer: ArtLayer | LayerSet | None = None,
-    visible: bool = False
+    layer: ArtLayer | LayerSet | None = None, visible: bool = False
 ) -> None:
     """Set the visibility of a layer's vector mask.
 
@@ -161,15 +177,15 @@ def set_layer_vector_mask(
         visible: Whether to make the vector mask visible.
     """
     if not layer:
-        layer = APP.activeDocument.activeLayer
+        layer = APP.instance.activeDocument.activeLayer
     desc1 = ActionDescriptor()
     desc2 = ActionDescriptor()
     ref1 = ActionReference()
-    ref1.putIdentifier(sID("layer"), layer.id)
-    desc1.putReference(sID("target"), ref1)
-    desc2.putBoolean(sID("vectorMaskEnabled"), visible)
-    desc1.putObject(sID("to"), sID("layer"), desc2)
-    APP.executeAction(sID("set"), desc1, NO_DIALOG)
+    ref1.putIdentifier(APP.instance.sID("layer"), layer.id)
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    desc2.putBoolean(APP.instance.sID("vectorMaskEnabled"), visible)
+    desc1.putObject(APP.instance.sID("to"), APP.instance.sID("layer"), desc2)
+    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
 
 
 def enable_vector_mask(layer: ArtLayer | LayerSet | None = None) -> None:
@@ -202,13 +218,17 @@ def enter_mask_channel(layer: ArtLayer | LayerSet | None = None):
         layer: Layer to make active, if provided.
     """
     if layer:
-        APP.activeDocument.activeLayer = layer
+        APP.instance.activeDocument.activeLayer = layer
     d1 = ActionDescriptor()
     r1 = ActionReference()
-    r1.putEnumerated(sID("channel"), sID("channel"), sID("mask"))
-    d1.putReference(sID("target"), r1)
-    d1.putBoolean(sID("makeVisible"), True)
-    APP.executeAction(sID("select"), d1, NO_DIALOG)
+    r1.putEnumerated(
+        APP.instance.sID("channel"),
+        APP.instance.sID("channel"),
+        APP.instance.sID("mask"),
+    )
+    d1.putReference(APP.instance.sID("target"), r1)
+    d1.putBoolean(APP.instance.sID("makeVisible"), True)
+    APP.instance.executeAction(APP.instance.sID("select"), d1, NO_DIALOG)
 
 
 def enter_rgb_channel(layer: ArtLayer | LayerSet | None = None):
@@ -218,13 +238,17 @@ def enter_rgb_channel(layer: ArtLayer | LayerSet | None = None):
         layer: Layer to make active, if provided.
     """
     if layer:
-        APP.activeDocument.activeLayer = layer
+        APP.instance.activeDocument.activeLayer = layer
     d1 = ActionDescriptor()
     r1 = ActionReference()
-    r1.putEnumerated(sID("channel"), sID("channel"), sID("RGB"))
-    d1.putReference(sID("target"), r1)
-    d1.putBoolean(sID("makeVisible"), True)
-    APP.executeAction(sID("select"), d1, NO_DIALOG)
+    r1.putEnumerated(
+        APP.instance.sID("channel"),
+        APP.instance.sID("channel"),
+        APP.instance.sID("RGB"),
+    )
+    d1.putReference(APP.instance.sID("target"), r1)
+    d1.putBoolean(APP.instance.sID("makeVisible"), True)
+    APP.instance.executeAction(APP.instance.sID("select"), d1, NO_DIALOG)
 
 
 def create_mask(layer: ArtLayer | LayerSet | None = None):
@@ -234,14 +258,22 @@ def create_mask(layer: ArtLayer | LayerSet | None = None):
         layer: Layer to make active, if provided.
     """
     if layer:
-        APP.activeDocument.activeLayer = layer
+        APP.instance.activeDocument.activeLayer = layer
     d1 = ActionDescriptor()
     r1 = ActionReference()
-    d1.putClass(sID("new"), sID("channel"))
-    r1.putEnumerated(sID("channel"), sID("channel"), sID("mask"))
-    d1.putReference(sID("at"), r1)
-    d1.putEnumerated(sID("using"), sID("userMaskEnabled"), sID("revealAll"))
-    APP.executeAction(sID("make"), d1, NO_DIALOG)
+    d1.putClass(APP.instance.sID("new"), APP.instance.sID("channel"))
+    r1.putEnumerated(
+        APP.instance.sID("channel"),
+        APP.instance.sID("channel"),
+        APP.instance.sID("mask"),
+    )
+    d1.putReference(APP.instance.sID("at"), r1)
+    d1.putEnumerated(
+        APP.instance.sID("using"),
+        APP.instance.sID("userMaskEnabled"),
+        APP.instance.sID("revealAll"),
+    )
+    APP.instance.executeAction(APP.instance.sID("make"), d1, NO_DIALOG)
 
 
 def copy_to_mask(
@@ -257,7 +289,7 @@ def copy_to_mask(
     """
 
     # Select canvas and copy
-    docref = APP.activeDocument
+    docref = APP.instance.activeDocument
     if source:
         docref.activeLayer = source
     docsel = docref.selection
@@ -289,9 +321,13 @@ def delete_mask(layer: ArtLayer | LayerSet | None = None) -> None:
         layer: ArtLayer ore LayerSet object, use active layer if not provided.
     """
     if layer:
-        APP.activeDocument.activeLayer = layer
+        APP.instance.activeDocument.activeLayer = layer
     desc1 = ActionDescriptor()
     ref1 = ActionReference()
-    ref1.putEnumerated(sID("channel"), sID("ordinal"), sID("targetEnum"))
-    desc1.putReference(sID("target"), ref1)
-    APP.executeAction(sID("delete"), desc1, NO_DIALOG)
+    ref1.putEnumerated(
+        APP.instance.sID("channel"),
+        APP.instance.sID("ordinal"),
+        APP.instance.sID("targetEnum"),
+    )
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    APP.instance.executeAction(APP.instance.sID("delete"), desc1, NO_DIALOG)

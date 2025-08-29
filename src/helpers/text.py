@@ -1,6 +1,7 @@
 """
 * Helpers: Text Items
 """
+
 # Standard Library Imports
 from typing import Literal, overload
 from collections.abc import Sequence
@@ -11,7 +12,8 @@ from photoshop.api import (
     ActionDescriptor,
     ActionReference,
     ActionList,
-    LayerKind)
+    LayerKind,
+)
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
@@ -23,12 +25,12 @@ from src.helpers.bounds import (
     get_layer_height,
     get_layer_width,
     get_textbox_width,
-    get_width_no_effects)
+    get_width_no_effects,
+)
 from src.helpers.document import pixels_to_points
 from src.utils.adobe import PS_EXCEPTIONS
 
 # QOL Definitions
-sID, cID = APP.stringIDToTypeID, APP.charIDToTypeID
 NO_DIALOG = DialogModes.DisplayNoDialogs
 
 """
@@ -52,9 +54,9 @@ def get_text_key(layer: ArtLayer) -> ActionDescriptor:
         layer: ArtLayer which must be a TextLayer kind.
     """
     reference = ActionReference()
-    reference.putIdentifier(sID('layer'), layer.id)
-    descriptor = APP.executeActionGet(reference)
-    return descriptor.getObjectValue(sID('textKey'))
+    reference.putIdentifier(APP.instance.sID("layer"), layer.id)
+    descriptor = APP.instance.executeActionGet(reference)
+    return descriptor.getObjectValue(APP.instance.sID("textKey"))
 
 
 def apply_text_key(text_layer: ArtLayer, text_key: ActionDescriptor) -> None:
@@ -65,10 +67,10 @@ def apply_text_key(text_layer: ArtLayer, text_key: ActionDescriptor) -> None:
         text_key: TextKey extracted from a TextLayer that has been modified.
     """
     action, ref = ActionDescriptor(), ActionReference()
-    ref.putIdentifier(sID("layer"), text_layer.id)
-    action.putReference(sID("target"), ref)
-    action.putObject(sID("to"), sID("textLayer"), text_key)
-    APP.executeAction(sID("set"), action, NO_DIALOG)
+    ref.putIdentifier(APP.instance.sID("layer"), text_layer.id)
+    action.putReference(APP.instance.sID("target"), ref)
+    action.putObject(APP.instance.sID("to"), APP.instance.sID("textLayer"), text_key)
+    APP.instance.executeAction(APP.instance.sID("set"), action, NO_DIALOG)
 
 
 def get_line_count(layer: ArtLayer, docref: Document | None = None) -> int:
@@ -81,11 +83,11 @@ def get_line_count(layer: ArtLayer, docref: Document | None = None) -> int:
     Returns:
         Number of lines in the TextItem.
     """
-    docref = docref or APP.activeDocument
-    return round(pixels_to_points(
-        number=get_layer_height(layer),
-        docref=docref
-    ) / layer.textItem.leading)
+    docref = docref or APP.instance.activeDocument
+    return round(
+        pixels_to_points(number=get_layer_height(layer), docref=docref)
+        / layer.textItem.leading
+    )
 
 
 """
@@ -102,20 +104,22 @@ def replace_text(layer: ArtLayer, find: str, replace: str) -> None:
         replace: Text to replace the found text with.
     """
     # Establish our text key and reference text
-    idTextKey = sID("textKey")
+    idTextKey = APP.instance.sID("textKey")
     text_key: ActionDescriptor = get_text_key(layer)
     current_text = text_key.getString(idTextKey)
 
     # Check if our target text exists
     if find not in current_text:
-        print(f"Text replacement couldn't find the text '{find}' "
-              f"in layer with name '{layer.name}'!")
+        print(
+            f"Text replacement couldn't find the text '{find}' "
+            f"in layer with name '{layer.name}'!"
+        )
         return
 
     # Reusable ID's
-    idTo = sID('to')
-    idFrom = sID('from')
-    idTextStyleRange = sID('textStyleRange')
+    idTo = APP.instance.sID("to")
+    idFrom = APP.instance.sID("from")
+    idTextStyleRange = APP.instance.sID("textStyleRange")
 
     # Track length difference and whether replacement was made
     offset = len(replace) - len(find)
@@ -127,7 +131,7 @@ def replace_text(layer: ArtLayer, find: str, replace: str) -> None:
         style = style_range.getObjectValue(i)
         idxFrom = style.getInteger(idFrom)
         idxTo = style.getInteger(idTo)
-        if not replaced and find in current_text[idxFrom: idxTo]:
+        if not replaced and find in current_text[idxFrom:idxTo]:
             # Found the text to replace
             replaced = True
             style.putInteger(idTo, idxTo + offset)
@@ -140,8 +144,10 @@ def replace_text(layer: ArtLayer, find: str, replace: str) -> None:
 
     # Skip applying changes if no replacement could be made
     if not replaced:
-        print(f"Text replacement couldn't find the text '{find}' "
-              f"in layer with name '{layer.name}'!")
+        print(
+            f"Text replacement couldn't find the text '{find}' "
+            f"in layer with name '{layer.name}'!"
+        )
         return
 
     # Apply changes
@@ -154,7 +160,7 @@ def replace_text_legacy(
     find: str,
     replace: str,
     layer: ArtLayer | None = None,
-    targeted_replace: bool = True
+    targeted_replace: bool = True,
 ) -> None:
     """Replace all instances of `replace_this` in the specified layer with `replace_with`, using Photoshop's
     built-in search and replace feature. Slower than `replace_text`, but can handle strings broken into
@@ -168,35 +174,41 @@ def replace_text_legacy(
     """
     # Set the active layer
     if layer:
-        APP.activeDocument.activeLayer = layer
+        APP.instance.activeDocument.activeLayer = layer
 
     # Find and replace
-    idFindReplace = sID("findReplace")
+    idFindReplace = APP.instance.sID("findReplace")
     desc31 = ActionDescriptor()
     ref3 = ActionReference()
     desc32 = ActionDescriptor()
-    ref3.putProperty(sID("property"), idFindReplace)
-    ref3.putEnumerated(sID("textLayer"), sID("ordinal"), sID("targetEnum"))
-    desc31.putReference(sID("target"), ref3)
-    desc32.putString(sID("find"), f"""{find}""")
-    desc32.putString(sID("replace"), f"""{replace}""")
-    desc32.putBoolean(
-        sID("checkAll"),  # Targeted replace doesn't work on old PS versions
-        False if targeted_replace and APP.supports_target_text_replace() else True
+    ref3.putProperty(APP.instance.sID("property"), idFindReplace)
+    ref3.putEnumerated(
+        APP.instance.sID("textLayer"),
+        APP.instance.sID("ordinal"),
+        APP.instance.sID("targetEnum"),
     )
-    desc32.putBoolean(sID("forward"), True)
-    desc32.putBoolean(sID("caseSensitive"), True)
-    desc32.putBoolean(sID("wholeWord"), False)
-    desc32.putBoolean(sID("ignoreAccents"), True)
-    desc31.putObject(sID("using"), idFindReplace, desc32)
+    desc31.putReference(APP.instance.sID("target"), ref3)
+    desc32.putString(APP.instance.sID("find"), f"""{find}""")
+    desc32.putString(APP.instance.sID("replace"), f"""{replace}""")
+    desc32.putBoolean(
+        APP.instance.sID(
+            "checkAll"
+        ),  # Targeted replace doesn't work on old PS versions
+        False
+        if targeted_replace and APP.instance.supports_target_text_replace()
+        else True,
+    )
+    desc32.putBoolean(APP.instance.sID("forward"), True)
+    desc32.putBoolean(APP.instance.sID("caseSensitive"), True)
+    desc32.putBoolean(APP.instance.sID("wholeWord"), False)
+    desc32.putBoolean(APP.instance.sID("ignoreAccents"), True)
+    desc31.putObject(APP.instance.sID("using"), idFindReplace, desc32)
     try:
-        APP.executeAction(idFindReplace, desc31, NO_DIALOG)
+        APP.instance.executeAction(idFindReplace, desc31, NO_DIALOG)
     except PS_EXCEPTIONS:
         replace_text_legacy(
-            find=find,
-            replace=replace,
-            layer=layer,
-            targeted_replace=False)
+            find=find, replace=replace, layer=layer, targeted_replace=False
+        )
 
 
 def remove_trailing_text(layer: ArtLayer, idx: int) -> None:
@@ -207,23 +219,24 @@ def remove_trailing_text(layer: ArtLayer, idx: int) -> None:
         idx: Index to remove after.
     """
     # Action Descriptor ID's
-    idTextKey = sID("textKey")
-    idFrom = sID("from")
-    idTo = sID("to")
+    idTextKey = APP.instance.sID("textKey")
+    idFrom = APP.instance.sID("from")
+    idTo = APP.instance.sID("to")
 
     # Establish our text key and descriptor ID's
     key: ActionDescriptor = get_text_key(layer)
     current_text = key.getString(idTextKey)
-    new_text = current_text[0:idx - 1]
+    new_text = current_text[0 : idx - 1]
 
     # Find the range where target text exists
-    for n in [sID("textStyleRange"), sID("paragraphStyleRange")]:
-
+    for n in [
+        APP.instance.sID("textStyleRange"),
+        APP.instance.sID("paragraphStyleRange"),
+    ]:
         # Iterate over list of style ranges
         style_ranges: list[ActionDescriptor] = []
         text_range = key.getList(n)
         for i in range(text_range.count):
-
             # Get position of this style range
             style = text_range.getObjectValue(i)
             i_left = style.getInteger(idFrom)
@@ -254,24 +267,25 @@ def remove_leading_text(layer: ArtLayer, idx: int) -> None:
         idx: Index to remove up to.
     """
     # Action Descriptor ID's
-    idTextKey = sID("textKey")
-    idFrom = sID("from")
-    idTo = sID("to")
+    idTextKey = APP.instance.sID("textKey")
+    idFrom = APP.instance.sID("from")
+    idTo = APP.instance.sID("to")
 
     # Establish our text key and descriptor ID's
     key: ActionDescriptor = get_text_key(layer)
     current_text = key.getString(idTextKey)
-    new_text = current_text[idx + 1:]
+    new_text = current_text[idx + 1 :]
     offset = idx + 1
 
     # Find the range where target text exists
-    for n in [sID("textStyleRange"), sID("paragraphStyleRange")]:
-
+    for n in [
+        APP.instance.sID("textStyleRange"),
+        APP.instance.sID("paragraphStyleRange"),
+    ]:
         # Iterate over list of style ranges
         style_ranges: list[ActionDescriptor] = []
         text_range = key.getList(n)
         for i in range(text_range.count):
-
             # Get position of this style range
             style = text_range.getObjectValue(i)
             i_left = style.getInteger(idFrom)
@@ -305,24 +319,23 @@ def remove_leading_text(layer: ArtLayer, idx: int) -> None:
 
 ScaleAxis = Literal["xx", "yy"]
 
+
 @overload
 def get_text_scale_factor(
-    layer: ArtLayer,
-    axis: list[ScaleAxis],
-    text_key: ActionDescriptor | None=None
+    layer: ArtLayer, axis: list[ScaleAxis], text_key: ActionDescriptor | None = None
 ) -> list[float]: ...
 
+
 @overload
 def get_text_scale_factor(
-    layer: ArtLayer,
-    axis: ScaleAxis = 'yy',
-    text_key: ActionDescriptor | None=None
+    layer: ArtLayer, axis: ScaleAxis = "yy", text_key: ActionDescriptor | None = None
 ) -> float: ...
+
 
 def get_text_scale_factor(
     layer: ArtLayer,
-    axis: ScaleAxis | list[ScaleAxis] = 'yy',
-    text_key: ActionDescriptor | None=None
+    axis: ScaleAxis | list[ScaleAxis] = "yy",
+    text_key: ActionDescriptor | None = None,
 ) -> float | list[float]:
     """Get the scale factor of the document for changing text size.
 
@@ -335,31 +348,33 @@ def get_text_scale_factor(
         Float scale factor
     """
 
-
     # Get the textKey if not provided
     if not text_key:
         # Get text key
         text_key = get_text_key(layer)
-    idTransform = sID('transform')
+    idTransform = APP.instance.sID("transform")
 
     # Check for the "transform" descriptor
     if text_key.hasKey(idTransform):
         transform = text_key.getObjectValue(idTransform)
         # Check list of axis
         if isinstance(axis, list):
-            return [transform.getUnitDoubleValue(sID(n)) for n in axis]
+            return [transform.getUnitDoubleValue(APP.instance.sID(n)) for n in axis]
         # String axis
-        return transform.getUnitDoubleValue(sID(axis))
+        return transform.getUnitDoubleValue(APP.instance.sID(axis))
     if isinstance(axis, list):
         return [1.0] * len(axis)
     return 1.0
+
 
 """
 * Text Alignment
 """
 
 
-def align_text(action_list: ActionList, start: int, end: int, alignment: str = "right") -> ActionList:
+def align_text(
+    action_list: ActionList, start: int, end: int, alignment: str = "right"
+) -> ActionList:
     """Align a slice of text in an action using given alignment.
 
     Examples:
@@ -376,13 +391,17 @@ def align_text(action_list: ActionList, start: int, end: int, alignment: str = "
     """
     d1 = ActionDescriptor()
     d2 = ActionDescriptor()
-    paraStyle = sID("paragraphStyle")
-    d1.putInteger(sID("from"), start)
-    d1.putInteger(sID("to"), end)
-    d2.putBoolean(sID("styleSheetHasParent"), True)
-    d2.putEnumerated(sID("align"), sID("alignmentType"), sID(alignment))
+    paraStyle = APP.instance.sID("paragraphStyle")
+    d1.putInteger(APP.instance.sID("from"), start)
+    d1.putInteger(APP.instance.sID("to"), end)
+    d2.putBoolean(APP.instance.sID("styleSheetHasParent"), True)
+    d2.putEnumerated(
+        APP.instance.sID("align"),
+        APP.instance.sID("alignmentType"),
+        APP.instance.sID(alignment),
+    )
     d1.putObject(paraStyle, paraStyle, d2)
-    action_list.putObject(sID("paragraphStyleRange"), d1)
+    action_list.putObject(APP.instance.sID("paragraphStyleRange"), d1)
     return action_list
 
 
@@ -415,13 +434,19 @@ def set_space_after(space: int | float) -> None:
     desc1 = ActionDescriptor()
     ref1 = ActionReference()
     deesc2 = ActionDescriptor()
-    ref1.putProperty(sID("property"), sID("paragraphStyle"))
-    ref1.putEnumerated(sID("textLayer"), sID("ordinal"), sID("targetEnum"))
-    desc1.putReference(sID("target"), ref1)
-    deesc2.putInteger(sID("textOverrideFeatureName"), 808464438)
-    deesc2.putUnitDouble(sID("spaceAfter"), sID("pointsUnit"), space)
-    desc1.putObject(sID("to"), sID("paragraphStyle"), deesc2)
-    APP.executeAction(sID("set"), desc1, NO_DIALOG)
+    ref1.putProperty(APP.instance.sID("property"), APP.instance.sID("paragraphStyle"))
+    ref1.putEnumerated(
+        APP.instance.sID("textLayer"),
+        APP.instance.sID("ordinal"),
+        APP.instance.sID("targetEnum"),
+    )
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    deesc2.putInteger(APP.instance.sID("textOverrideFeatureName"), 808464438)
+    deesc2.putUnitDouble(
+        APP.instance.sID("spaceAfter"), APP.instance.sID("pointsUnit"), space
+    )
+    desc1.putObject(APP.instance.sID("to"), APP.instance.sID("paragraphStyle"), deesc2)
+    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
 
 
 def set_text_leading(layer: ArtLayer, leading: float | int) -> None:
@@ -434,12 +459,14 @@ def set_text_leading(layer: ArtLayer, leading: float | int) -> None:
     desc1 = ActionDescriptor()
     ref1 = ActionReference()
     desc2 = ActionDescriptor()
-    ref1.putProperty(sID("property"), sID("textStyle"))
-    ref1.putIdentifier(sID("textLayer"), layer.id)
-    desc1.putReference(sID("target"), ref1)
-    desc2.putUnitDouble(sID("leading"), sID("pointsUnit"), leading)
-    desc1.putObject(sID("to"), sID("textStyle"), desc2)
-    APP.executeAction(sID("set"), desc1, NO_DIALOG)
+    ref1.putProperty(APP.instance.sID("property"), APP.instance.sID("textStyle"))
+    ref1.putIdentifier(APP.instance.sID("textLayer"), layer.id)
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    desc2.putUnitDouble(
+        APP.instance.sID("leading"), APP.instance.sID("pointsUnit"), leading
+    )
+    desc1.putObject(APP.instance.sID("to"), APP.instance.sID("textStyle"), desc2)
+    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
 
 
 def set_text_size(layer: ArtLayer, size: float | int) -> None:
@@ -452,16 +479,18 @@ def set_text_size(layer: ArtLayer, size: float | int) -> None:
     desc1 = ActionDescriptor()
     ref1 = ActionReference()
     desc2 = ActionDescriptor()
-    textStyle = sID("textStyle")
-    ref1.putProperty(sID("property"), textStyle)
-    ref1.putIdentifier(sID("textLayer"), layer.id)
-    desc1.putReference(sID("target"), ref1)
-    desc2.putUnitDouble(sID("size"), sID("pointsUnit"), size)
-    desc1.putObject(sID("to"), textStyle, desc2)
-    APP.executeAction(sID("set"), desc1, NO_DIALOG)
+    textStyle = APP.instance.sID("textStyle")
+    ref1.putProperty(APP.instance.sID("property"), textStyle)
+    ref1.putIdentifier(APP.instance.sID("textLayer"), layer.id)
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    desc2.putUnitDouble(APP.instance.sID("size"), APP.instance.sID("pointsUnit"), size)
+    desc1.putObject(APP.instance.sID("to"), textStyle, desc2)
+    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
 
 
-def set_text_size_and_leading(layer: ArtLayer, size: int | float, leading: int | float) -> None:
+def set_text_size_and_leading(
+    layer: ArtLayer, size: int | float, leading: int | float
+) -> None:
     """Manually assign font size and leading space to a text layer using action descriptors.
 
     Args:
@@ -472,15 +501,15 @@ def set_text_size_and_leading(layer: ArtLayer, size: int | float, leading: int |
     desc1 = ActionDescriptor()
     ref1 = ActionReference()
     desc2 = ActionDescriptor()
-    textStyle = sID("textStyle")
-    ptUnit = sID("pointsUnit")
-    ref1.putProperty(sID("property"), textStyle)
-    ref1.putIdentifier(sID("textLayer"), layer.id)
-    desc1.putReference(sID("target"), ref1)
-    desc2.putUnitDouble(sID("size"), ptUnit, size)
-    desc2.putUnitDouble(sID("leading"), ptUnit, leading)
-    desc1.putObject(sID("to"), textStyle, desc2)
-    APP.executeAction(sID("set"), desc1, NO_DIALOG)
+    textStyle = APP.instance.sID("textStyle")
+    ptUnit = APP.instance.sID("pointsUnit")
+    ref1.putProperty(APP.instance.sID("property"), textStyle)
+    ref1.putIdentifier(APP.instance.sID("textLayer"), layer.id)
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    desc2.putUnitDouble(APP.instance.sID("size"), ptUnit, size)
+    desc2.putUnitDouble(APP.instance.sID("leading"), ptUnit, leading)
+    desc1.putObject(APP.instance.sID("to"), textStyle, desc2)
+    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
 
 
 def set_composer(layer: ArtLayer, every: bool = False) -> None:
@@ -494,13 +523,13 @@ def set_composer(layer: ArtLayer, every: bool = False) -> None:
     desc1 = ActionDescriptor()
     ref1 = ActionReference()
     desc2 = ActionDescriptor()
-    paraStyle = sID("paragraphStyle")
-    ref1.putProperty(sID("property"), paraStyle)
-    ref1.putIdentifier(sID("textLayer"), layer.id)
-    desc1.putReference(sID("target"), ref1)
-    desc2.putBoolean(sID("textEveryLineComposer"), every)
-    desc1.putObject(sID("to"), paraStyle, desc2)
-    APP.executeAction(sID("set"), desc1, NO_DIALOG)
+    paraStyle = APP.instance.sID("paragraphStyle")
+    ref1.putProperty(APP.instance.sID("property"), paraStyle)
+    ref1.putIdentifier(APP.instance.sID("textLayer"), layer.id)
+    desc1.putReference(APP.instance.sID("target"), ref1)
+    desc2.putBoolean(APP.instance.sID("textEveryLineComposer"), every)
+    desc1.putObject(APP.instance.sID("to"), paraStyle, desc2)
+    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
 
 
 def set_composer_single_line(layer: ArtLayer) -> None:
@@ -529,7 +558,7 @@ def set_font(layer: ArtLayer, font_name: str) -> None:
         layer: ArtLayer containing TextItem.
         font_name:  Name of the font to set.
     """
-    if font := APP.fonts.getByName(font_name):
+    if font := APP.instance.fonts.getByName(font_name):
         layer.textItem.font = font.postScriptName
 
 
@@ -557,7 +586,9 @@ def ensure_visible_reference(reference: ArtLayer) -> TextItem | None:
     return None
 
 
-def scale_text_right_overlap(layer: ArtLayer, reference: ArtLayer, gap: int = 30) -> None:
+def scale_text_right_overlap(
+    layer: ArtLayer, reference: ArtLayer, gap: int = 30
+) -> None:
     """Scales a text layer down (in 0.2 pt increments) until its right bound
     has a 30 px~ (based on DPI) clearance from a reference layer's left bound.
 
@@ -573,19 +604,18 @@ def scale_text_right_overlap(layer: ArtLayer, reference: ArtLayer, gap: int = 30
 
     # Set starting variables
     font_size = old_size = get_font_size(layer)
-    ref_left_bound = reference.bounds[0] - APP.scale_by_dpi(gap)
+    ref_left_bound = reference.bounds[0] - APP.instance.scale_by_dpi(gap)
     step, half_step = 0.4, 0.2
 
     # Guard against reference being left of the layer
     if ref_left_bound < layer.bounds[0]:
         # Reset reference
         if ref_TI:
-            ref_TI.contents = ''
+            ref_TI.contents = ""
         return
 
     # Make our first check if scaling is necessary
     if continue_scaling := bool(layer.bounds[2] > ref_left_bound):
-
         # Step down the font till it clears the reference
         while continue_scaling:
             font_size -= step
@@ -607,10 +637,12 @@ def scale_text_right_overlap(layer: ArtLayer, reference: ArtLayer, gap: int = 30
     # Fix corrected reference layer
     if ref_TI:
         # Reset reference
-        ref_TI.contents = ''
+        ref_TI.contents = ""
 
 
-def scale_text_left_overlap(layer: ArtLayer, reference: ArtLayer, gap: int = 30) -> None:
+def scale_text_left_overlap(
+    layer: ArtLayer, reference: ArtLayer, gap: int = 30
+) -> None:
     """Scales a text layer down (in 0.2 pt increments) until its left bound
     has a 30 px~ (based on DPI) clearance from a reference layer's right bound.
 
@@ -626,19 +658,18 @@ def scale_text_left_overlap(layer: ArtLayer, reference: ArtLayer, gap: int = 30)
 
     # Set starting variables
     font_size = old_size = get_font_size(layer)
-    ref_right_bound = reference.bounds[2] + APP.scale_by_dpi(gap)
+    ref_right_bound = reference.bounds[2] + APP.instance.scale_by_dpi(gap)
     step, half_step = 0.4, 0.2
 
     # Guard against reference being right of the layer
     if layer.bounds[0] < reference.bounds[0]:
         # Reset reference
         if ref_TI:
-            ref_TI.contents = ''
+            ref_TI.contents = ""
         return
 
     # Make our first check if scaling is necessary
     if continue_scaling := bool(ref_right_bound > layer.bounds[0]):
-
         # Step down the font till it clears the reference
         while continue_scaling:
             font_size -= step
@@ -659,7 +690,7 @@ def scale_text_left_overlap(layer: ArtLayer, reference: ArtLayer, gap: int = 30)
 
     # Fix corrected reference layer
     if ref_TI:
-        ref_TI.contents = ''
+        ref_TI.contents = ""
 
 
 def scale_text_to_width(
@@ -667,7 +698,7 @@ def scale_text_to_width(
     width: int | float,
     spacing: int = 64,
     step: float = 0.4,
-    font_size: float | None = None
+    font_size: float | None = None,
 ) -> float | None:
     """Resize a given text layer's font size/leading until it fits inside a reference width.
 
@@ -682,7 +713,7 @@ def scale_text_to_width(
         Font size if font size is calculated during operation, otherwise None.
     """
     # Cancel if we're already within expected bounds
-    width = width - APP.scale_by_dpi(spacing)
+    width = width - APP.instance.scale_by_dpi(spacing)
     continue_scaling = bool(width < get_layer_width(layer))
     if not continue_scaling:
         return
@@ -714,7 +745,7 @@ def scale_text_to_height(
     height: float,
     spacing: float = 64,
     step: float = 0.4,
-    font_size: float | None = None
+    font_size: float | None = None,
 ) -> float | None:
     """Resize a given text layer's font size/leading until it fits inside a reference width.
 
@@ -729,7 +760,7 @@ def scale_text_to_height(
         Font size if font size is calculated during operation, otherwise None.
     """
     # Cancel if we're already within expected bounds
-    height = height - APP.scale_by_dpi(spacing)
+    height = height - APP.instance.scale_by_dpi(spacing)
     continue_scaling = bool(height < get_layer_height(layer))
     if not continue_scaling:
         return
@@ -757,9 +788,7 @@ def scale_text_to_height(
 
 
 def scale_text_to_width_textbox(
-    layer: ArtLayer,
-    font_size: float | None = None,
-    step: float = 0.1
+    layer: ArtLayer, font_size: float | None = None, step: float = 0.1
 ) -> None:
     """Check if the text in a TextLayer exceeds its bounding box.
 
@@ -783,7 +812,7 @@ def scale_text_layers_to_height(
     text_layers: list[ArtLayer],
     ref_height: int | float,
     font_size: float | None = None,
-    step_sizes: Sequence[float] | None = None
+    step_sizes: Sequence[float] | None = None,
 ) -> float | None:
     """Scale multiple text layers until they all can fit within the same given height dimension.
 
@@ -808,9 +837,13 @@ def scale_text_layers_to_height(
     # Adjust text size down and up in decreasing steps
     for idx, step_size in enumerate(step_sizes):
         uneven_round = bool(idx % 2)
-        
+
         # Compare height of all 3 elements vs total reference height
-        while total_layer_height < ref_height if uneven_round else total_layer_height > ref_height:
+        while (
+            total_layer_height < ref_height
+            if uneven_round
+            else total_layer_height > ref_height
+        ):
             total_layer_height = 0
 
             if uneven_round:
