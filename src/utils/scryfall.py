@@ -146,7 +146,7 @@ def scryfall_request_wrapper(
         @on_exception(
             expo, requests.exceptions.RequestException, max_tries=2, max_time=1
         )
-        @rate_limit(strategy=_scryfall_rate_limit, limit=_rate_limit, reschedule=0.1)
+        @rate_limit(strategy=_scryfall_rate_limit, limit=_rate_limit)
         def wrapper(*args: P.args, **kwargs: P.kwargs):
             return func(*args, **kwargs)
 

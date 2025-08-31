@@ -77,7 +77,7 @@ def hexproof_request_wrapper(fallback: T, logr: ExceptionLogger | None = None) -
     def decorator(func: Callable[P,T]):
         @return_on_exception(fallback)
         @log_on_exception(logr)
-        @rate_limit(strategy=_hexproof_rate_limit, limit=_rate_limit, reschedule=0.1)
+        @rate_limit(strategy=_hexproof_rate_limit, limit=_rate_limit)
         @on_exception(expo, requests.exceptions.RequestException, max_tries=2, max_time=1)
         def wrapper(*args: P.args, **kwargs: P.kwargs):
             return func(*args, **kwargs)

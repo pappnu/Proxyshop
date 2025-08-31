@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterable
-from time import sleep
+from time import sleep, time
 from typing import ParamSpec, TypeVar
 
 from limits import RateLimitItem
@@ -16,7 +16,7 @@ class RateLimitError(Exception):
 def rate_limit(
     strategy: RateLimiter,
     limit: RateLimitItem,
-    reschedule: float = 1,
+    reschedule: bool = True,
     identifiers: Iterable[str] = tuple(),
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Decorator for rate_limiting function calls.
@@ -32,7 +32,8 @@ def rate_limit(
         def wrapper(*args: P.args, **kwargs: P.kwargs):
             if reschedule:
                 while not strategy.hit(limit, *identifiers):
-                    sleep(reschedule)
+                    window = strategy.get_window_stats(limit, *identifiers)
+                    sleep(window.reset_time - time())
             elif not strategy.hit(limit, *identifiers):
                 raise RateLimitError(f"Limit exceeded for '{identifiers}' '{limit}'")
             return func(*args, **kwargs)
