@@ -3,33 +3,37 @@
 """
 
 # Standard Library Imports
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from shutil import copyfileobj
 from typing import (
     Any,
-    ParamSpec,
-    SupportsInt,
-    TypeVar,
-    TypedDict,
     Literal,
     NotRequired,
+    ParamSpec,
+    SupportsInt,
+    TypedDict,
+    TypeVar,
     Unpack,
 )
-from collections.abc import Sequence, Callable
+
+import requests
+import yarl
 
 # Third Party Imports
-from backoff import on_exception, expo
+from backoff import expo, on_exception
 from hexproof.scryfall.enums import ScryURL
-from omnitils.exceptions import log_on_exception, return_on_exception, ExceptionLogger
-from ratelimit import sleep_and_retry, RateLimitDecorator
-import requests
+from limits import RateLimitItemPerSecond
+from limits.storage import MemoryStorage
+from limits.strategies import MovingWindowRateLimiter
+from omnitils.exceptions import ExceptionLogger, log_on_exception, return_on_exception
 from requests.exceptions import RequestException
-import yarl
 
 # Local Imports
 from src import CONSOLE, PATH
 from src.console import get_bullet_points
 from src.utils.download import HEADERS
+from src.utils.rate_limit import rate_limit
 
 """
 * Types
@@ -59,7 +63,9 @@ class ScryfallError(TypedDict):
 """
 
 # Rate limiter to safely limit Scryfall requests
-scryfall_rate_limit = RateLimitDecorator(calls=20, period=1)
+_rate_limit_storage = MemoryStorage()
+_scryfall_rate_limit = MovingWindowRateLimiter(_rate_limit_storage)
+_rate_limit = RateLimitItemPerSecond(10)
 
 # Scryfall HTTP header
 scryfall_http_header = HEADERS.Default.copy()
@@ -140,8 +146,7 @@ def scryfall_request_wrapper(
         @on_exception(
             expo, requests.exceptions.RequestException, max_tries=2, max_time=1
         )
-        @sleep_and_retry
-        @scryfall_rate_limit
+        @rate_limit(strategy=_scryfall_rate_limit, limit=_rate_limit, reschedule=0.1)
         def wrapper(*args: P.args, **kwargs: P.kwargs):
             return func(*args, **kwargs)
 

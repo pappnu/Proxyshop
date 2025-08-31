@@ -2,28 +2,32 @@
 * Handles Requests to the hexproof.io API
 """
 # Standard Library Imports
+from collections.abc import Callable
 from contextlib import suppress
 from functools import cache
 from pathlib import Path
 from typing import Any, ParamSpec, TypeVar
-from collections.abc import Callable
+
+import requests
+from backoff import expo, on_exception
+from hexproof.hexapi.enums import HexURL
+from hexproof.hexapi.schema.meta import Meta
+from limits import RateLimitItemPerSecond
+from limits.storage import MemoryStorage
+from limits.strategies import MovingWindowRateLimiter
+from omnitils.exceptions import ExceptionLogger, log_on_exception, return_on_exception
+from omnitils.fetch import download_file
+from omnitils.files import dump_data_file
+from omnitils.files.archive import unpack_zip
 
 # Third Party Imports
 from pydantic import BaseModel
-import requests
 from requests import RequestException
-from ratelimit import RateLimitDecorator, sleep_and_retry
-from backoff import on_exception, expo
-from omnitils.exceptions import log_on_exception, return_on_exception, ExceptionLogger
-from omnitils.fetch import download_file
-from omnitils.files.archive import unpack_zip
-from omnitils.files import dump_data_file
-from hexproof.hexapi.schema.meta import Meta
 
 # Local Imports
 from src import CON, CONSOLE, PATH
-from hexproof.hexapi.enums import HexURL
 from src.utils.download import HEADERS
+from src.utils.rate_limit import rate_limit
 
 """
 * Types
@@ -47,7 +51,9 @@ class HexproofSet(BaseModel):
 """
 
 # Rate limiter to safely limit Hexproof.io requests
-hexproof_rate_limit = RateLimitDecorator(calls=20, period=1)
+_rate_limit_storage = MemoryStorage()
+_hexproof_rate_limit = MovingWindowRateLimiter(_rate_limit_storage)
+_rate_limit = RateLimitItemPerSecond(20)
 
 # Hexproof.io HTTP header
 hexproof_http_header = HEADERS.Default.copy()
@@ -71,8 +77,7 @@ def hexproof_request_wrapper(fallback: T, logr: ExceptionLogger | None = None) -
     def decorator(func: Callable[P,T]):
         @return_on_exception(fallback)
         @log_on_exception(logr)
-        @sleep_and_retry
-        @hexproof_rate_limit
+        @rate_limit(strategy=_hexproof_rate_limit, limit=_rate_limit, reschedule=0.1)
         @on_exception(expo, requests.exceptions.RequestException, max_tries=2, max_time=1)
         def wrapper(*args: P.args, **kwargs: P.kwargs):
             return func(*args, **kwargs)
