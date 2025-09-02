@@ -5,7 +5,7 @@
 # Standard Library Imports
 from contextlib import suppress
 from pathlib import Path
-from typing import TypedDict, Any, cast
+from typing import TypedDict, Any
 
 # Third Party Imports
 from omnitils.strings import normalize_str
@@ -190,10 +190,15 @@ def process_card_data(data: dict[str,Any], card: CardDetails) -> dict[str,Any]:
     # Check for alternate MDFC / Transform layouts
     if 'card_faces' in data:
         # Select the corresponding face
-        card_faces = cast(list[dict[str,Any]], data['card_faces'])
-        card_face, i = (card_faces[0], 0) if (
-            normalize_str(card_faces[0].get('name', ''), True) == name_normalized
-        ) else (card_faces[1], 1)
+        card_faces = data['card_faces']
+        # Default to front face
+        i = 0
+        card_face = card_faces[0]
+        for idx, face in enumerate(card_faces):
+            if normalize_str(face.get('name', ''), True) == name_normalized:
+                i = idx
+                card_face = face
+                break
         # Decide if this is a front face
         data['front'] = True if i == 0 else False
         # Transform / MDFC Planeswalker layout
