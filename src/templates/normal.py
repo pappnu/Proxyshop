@@ -808,7 +808,7 @@ class ClassicRemasteredTemplate(VectorTransformMod, VectorTemplate):
     """
 
     @cached_property
-    def has_pinlines(self):
+    def has_pinlines(self) -> bool:
         """bool: Allow pinlines for Land and Artifact cards."""
         return bool(self.is_land or self.is_artifact)
 
@@ -820,7 +820,7 @@ class ClassicRemasteredTemplate(VectorTransformMod, VectorTemplate):
     def pinlines_colors(
         self,
     ) -> ColorObject | Sequence[ColorObject] | Sequence[GradientConfig]:
-        """Union[list[int], list[dict]]: Allow pinlines on Land and Artifact cards."""
+        """Allow pinlines on Land and Artifact cards."""
         if self.has_pinlines:
             if len(self.identity) >= self.color_limit:
                 if len(self.identity) == 2:
@@ -2466,10 +2466,11 @@ class ClassicModernTemplate(VectorTransformMod, VectorMDFCMod, VectorTemplate):
     @cached_property
     def crown_shape(self) -> ArtLayer | None:
         # Support Normal and Extended
-        return psd.getLayer(
-            LAYERS.EXTENDED if self.is_extended else LAYERS.NORMAL,
-            [LAYERS.LEGENDARY_CROWN, LAYERS.SHAPE],
-        )
+        if self.is_legendary:
+            return psd.getLayer(
+                LAYERS.EXTENDED if self.is_extended else LAYERS.NORMAL,
+                [LAYERS.LEGENDARY_CROWN, LAYERS.SHAPE],
+            )
 
     @cached_property
     def border_shape(self) -> ArtLayer | None:

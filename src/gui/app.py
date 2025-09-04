@@ -292,16 +292,19 @@ class ProxyshopGUIApp(App):
     """
 
     @cached_property
-    def render_target_button(self) -> Button:
-        return self._app_layout.app_tabs.main_tab.main_panel.render_target_button
+    def render_target_button(self) -> Button | None:
+        if isinstance(self._app_layout, AppContainer):
+            return self._app_layout.app_tabs.main_tab.main_panel.render_target_button
     
     @cached_property
-    def render_all_button(self) -> Button:
-        return self._app_layout.app_tabs.main_tab.main_panel.render_all_button
+    def render_all_button(self) -> Button | None:
+        if isinstance(self._app_layout, AppContainer):
+            return self._app_layout.app_tabs.main_tab.main_panel.render_all_button
     
     @cached_property
-    def app_settings_button(self) -> Button:
-        return self._app_layout.app_tabs.main_tab.main_panel.app_settings_button
+    def app_settings_button(self) -> Button | None:
+        if isinstance(self._app_layout, AppContainer):
+            return self._app_layout.app_tabs.main_tab.main_panel.app_settings_button
 
     @cached_property
     def toggle_buttons(self) -> list[Button]:
@@ -952,8 +955,10 @@ class ProxyshopGUIApp(App):
 
     def on_start(self) -> None:
         """Fired after build is fired. Run a diagnostic check to see what works."""
-        self.disable_buttons()
-        self.app_settings_button.disabled = False
+        if not self.env.TEST_MODE:
+            self.disable_buttons()
+        if self.app_settings_button:
+            self.app_settings_button.disabled = False
 
         self.console.update("Running startup checks...")
 
@@ -1012,8 +1017,10 @@ class ProxyshopGUIApp(App):
                         end="",
                     )
             finally:
-                self.render_target_button.disabled = False
-                self.render_all_button.disabled = False
+                if self.render_target_button:
+                    self.render_target_button.disabled = False
+                if self.render_all_button:
+                    self.render_all_button.disabled = False
 
         if self._app.ready:
             photoshop_checks(self.app)
