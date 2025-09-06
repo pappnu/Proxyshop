@@ -50,6 +50,7 @@ Gemrazer = "Creature"
 
 [leveler]
 "Guul Draz Assassin" = "Creature - 2"
+"Lighthouse Chronologist" = "Blank Level"
 
 [saga]
 "Time of Ice" = "Mono Color"
@@ -57,10 +58,16 @@ Gemrazer = "Creature"
 "The Elder Dragon War" = "Read Ahead"
 "The Great Synthesis [MOM]" = "Transform Back"
 "The Restoration of Eiganjo" = "Transform Front"
+"Bahamut, Warden of Light" = "Legendary Transform Back Creature"
+"Summon: Fat Chocobo" = "Creature with Flavor text"
 
 [class]
 "Wizard Class" = "Mono Color"
 "Rogue Class" = "Dual Color"
+
+[case]
+"Case of the Filched Falcon" = "Mono"
+"Case of the Shattered Pact" = "Colorless"
 
 [planeswalker]
 "Liliana of the Veil" = "Mono"
@@ -101,3 +108,8 @@ Gemrazer = "Creature"
 "Invasion of Kaldheim [MOM]" = "Mono Color"
 "Invasion of Tolvada [MOM]" = "Dual Color"
 "Invasion of Alara [MOM]" = "Gold"
+
+[station]
+"Adagia, Windswept Bastion" = "Mono Land"
+"Extinguisher Battleship" = "Colorless"
+"Inspirit, Flagship Vessel" = "Legendary Multi Color"

@@ -770,7 +770,7 @@ class FormattedTextArea(FormattedTextField):
     @cached_property
     def scale_width(self) -> bool:
         """Scale text to fit reference width (Default: False)."""
-        return self.kwargs.get("scale_width", True)
+        return self.kwargs.get("scale_width", False)
 
     @cached_property
     def fix_overflow_width(self) -> bool:

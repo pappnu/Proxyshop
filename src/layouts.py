@@ -1143,7 +1143,7 @@ class AdventureLayout(NormalLayout):
     @cached_property
     def color_identity_adventure(self) -> list[str]:
         """Colors present in the adventure side mana cost."""
-        return [n for n in get_mana_cost_colors(self.mana_adventure)]
+        return [n for n in get_ordered_colors(get_mana_cost_colors(self.mana_adventure))]
 
     @cached_property
     def adventure_colors(self) -> str:
