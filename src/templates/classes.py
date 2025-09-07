@@ -125,7 +125,9 @@ class ClassMod(NormalTemplate):
 
     def rules_text_and_pt_layers(self) -> None:
         """Skip this step for Class cards."""
-        pass
+        if self.is_class_layout and not self.is_creature:
+            return
+        return super().rules_text_and_pt_layers()
 
     """
     * Class Text Layer Methods

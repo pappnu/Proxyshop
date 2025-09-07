@@ -30,7 +30,7 @@ def _get_proj_version(path: Path) -> str:
 # Global environment object (dynaconf)
 ENV = AppEnvironment(
     envvar_prefix='PROXYSHOP',
-    settings_files=[PATH.SRC_DATA_ENV, PATH.SRC_DATA_ENV_DEFAULT],
+    settings_files=[PATH.SRC_DATA_ENV_DEFAULT, PATH.SRC_DATA_ENV],
     validators=[
         Validator('API_GOOGLE', cast=str, default=''),
         Validator('API_AMAZON', cast=str, default=''),

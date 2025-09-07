@@ -725,6 +725,10 @@ class FormattedTextField(TextField):
     def execute(self):
         super().execute()
 
+        # No need to format if there's no content
+        if not self.input:
+            return
+
         # Format text
         self.format_text()
 
@@ -857,13 +861,10 @@ class FormattedTextArea(FormattedTextField):
                 )
 
     def execute(self):
-        # Skip if both are empty
-        if not self.input:
-            return
         font_size = None
 
         # Pre-scaling to prevent text overflow errors
-        if self.fix_overflow_height and self.reference_dims:
+        if self.input and self.fix_overflow_height and self.reference_dims:
             font_size = self.pre_scale_to_fit()
 
         # Execute text formatting

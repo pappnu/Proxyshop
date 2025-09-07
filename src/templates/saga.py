@@ -148,7 +148,9 @@ class SagaMod(NormalTemplate):
 
     def rules_text_and_pt_layers(self) -> None:
         """Skip this step for Saga cards."""
-        pass
+        if self.is_layout_saga and not self.is_creature:
+            return
+        return super().rules_text_and_pt_layers()
 
     """
     * Saga Frame Layer Methods
