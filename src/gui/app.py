@@ -58,6 +58,7 @@ from src.gui.tabs.main import TemplateRow, MainPanel
 from src.gui.tabs.tools import ToolsPanel
 from src.gui.test import TestApp
 from src.layouts import (
+    SplitLayout,
     layout_map,
     assign_layout,
     join_dual_card_layouts,
@@ -671,7 +672,10 @@ class ProxyshopGUIApp(App):
                             continue
 
                         # Grab the template class and start the render thread
-                        layout.art_file = PATH.SRC_IMG / 'test.jpg'
+                        test_image_path = PATH.SRC_IMG / 'test.jpg'
+                        layout.art_file = test_image_path
+                        if isinstance(layout, SplitLayout):
+                            layout.art_files = [test_image_path, test_image_path]
                         result = self.start_render(layout, template, loaded_class)
                         if result is None:
                             failures.append((card_name, card_case, 'Failed to render'))
@@ -732,7 +736,10 @@ class ProxyshopGUIApp(App):
                 continue
 
             # Start the render
-            layout.art_file = PATH.SRC_IMG / 'test.jpg'
+            test_image_path = PATH.SRC_IMG / 'test.jpg'
+            layout.art_file = test_image_path
+            if isinstance(layout, SplitLayout):
+                layout.art_files = [test_image_path, test_image_path]
             result = self.start_render(
                 card=layout,
                 template=template,

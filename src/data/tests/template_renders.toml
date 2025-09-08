@@ -11,6 +11,8 @@ Mountain = "Basic Land"
 "Ghost Ark" = "Vehicle"
 "Graven Lore" = "Snow"
 Terminus = "Miracle"
+"Elemental [TCMM] {37}" = "Dual Color Token"
+"Tuktuk the Returned [TCM2] {15}" = "Legendary Token"
 
 [transform_front]
 "Docent of Perfection [EMN]" = "Moon Eldrazi DFC"
