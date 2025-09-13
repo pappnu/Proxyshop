@@ -346,7 +346,7 @@ class AppConstants:
         return SymbolColorMap()
 
     @tracked_prop
-    def symbol_map(self) -> dict[str, tuple[str, list[ColorObject]]]:
+    def symbol_map(self) -> dict[str, tuple[str, list[ColorObject | None]]]:
         """dict[str, tuple[str, list[ColorObject]]]: Uses the symbol map and mana_colors to map
             symbol character strings and colors to their Scryfall symbol string."""
         return {sym: (n, get_symbol_colors(sym, n, self.mana_colors)) for sym, n in self.mana_symbols.items()}

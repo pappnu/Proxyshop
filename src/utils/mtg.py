@@ -1,6 +1,7 @@
 """
 * MTG Related Utiltiies
 """
+
 from src.schema.colors import SymbolColorMap, ColorObject
 from src.enums.mtg import CardTextPatterns as _P
 
@@ -9,7 +10,9 @@ from src.enums.mtg import CardTextPatterns as _P
 """
 
 
-def get_symbol_colors(symbol: str, chars: str, color_map: SymbolColorMap) -> list[ColorObject]:
+def get_symbol_colors(
+    symbol: str, chars: str, color_map: SymbolColorMap
+) -> list[ColorObject | None]:
     """Determines the colors of a symbol (represented as Scryfall string) and returns an array Symbol colors.
 
     Args:
@@ -31,12 +34,15 @@ def get_symbol_colors(symbol: str, chars: str, color_map: SymbolColorMap) -> lis
     elif symbol == "{Q}":
         # Untap symbol
         return [color_map.primary, color_map.secondary]
+    elif symbol == "{P}":
+        # Pawprint symbol
+        return [None]
 
     # Normal mana symbol
     if normal_symbol_match := _P.MANA_NORMAL.match(symbol):
         return [
             color_map.colors[normal_symbol_match[1]],
-            color_map.colors_inner[normal_symbol_match[1]]
+            color_map.colors_inner[normal_symbol_match[1]],
         ]
 
     # Hybrid
@@ -47,14 +53,14 @@ def get_symbol_colors(symbol: str, chars: str, color_map: SymbolColorMap) -> lis
             colors[hybrid_match[2]],
             colors[hybrid_match[1]],
             color_map.colors_inner[hybrid_match[1]],
-            color_map.colors_inner[hybrid_match[2]]
+            color_map.colors_inner[hybrid_match[2]],
         ]
 
     # Phyrexian
     if phyrexian_match := _P.MANA_PHYREXIAN.match(symbol):
         return [
             color_map.hybrid[phyrexian_match[1]],
-            color_map.hybrid_inner[phyrexian_match[1]]
+            color_map.hybrid_inner[phyrexian_match[1]],
         ]
 
     # Phyrexian hybrid
@@ -63,7 +69,7 @@ def get_symbol_colors(symbol: str, chars: str, color_map: SymbolColorMap) -> lis
             color_map.colors[phyrexian_hybrid_match[2]],
             color_map.colors[phyrexian_hybrid_match[1]],
             color_map.colors_inner[phyrexian_hybrid_match[1]],
-            color_map.colors_inner[phyrexian_hybrid_match[2]]
+            color_map.colors_inner[phyrexian_hybrid_match[2]],
         ]
 
     # Weird situation?

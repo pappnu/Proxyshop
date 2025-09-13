@@ -269,7 +269,8 @@ mana_symbol_map = {
     "{2/G}": "QqWV",
     "{S}": "omn",
     "{Q}": "ol",
-    "{CHAOS}": "?"
+    "{CHAOS}": "?",
+    "{P}": "`",
 }
 
 """

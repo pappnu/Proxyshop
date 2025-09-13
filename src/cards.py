@@ -210,6 +210,25 @@ def process_card_data(data: dict[str,Any], card: CardDetails) -> dict[str,Any]:
         # Battle layout
         if 'Battle' in card_face['type_line']:
             data['layout'] = 'battle'
+
+        # Fix Adventure Land mana costs locally, as Scryfall seems unwilling to
+        # fix the issue on their end even after reporting it and waiting for months.
+        # Once Scryfall corrects their data this fix can be removed.
+        if data["layout"] == "adventure":
+            card_faces = data["card_faces"]
+            main_face = card_faces[0]
+            adventure_face = card_faces[1]
+            if (
+                main_face["type_line"].startswith("Land ")
+                and main_face["mana_cost"]
+                and not adventure_face["mana_cost"]
+            ):
+                # Swap the Land and Adventure faces' mana costs
+                main_face["mana_cost"], adventure_face["mana_cost"] = (
+                    adventure_face["mana_cost"],
+                    main_face["mana_cost"],
+                )
+
         return data
 
     # Add Mutate layout
@@ -227,10 +246,12 @@ def process_card_data(data: dict[str,Any], card: CardDetails) -> dict[str,Any]:
     # Check for Saga Creature layout
     if 'Saga' in type_line and 'Creature' in type_line:
         data['layout'] = 'saga'
+        return data
 
     # Check for Station layout
     if 'STATION ' in data.get('oracle_text', ''):
         data['layout'] = 'station'
+        return data
 
     # Return updated data
     return data

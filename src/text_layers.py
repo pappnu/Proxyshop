@@ -149,7 +149,15 @@ class TextField:
     @cached_property
     def kw_symbol_map(self) -> dict[str, tuple[str, list[ColorObject]]]:
         """Symbol map to use for formatting mana symbols."""
-        return self.kwargs.get("symbol_map", CON.symbol_map)
+        if not (symbol_map := self.kwargs.get("symbol_map")):
+            symbol_map = {}
+            # Use text layer's color for all None colors
+            for key, value in CON.symbol_map.items():
+                symbol_map[key] = (
+                    value[0],
+                    [item if item is not None else self.TI.color for item in value[1]],
+                )
+        return symbol_map
 
     """
     * Checks
