@@ -26,19 +26,19 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Set current date as env variable
-        run: echo ("NOW=" + (Get-Date -UFormat '%Y-%m-%dT%H:%M:%S%Z')) >> $env:GITHUB_ENV
+        run: echo ('NOW="' + ([datetime]::UtcNow.ToString("yyyy-MM-dd HH:mm:ss")) + ' UTC"') >> $env:GITHUB_ENV
 
       - name: Set current path friendly date as env variable
-        run: echo ("NOW_PATH=" + (Get-Date -UFormat '%Y-%m-%dT%H-%M-%S%Z')) >> $env:GITHUB_ENV
+        run: echo ("NOW_PATH=" + ([datetime]::UtcNow.ToString("yyyy-MM-ddTHH-mm-ssZ"))) >> $env:GITHUB_ENV
 
       - name: Set commit short sha as env variable
         run: echo "SHORT_SHA=$("${{ github.sha }}".SubString(0, 8))" >> $env:GITHUB_ENV
 
       - name: Set app version as env variable
-        run: echo ("APP_VERSION=" + (Get-Date -Format 'yyyy.M.dHHmmss')) >> $env:GITHUB_ENV
+        run: echo ("APP_VERSION=" + ([datetime]::UtcNow.ToString("yyyy.M.dHHmmss"))) >> $env:GITHUB_ENV
 
       - name: Set release archive name as env variable
-        run: echo "ARCHIVE_NAME=Proxyshop_${{ env.NOW_PATH }}_${{ env.SHORT_SHA }}.zip" >> $env:GITHUB_ENV
+        run: echo "ARCHIVE_NAME=Proxyshop-dev_${{ env.NOW_PATH }}_${{ env.SHORT_SHA }}.zip" >> $env:GITHUB_ENV
 
       - name: Install poetry
         run: python -m pip install poetry
@@ -113,7 +113,19 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: "${{ env.NOW }}-${{ env.SHORT_SHA }}"
+          body: |
+            This is an unofficial development release of Proxyshop. While some testing is usually conducted on the changes that are integrated to the release, bugs might still slip through. If you encounter problems, you may [open an issue](https://github.com/pappnu/Proxyshop/issues).
+          prerelease: true
           files: ${{ env.ARCHIVE_NAME }}
           tag_name: ${{ env.NOW_PATH }}
           fail_on_unmatched_files: true
           generate_release_notes: true
+
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Delete old releases
+        run: gh release list --json tagName --jq '.[] | .tagName' | tail -n+4 | xargs -n 1 gh release delete --yes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
