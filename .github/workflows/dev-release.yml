@@ -130,6 +130,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Delete old releases
-        run: gh release list --json tagName --jq '.[] | .tagName' | tail -n+4 | xargs -n 1 gh release delete --yes
+        run: gh release list --json tagName --jq '.[] | .tagName' | tail -n+4 | xargs -r -n 1 gh release delete --yes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
