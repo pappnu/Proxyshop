@@ -122,9 +122,13 @@ jobs:
           generate_release_notes: true
 
   cleanup:
+    needs: [build]
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Delete old releases
         run: gh release list --json tagName --jq '.[] | .tagName' | tail -n+4 | xargs -n 1 gh release delete --yes
         env:
