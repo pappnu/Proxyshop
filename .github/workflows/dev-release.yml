@@ -26,7 +26,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Set current date as env variable
-        run: echo ('NOW="' + ([datetime]::UtcNow.ToString("yyyy-MM-dd HH:mm:ss")) + ' UTC"') >> $env:GITHUB_ENV
+        run: echo ("NOW=" + ([datetime]::UtcNow.ToString("yyyy-MM-dd HH:mm:ss")) + " UTC") >> $env:GITHUB_ENV
 
       - name: Set current path friendly date as env variable
         run: echo ("NOW_PATH=" + ([datetime]::UtcNow.ToString("yyyy-MM-ddTHH-mm-ssZ"))) >> $env:GITHUB_ENV
@@ -112,7 +112,7 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "${{ env.NOW }}-${{ env.SHORT_SHA }}"
+          name: "${{ env.NOW }} ${{ env.SHORT_SHA }}"
           body: |
             This is an unofficial development release of Proxyshop. While some testing is usually conducted on the changes that are integrated to the release, bugs might still slip through. If you encounter problems, you may [open an issue](https://github.com/pappnu/Proxyshop/issues).
           prerelease: true
