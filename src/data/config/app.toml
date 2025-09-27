@@ -43,6 +43,12 @@ type = "options"
 default = "en"
 options = ["en", "es", "fr", "de", "it", "pt", "jp", "kr", "ru", "cs", "ct"]
 
+[DATA."Scryfall.Use.Printed.Name"]
+title = "Use printed name"
+desc = """Use the printed name of the card, if it's available in the Scryfall data, instead of the canonical English name. Non-English cards use printed name regardless of this setting's value."""
+type = "bool"
+default = 0
+
 [DATA."Scryfall.Sorting"]
 title = "Scryfall Sorting"
 desc = """The method used to sort the Scryfall card lookup results."""

@@ -52,6 +52,9 @@ class AppConfig:
 
         # APP - DATA
         self.lang = self.file.get("APP.DATA", "Scryfall.Language", fallback="en")
+        self.use_printed_name = self.file.getboolean(
+            "APP.DATA", "Scryfall.Use.Printed.Name", fallback=False
+        )
         self.scry_sorting = self.get_option(
             "APP.DATA", "Scryfall.Sorting", ScryfallSorting
         )

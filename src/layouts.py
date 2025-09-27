@@ -2,6 +2,7 @@
 * Card Layout Data
 """
 # Standard Library Imports
+from collections.abc import Mapping
 from datetime import date, datetime
 import re
 from typing import Any, NotRequired, TypedDict, Union
@@ -62,6 +63,11 @@ class ClassLine(TypedDict):
     cost: str | None
     level: str
     text: str
+
+def get_card_name(data: Mapping[str,Any], use_printed_name: bool = CFG.use_printed_name) -> str:
+    if use_printed_name and (printed_name := data.get("printed_name", None)):
+        return printed_name
+    return data.get("name", "")
 
 """
 * Layout Processing
@@ -314,12 +320,12 @@ Defaulting to first face."""
     @cached_property
     def name(self) -> str:
         """Card name, supports alternate language source."""
-        return self.card.get('printed_name', self.name_raw) if self.is_alt_lang else self.name_raw
+        return get_card_name(self.card, CFG.use_printed_name or self.is_alt_lang)
 
     @cached_property
     def name_raw(self) -> str:
         """Card name, enforced English representation."""
-        return self.card.get('name', '')
+        return get_card_name(self.card, False)
 
     @cached_property
     def nickname(self) -> str:
@@ -1113,9 +1119,7 @@ class AdventureLayout(NormalLayout):
     @cached_property
     def name_adventure(self) -> str:
         """Name of the Adventure side."""
-        if self.is_alt_lang and 'printed_name' in self.adventure:
-            return self.adventure.get('printed_name', '')
-        return self.adventure.get('name', '')
+        return get_card_name(self.adventure, CFG.use_printed_name or self.is_alt_lang)
 
     @cached_property
     def type_line_adventure(self) -> str:
@@ -1568,9 +1572,7 @@ class SplitLayout(NormalLayout):
     @cached_property
     def names(self) -> list[str]:
         """Both side names."""
-        if self.is_alt_lang:
-            return [c.get('printed_name', c.get('name', '')) for c in self.cards]
-        return [c.get('name', '') for c in self.cards]
+        return [get_card_name(c, CFG.use_printed_name or self.is_alt_lang) for c in self.cards]
 
     @cached_property
     def name_raw(self) -> str:
