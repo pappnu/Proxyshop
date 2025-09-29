@@ -1,15 +1,13 @@
 """
 * Frame Logic Module
 """
-# Standard Library Imports
 from collections.abc import Iterable, Iterator
 from functools import cache, cached_property
-from typing import Any
 
-# Local Imports
 from src.cards import FrameDetails
 from src.enums.layers import LAYERS
 from src.enums.mtg import Rarity
+from src.utils.scryfall import MagicColor, ScryfallCard, ScryfallCardFace
 
 """
 * Planned Utility Classes
@@ -195,8 +193,8 @@ def get_color_identity_nonland(
     mana_cost: str,
     type_line: str,
     oracle_text: str,
-    color_indicator: list[str],
-    color_list: list[str]
+    color_indicator: list[MagicColor],
+    color_list: list[MagicColor]
 ) -> str:
     """Get the assumed color identity of Non-Land card based on a priority list of factors.
 
@@ -277,7 +275,7 @@ def check_hybrid_mana_cost(color_identity: str | list[str], mana_cost: str) -> b
 """
 
 
-def get_frame_details(card: dict[str,Any]) -> FrameDetails:
+def get_frame_details(card: ScryfallCard | ScryfallCardFace) -> FrameDetails:
     """Figure out which layers to use for pinlines, background, twins and define the color identity.
     Pass the card to an appropriate function based on card type.
 
@@ -287,12 +285,12 @@ def get_frame_details(card: dict[str,Any]) -> FrameDetails:
     Returns:
         Dict containing FrameDetails representing the card's frame makeup.
     """
-    if 'Land' in card.get('type_line', ''):
+    if card.type_line and 'Land' in card.type_line:
         return get_frame_details_land(card)
     return get_frame_details_nonland(card)
 
 
-def get_frame_details_land(card: dict[str,Any]) -> FrameDetails:
+def get_frame_details_land(card: ScryfallCard | ScryfallCardFace) -> FrameDetails:
     """Card is a Land card, must check a variety of cases to identify the appropriate color identity.
 
     Args:
@@ -302,7 +300,7 @@ def get_frame_details_land(card: dict[str,Any]) -> FrameDetails:
         Dict containing FrameDetails representing the card's frame makeup.
     """
     # Grab the attributes we need
-    type_line, oracle_text = card.get('type_line', ''), card.get('oracle_text', '')
+    type_line, oracle_text = card.type_line or "", card.oracle_text or ""
     twins = colors_tapped = basic_identity = ''
     result: FrameDetails = {
         "background": LAYERS.LAND,
@@ -450,7 +448,7 @@ def get_frame_details_land(card: dict[str,Any]) -> FrameDetails:
     return result
 
 
-def get_frame_details_nonland(card: dict[str,Any]) -> FrameDetails:
+def get_frame_details_nonland(card: ScryfallCard | ScryfallCardFace) -> FrameDetails:
     """Get frame details related to a Non-Land card. Must discern the frame color identity,
     for example Noble Hierarch's color identity is [W, U, G] on Scryfall, but the frame is Green.
 
@@ -458,17 +456,17 @@ def get_frame_details_nonland(card: dict[str,Any]) -> FrameDetails:
         card: Dict containing Scryfall data for this card.
     """
     # Establish the attributes we need
-    mana_cost = card.get('mana_cost', '')
-    type_line = card.get('type_line', '')
-    oracle_text = card.get('oracle_text', '')
+    mana_cost = card.mana_cost or ""
+    type_line = card.type_line or ""
+    oracle_text = card.oracle_text or ""
 
     # Establish the initial assumed color identity
     color_identity = get_color_identity_nonland(
         mana_cost=mana_cost,
         type_line=type_line,
         oracle_text=oracle_text,
-        color_indicator=card.get('color_indicator', []),
-        color_list=card.get('color_identity', card.get('colors', []))
+        color_indicator=card.color_indicator or [],
+        color_list=card.color_identity if isinstance(card, ScryfallCard) else card.colors or []
     )
 
     # Default results
@@ -514,7 +512,7 @@ def get_frame_details_nonland(card: dict[str,Any]) -> FrameDetails:
     hybrid = check_hybrid_color_card(
         color_identity=color_identity,
         mana_cost=mana_cost,
-        is_dfc=bool(card.get('object') == 'card_face')
+        is_dfc=card.object == 'card_face'
     )
 
     # Is this card hybrid?
@@ -560,7 +558,7 @@ def get_frame_details_nonland(card: dict[str,Any]) -> FrameDetails:
 """
 
 
-def get_special_rarity(rarity: str, card: dict[str,Any]) -> str:
+def get_special_rarity(rarity: str, card: ScryfallCard) -> str:
     """Control for special rarities.
 
     Args:
@@ -572,13 +570,13 @@ def get_special_rarity(rarity: str, card: dict[str,Any]) -> str:
     """
     if rarity == Rarity.S:
         # Timeshifted cards
-        if card.get('frame') == '1997':
+        if card.frame == '1997':
             return Rarity.T
         # Championship cards
-        if 'Champion' in card.get('set_name', ''):
+        if 'Champion' in card.set_name:
             return Rarity.M
         # Masterpiece
-        if card.get('set_type') == 'masterpiece':
+        if card.set_type == 'masterpiece':
             return Rarity.M
         # Case like Prismatic Piper
         return Rarity.C

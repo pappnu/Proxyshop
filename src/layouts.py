@@ -1,26 +1,27 @@
 """
 * Card Layout Data
 """
-# Standard Library Imports
-from collections.abc import Mapping
-from datetime import date, datetime
 import re
-from typing import Any, NotRequired, TypedDict, Union
-from re import Match
+from collections.abc import Sequence
+from datetime import date
+from functools import cached_property
 from os import path as osp
 from pathlib import Path
-from functools import cached_property
+from pprint import pprint
+from re import Match
+from typing import Any, NotRequired, TypedDict, Union
 
-# Third Party Imports
 from omnitils.strings import get_line, get_lines, normalize_str, strip_lines
 
-# Local Imports
 from src import CFG, CON, CONSOLE, ENV, PATH
-from src.cards import CardDetails, FrameDetails, get_card_data, parse_card_info, process_card_data
+from src.cards import (
+    CardDetails,
+    FrameDetails,
+    get_card_data,
+    parse_card_info,
+    process_card_data,
+)
 from src.console import msg_error, msg_success, msg_warn
-from src.utils.hexapi import get_watermark_svg, get_watermark_svg_from_set
-from src.utils.manual_actions import manually_modify_dict
-from src.utils.scryfall import get_cards_oracle
 from src.enums.layers import LAYERS
 from src.enums.mtg import (
     CardTextPatterns,
@@ -28,16 +29,27 @@ from src.enums.mtg import (
     CardTypesSuper,
     LayoutScryfall,
     LayoutType,
-    planeswalkers_tall,
     Rarity,
-    TransformIcons)
+    TransformIcons,
+    planeswalkers_tall,
+)
 from src.enums.settings import CollectorMode, WatermarkMode
 from src.frame_logic import (
+    check_hybrid_mana_cost,
     get_frame_details,
+    get_mana_cost_colors,
     get_ordered_colors,
     get_special_rarity,
-    check_hybrid_mana_cost,
-    get_mana_cost_colors)
+)
+from src.utils.hexapi import get_watermark_svg, get_watermark_svg_from_set
+from src.utils.manual_actions import manually_modify_model
+from src.utils.scryfall import (
+    FrameEffect,
+    MagicColor,
+    ScryfallCard,
+    ScryfallCardFace,
+    get_cards_oracle,
+)
 
 
 class PowerToughness(TypedDict):
@@ -63,11 +75,6 @@ class ClassLine(TypedDict):
     cost: str | None
     level: str
     text: str
-
-def get_card_name(data: Mapping[str,Any], use_printed_name: bool = CFG.use_printed_name) -> str:
-    if use_printed_name and (printed_name := data.get("printed_name", None)):
-        return printed_name
-    return data.get("name", "")
 
 """
 * Layout Processing
@@ -102,7 +109,7 @@ def assign_layout(filename: Path) -> "str | CardLayout":
     
     if CFG.manually_edit_card_data:
         try:
-            scryfall = manually_modify_dict(scryfall, CFG.manual_text_editor)
+            scryfall = manually_modify_model(scryfall, CFG.manual_text_editor)
         except Exception as e:
             CONSOLE.log_exception(e)
             return msg_error(name_failed, reason="Manual card data modification failed")
@@ -110,9 +117,9 @@ def assign_layout(filename: Path) -> "str | CardLayout":
     scryfall = process_card_data(scryfall, card)
 
     # Instantiate layout object
-    if scryfall.get('layout', 'None') in layout_map:
+    if scryfall.layout in layout_map:
         try:
-            layout = layout_map[scryfall['layout']](scryfall, card)
+            layout = layout_map[scryfall.layout](scryfall, card)
         except Exception as e:
             # Couldn't instantiate layout object
             CONSOLE.log_exception(e)
@@ -183,7 +190,7 @@ class NormalLayout:
     def is_mdfc(self) -> bool:
         return False
 
-    def __init__(self, scryfall: dict[str,Any], file: CardDetails):
+    def __init__(self, scryfall: ScryfallCard, file: CardDetails):
 
         # Establish core properties
         self._file = file
@@ -198,6 +205,9 @@ class NormalLayout:
         return (f"{self.name}"
                 f"{f' [{self.set}]' if self.set else ''}"
                 f"{f' {{{self.collector_number_raw}}}' if self.collector_number else ''}")
+    
+    def _get_card_name(self, data: ScryfallCard | ScryfallCardFace) -> str:
+        return data.printed_name if self.is_alt_lang and data.printed_name else data.name
 
     """
     * Core Data
@@ -209,7 +219,7 @@ class NormalLayout:
         return self._file
 
     @cached_property
-    def scryfall(self) -> dict[str,Any]:
+    def scryfall(self) -> ScryfallCard:
         """Card data fetched from Scryfall."""
         return self._scryfall
 
@@ -226,7 +236,9 @@ class NormalLayout:
     @cached_property
     def scryfall_scan(self) -> str:
         """Scryfall large image scan, if available."""
-        return self.card.get('image_uris', {}).get('large', '')
+        if self.card.image_uris:
+            return str(self.card.image_uris.large)
+        return ""
 
     """
     * Set Data
@@ -235,44 +247,41 @@ class NormalLayout:
     @cached_property
     def set(self) -> str:
         """Card set code, uppercase enforced, falls back to 'MTG' if missing."""
-        return self.scryfall.get('set', 'MTG').upper()
+        return self.scryfall.set.upper()
 
     @cached_property
     def set_data(self) -> dict[str,Any]:
         """Set data from the current hexproof.io data file."""
-        return CON.set_data.get(self.scryfall.get('set', 'mtg').lower(), {})
+        return CON.set_data.get(self.scryfall.set.lower(), {})
 
     @cached_property
     def set_type(self) -> str:
         """str: Type of set the card was printed in, e.g. promo, draft_innovation, etc."""
-        return self.scryfall.get('set_type', '')
+        return self.scryfall.set_type
 
     @cached_property
     def date(self) -> date:
         """date: The date this card was released."""
-        _released = self.scryfall.get('released_at')
-        if not _released:
-            return date.today()
-        return datetime.strptime(_released, '%Y-%m-%d').date()
+        return self.scryfall.released_at
 
     """
     * Gameplay Info
     """
 
     @cached_property
-    def card(self) -> dict[str,Any]:
+    def card(self) -> ScryfallCard | ScryfallCardFace:
         """Main card data object to pull most relevant data from."""
-        if faces := self.scryfall.get('card_faces', []):
+        if faces := self.scryfall.card_faces:
             # Card with multiple faces, first index is always front side
-            matching_face: dict[str, Any] | None = None
+            matching_face: ScryfallCardFace | None = None
 
             for face in faces:
-                if normalize_str(face['name']) == normalize_str(self.input_name):
+                if normalize_str(face.name) == normalize_str(self.input_name):
                     matching_face = face
                     break
 
             if not matching_face:
-                face_listing = '\n'.join(f"  - {face['name']}" for face in faces)
+                face_listing = '\n'.join(f"  - {face.name}" for face in faces)
                 CONSOLE.update(
                     msg_warn(
                         f"""None of the card faces
@@ -289,29 +298,30 @@ Defaulting to first face."""
         return self.scryfall
 
     @cached_property
-    def first_print(self) -> dict[str,Any]:
+    def first_print(self) -> ScryfallCard | None:
         """Card data fetched from Scryfall representing the first print of this card."""
-        first = get_cards_oracle(self.scryfall.get('oracle_id', ''))
-        return first[0] if first else {}
+        if self.scryfall.oracle_id:
+            cards = get_cards_oracle(str(self.scryfall.oracle_id))
+            return cards[0] if cards else None
 
     """
     * Card Collections
     """
 
     @cached_property
-    def frame_effects(self) -> list[str]:
+    def frame_effects(self) -> list[FrameEffect]:
         """Array of frame effects, e.g. nyxtouched, snow, etc."""
-        return self.scryfall.get('frame_effects', [])
+        return self.scryfall.frame_effects or []
 
     @cached_property
     def keywords(self) -> list[str]:
         """Array of keyword abilities, e.g. Flying, Haste, etc."""
-        return self.scryfall.get('keywords', [])
+        return self.scryfall.keywords
 
     @cached_property
     def promo_types(self) -> list[str]:
         """list[str]: Promo types this card matches, e.g. stamped, datestamped, etc."""
-        return self.scryfall.get('promo_types', [])
+        return self.scryfall.promo_types or []
 
     """
     * Text Info
@@ -320,18 +330,20 @@ Defaulting to first face."""
     @cached_property
     def name(self) -> str:
         """Card name, supports alternate language source."""
-        return get_card_name(self.card, CFG.use_printed_name or self.is_alt_lang)
+        return self._get_card_name(self.card)
 
     @cached_property
     def name_raw(self) -> str:
         """Card name, enforced English representation."""
-        return get_card_name(self.card, False)
+        return self.card.name
 
     @cached_property
     def nickname(self) -> str:
         """Nickname, typically set inside template logic but can be passed in filename."""
         # Todo: Add user-provided text
-        return self.card.get('flavor_name', '')
+        if isinstance(self.card, ScryfallCard):
+            return self.card.flavor_name or ""
+        return ""
 
     @cached_property
     def display_name(self) -> str:
@@ -346,22 +358,22 @@ Defaulting to first face."""
     @cached_property
     def mana_cost(self) -> str:
         """Scryfall formatted card mana cost."""
-        return self.card.get('mana_cost', '')
+        return self.card.mana_cost or ""
 
     @cached_property
     def oracle_text(self) -> str:
         """Card rules text, supports alternate language source."""
-        return self.card.get('printed_text', self.oracle_text_raw) if self.is_alt_lang else self.oracle_text_raw
+        return self.card.printed_text if self.is_alt_lang and self.card.printed_text else self.oracle_text_raw
 
     @cached_property
     def oracle_text_raw(self) -> str:
         """Card rules text, enforced English representation."""
-        return self.card.get('oracle_text', '')
+        return self.card.oracle_text or ""
 
     @cached_property
     def flavor_text(self) -> str:
         """Card flavor text, alternate language version shares the same key."""
-        return self.card.get('flavor_text', '')
+        return self.card.flavor_text or ""
 
     @cached_property
     def rules_text(self) -> str:
@@ -371,12 +383,12 @@ Defaulting to first face."""
     @cached_property
     def power(self) -> str:
         """Creature power, if provided."""
-        return self.card.get('power', '')
+        return self.card.power or ""
 
     @cached_property
     def toughness(self) -> str:
         """Creature toughness, if provided."""
-        return self.card.get('toughness', '')
+        return self.card.toughness or ""
 
     """
     * Card Types
@@ -385,12 +397,12 @@ Defaulting to first face."""
     @cached_property
     def type_line(self) -> str:
         """Card type line, supports alternate language source."""
-        return self.card.get('printed_type_line', self.type_line_raw) if self.is_alt_lang else self.type_line_raw
+        return self.card.printed_type_line if self.is_alt_lang and self.card.printed_type_line else self.type_line_raw
 
     @cached_property
     def type_line_raw(self) -> str:
         """Card type line, enforced English representation."""
-        return self.card.get('type_line', '')
+        return self.card.type_line or ""
 
     @cached_property
     def types_raw(self) -> list[str]:
@@ -421,14 +433,16 @@ Defaulting to first face."""
     """
 
     @cached_property
-    def color_identity(self) -> list[str]:
+    def color_identity(self) -> list[MagicColor]:
         """Commander relevant color identity array, e.g. [W, U]."""
-        return self.card.get('color_identity', [])
+        if isinstance(self.card, ScryfallCard):
+            return self.card.color_identity
+        return []
 
     @cached_property
     def color_indicator(self) -> str:
         """Color indicator identity , e.g. "WU"."""
-        return get_ordered_colors(self.card.get('color_indicator', []))
+        return get_ordered_colors(self.card.color_indicator or [])
 
     """
     * Collector Info
@@ -444,7 +458,7 @@ Defaulting to first face."""
     @cached_property
     def lang(self) -> str:
         """Card print language, uppercase enforced, falls back to settings defined value."""
-        return self.scryfall.get('lang', CFG.lang).upper()
+        return self.scryfall.lang.upper()
 
     @cached_property
     def rarity(self) -> str:
@@ -456,7 +470,7 @@ Defaulting to first face."""
     @cached_property
     def rarity_raw(self) -> str:
         """Card rarity, doesn't interpret 'special' rarities."""
-        return self.scryfall.get('rarity', Rarity.C)
+        return self.scryfall.rarity
 
     @cached_property
     def rarity_letter(self) -> str:
@@ -469,7 +483,7 @@ Defaulting to first face."""
         if self.file.get('artist'):
             return self.file['artist']
 
-        artist = self.card.get('artist', 'Unknown')
+        artist = self.card.artist
         count: set[str] = set()
 
         # Check for duplicate last names
@@ -478,7 +492,7 @@ Defaulting to first face."""
                 count.add(w)
             return ' '.join(count)
 
-        return artist
+        return artist or "Unknown"
 
     @cached_property
     def collector_number(self) -> int:
@@ -490,7 +504,7 @@ Defaulting to first face."""
     @cached_property
     def collector_number_raw(self) -> str | None:
         """str | None: Card number assigned within release set. Raw string representation, allows non-digits."""
-        return self.scryfall.get('collector_number')
+        return self.scryfall.collector_number
 
     @cached_property
     def card_count(self) -> int | None:
@@ -567,7 +581,7 @@ Defaulting to first face."""
     @cached_property
     def watermark_raw(self) -> str | None:
         """Name of the card's watermark from raw Scryfall data, if provided."""
-        return self.card.get('watermark')
+        return self.card.watermark
 
     @cached_property
     def watermark_svg(self) -> Path | None:
@@ -590,9 +604,9 @@ Defaulting to first face."""
             wm = wm.lower()
 
             # Special case watermarks
-            if wm in ['set', 'symbol']:
+            if self.first_print and wm in ['set', 'symbol']:
                 return get_watermark_svg_from_set(
-                    self.first_print.get('set', self.set) if wm == 'set' else self.set)
+                    self.first_print.set if wm == 'set' else self.set)
 
             # Look for normal watermark
             return get_watermark_svg(wm)
@@ -676,7 +690,7 @@ Defaulting to first face."""
     @cached_property
     def is_promo(self) -> bool:
         """True if card is a promotional print."""
-        if self.scryfall.get('promo', False):
+        if self.scryfall.promo:
             return True
         if self.set_type == 'promo':
             return True
@@ -687,12 +701,12 @@ Defaulting to first face."""
     @cached_property
     def is_front(self) -> bool:
         """True if card is front face."""
-        return bool(self.scryfall.get('front', True))
+        return self.scryfall.front
 
     @cached_property
     def is_alt_lang(self) -> bool:
         """True if language selected isn't English."""
-        return bool(self.lang != 'EN')
+        return CFG.use_printed_texts or bool(self.lang != 'EN')
 
     """
     * Cosmetic Bool
@@ -711,9 +725,7 @@ Defaulting to first face."""
     @cached_property
     def is_nyx(self) -> bool:
         """True if card has Nyx enchantment background texture."""
-        if 'nyxtouched' in self.frame_effects:
-            return True
-        # Nyxtouched often not provided, check for 'Enchantment Creature'
+        # Check for 'Enchantment Creature'
         return bool(self.is_creature and 'Enchantment' in self.type_line_raw)
 
     @cached_property
@@ -724,7 +736,7 @@ Defaulting to first face."""
     @cached_property
     def is_miracle(self) -> bool:
         """True if card is a 'Miracle' card."""
-        return bool("Miracle" in self.frame_effects)
+        return bool("miracle" in self.frame_effects)
 
     @cached_property
     def is_snow(self) -> bool:
@@ -771,18 +783,17 @@ Defaulting to first face."""
             if effect in TransformIcons:
                 return effect
         # Cover special Havengul Lab case
-        if self.scryfall.get('oracle_id') == 'e71ac446-02a4-4468-8d29-f28b21617665':
+        if self.scryfall.oracle_id == 'e71ac446-02a4-4468-8d29-f28b21617665':
             return TransformIcons.UPSIDEDOWN
         # All other cards use the triangle (originally: `convertdfc`)
         return TransformIcons.CONVERT
 
     @cached_property
-    def other_face(self) -> dict[str,Any]:
+    def other_face(self) -> ScryfallCardFace | None:
         """Card data from opposing face if provided."""
-        for face in self.scryfall.get('card_faces', []):
-            if face.get('name') != self.name_raw:
+        for face in self.scryfall.card_faces or []:
+            if face.name != self.name_raw:
                 return face
-        return {}
 
     @cached_property
     def other_face_frame(self) -> FrameDetails | dict[str, Any]:
@@ -797,41 +808,51 @@ Defaulting to first face."""
     @cached_property
     def other_face_mana_cost(self) -> str:
         """Mana cost of opposing face."""
-        return self.other_face.get('mana_cost', '')
+        if self.other_face:
+            return self.other_face.mana_cost or ""
+        return ""
 
     @cached_property
     def other_face_type_line(self) -> str:
         """Type line of opposing face."""
-        return self.other_face.get('type_line', '')
+        if self.other_face:
+            return self.other_face.type_line or ""
+        return ""
 
     @cached_property
     def other_face_type_line_raw(self) -> str:
         """Type line of opposing face, English language enforced."""
-        if self.is_alt_lang:
-            return self.other_face.get('printed_type_line', self.other_face_type_line)
+        if self.other_face and self.is_alt_lang:
+            return self.other_face.printed_type_line or self.other_face_type_line
         return self.other_face_type_line
 
     @cached_property
     def other_face_oracle_text(self) -> str:
         """Rules text of opposing face."""
-        if self.is_alt_lang:
-            return self.other_face.get('printed_text', self.other_face_oracle_text_raw)
+        if self.other_face and self.is_alt_lang:
+            return self.other_face.printed_text or self.other_face_oracle_text_raw
         return self.other_face_oracle_text_raw
 
     @cached_property
     def other_face_oracle_text_raw(self) -> str:
         """Rules text of opposing face."""
-        return self.other_face.get('oracle_text', '')
+        if self.other_face:
+            return self.other_face.oracle_text or ""
+        return ""
 
     @cached_property
     def other_face_power(self) -> str:
         """Creature power of opposing face, if provided."""
-        return self.other_face.get('power', '')
+        if self.other_face:
+            return self.other_face.power or ""
+        return ""
 
     @cached_property
     def other_face_toughness(self) -> str:
         """Creature toughness of opposing face, if provided."""
-        return self.other_face.get('toughness', '')
+        if self.other_face:
+            return self.other_face.toughness or ""
+        return ""
 
     @cached_property
     def other_face_left(self) -> str:
@@ -868,7 +889,7 @@ class MutateLayout(NormalLayout):
     @cached_property
     def oracle_text_unprocessed(self) -> str:
         """str: Unaltered text to split between oracle and mutate."""
-        return self.card.get('printed_text', self.oracle_text_raw) if self.is_alt_lang else self.oracle_text_raw
+        return self.card.printed_text if self.is_alt_lang and self.card.printed_text else self.oracle_text_raw
 
     @cached_property
     def oracle_text(self) -> str:
@@ -906,7 +927,7 @@ class PrototypeLayout(NormalLayout):
     @cached_property
     def proto_details(self) -> ProtoDetails:
         """Returns dictionary containing prototype data and separated oracle text."""
-        proto_text, rules_text = self.card.get('oracle_text', "\n").split("\n", 1)
+        proto_text, rules_text = self.card.oracle_text.split("\n", 1) if self.card.oracle_text else ("", "")
         match = CardTextPatterns.PROTOTYPE.match(proto_text)
         return {
             'oracle_text': rules_text,
@@ -949,7 +970,7 @@ class PlaneswalkerLayout(NormalLayout):
     def oracle_text(self) -> str:
         """Fix Scryfall's minus character."""
         if self.is_alt_lang:
-            return self.card.get('printed_text', self.card.get('oracle_text', '')).replace("\u2212", "-")
+            return (self.card.printed_text or self.card.oracle_text or "").replace("\u2212", "-")
         return self.oracle_text_raw
 
     @cached_property
@@ -964,7 +985,7 @@ class PlaneswalkerLayout(NormalLayout):
     @cached_property
     def loyalty(self) -> str:
         """Planeswalker starting loyalty."""
-        return self.card.get('loyalty', '')
+        return self.card.loyalty or ""
 
     @cached_property
     def pw_size(self) -> int:
@@ -982,7 +1003,7 @@ class PlaneswalkerLayout(NormalLayout):
         en_lines = lines.copy()
 
         # Process alternate language lines if needed
-        if self.is_alt_lang and 'printed_text' in self.card:
+        if self.is_alt_lang and self.card.printed_text:
 
             # Separate alternate language lines
             alt_lines = self.oracle_text.split('\n')
@@ -1022,9 +1043,6 @@ class PlaneswalkerLayout(NormalLayout):
 
 class PlaneswalkerTransformLayout(PlaneswalkerLayout):
     """Transform version of the Planeswalker card layout introduced in Innistrad block."""
-
-    def __init__(self, scryfall: dict[str, Any], file: CardDetails):
-        super().__init__(scryfall, file)
 
     # Static properties
     @cached_property
@@ -1085,9 +1103,9 @@ class ModalDoubleFacedLayout(NormalLayout):
     @cached_property
     def oracle_text(self) -> str:
         """On MDFC alternate language data contains text from both sides, separate them."""
-        if self.is_alt_lang and 'printed_text' in self.card:
+        if self.is_alt_lang and self.card.printed_text:
             return get_lines(
-                self.card.get('printed_text', ''),
+                self.card.printed_text,
                 self.oracle_text_raw.count('\n') + 1)
         return self.oracle_text_raw
 
@@ -1103,9 +1121,11 @@ class AdventureLayout(NormalLayout):
     """
 
     @cached_property
-    def adventure(self) -> dict[str,Any]:
+    def adventure(self) -> ScryfallCardFace:
         """Card object for adventure side."""
-        return self.scryfall['card_faces'][1]
+        if self.scryfall.card_faces:
+            return self.scryfall.card_faces[1]
+        raise ValueError(f"Scryfall data doesn't have a card face for Adventure side: {pprint(self.scryfall)}")
 
     """
     * Adventure Text
@@ -1114,31 +1134,31 @@ class AdventureLayout(NormalLayout):
     @cached_property
     def mana_adventure(self) -> str:
         """Mana cost of the adventure side."""
-        return self.adventure['mana_cost']
+        return self.adventure.mana_cost or ""
 
     @cached_property
     def name_adventure(self) -> str:
         """Name of the Adventure side."""
-        return get_card_name(self.adventure, CFG.use_printed_name or self.is_alt_lang)
+        return self._get_card_name(self.adventure)
 
     @cached_property
     def type_line_adventure(self) -> str:
         """Type line of the Adventure side."""
-        if self.is_alt_lang and 'printed_type_line' in self.adventure:
-            return self.adventure.get('printed_type_line', '')
-        return self.adventure.get('type_line', '')
+        if self.is_alt_lang and self.adventure.printed_type_line:
+            return self.adventure.printed_type_line
+        return self.adventure.type_line or ""
 
     @cached_property
     def oracle_text_adventure(self) -> str:
         """Oracle text of the Adventure side."""
-        if self.is_alt_lang and 'printed_text' in self.adventure:
-            return self.adventure.get('printed_text', '')
-        return self.adventure.get('oracle_text', '')
+        if self.is_alt_lang and self.adventure.printed_text:
+            return self.adventure.printed_text
+        return self.adventure.oracle_text or ""
 
     @cached_property
     def flavor_text_adventure(self) -> str:
         """Flavor text of the Adventure side."""
-        return self.adventure.get('flavor_text', '')
+        return self.adventure.flavor_text or ""
 
     """
     * Adventure Colors
@@ -1226,8 +1246,8 @@ class SagaLayout(NormalLayout):
 
     @cached_property
     def is_transform(self) -> bool:
-        """Sage supports both single and double faced cards."""
-        return bool('card_faces' in self.scryfall)
+        """Saga supports both single and double faced cards."""
+        return bool(self.scryfall.card_faces)
 
     """
     * Saga Properties
@@ -1366,7 +1386,7 @@ class BattleLayout(TransformLayout):
     @cached_property
     def defense(self) -> str:
         """Battle card defense."""
-        return self.card.get('defense', '')
+        return self.card.defense or ""
 
 
 class PlanarLayout(NormalLayout):
@@ -1443,36 +1463,27 @@ class SplitLayout(NormalLayout):
         return f"{self.names[0]} // {self.names[1]}"
 
     @cached_property
-    def card(self) -> dict[str,Any]:
+    def card(self) -> ScryfallCardFace:
         return self.cards[0]
 
     @cached_property
-    def cards(self) -> list[dict[str,Any]]:
+    def cards(self) -> Sequence[ScryfallCardFace]:
         """Both side objects."""
-        return [*self.scryfall.get('card_faces', [])]
+        return self.scryfall.card_faces or []
 
     """
     * Colors
     """
 
     @cached_property
-    def color_identity(self) -> list[str]:
+    def color_identity(self) -> list[MagicColor]:
         """Color identity is shared by both halves, use raw Scryfall instead of 'card' data."""
-        return self.scryfall.get('color_identity', [])
+        return self.scryfall.color_identity
 
     @cached_property
     def color_indicator(self) -> str:
         """Color indicator is shared by both halves, use raw Scryfall instead of 'card' data."""
-        return get_ordered_colors(self.scryfall.get('color_indicator', []))
-
-    """
-    * Images
-    """
-
-    @cached_property
-    def scryfall_scan(self) -> str:
-        """Scryfall large image scan, if available."""
-        return self.scryfall.get('image_uris', {}).get('large', '')
+        return get_ordered_colors(self.scryfall.color_indicator or [])
 
     """
     * Symbols
@@ -1502,7 +1513,7 @@ class SplitLayout(NormalLayout):
     @cached_property
     def watermarks_raw(self) -> list[str | None]:
         """Name of the card's watermark from raw Scryfall data, if provided."""
-        return [c.get('watermark', '') for c in self.cards]
+        return [c.watermark or "" for c in self.cards]
     
     @cached_property
     def watermark_svg(self) -> Path | None:
@@ -1531,7 +1542,7 @@ class SplitLayout(NormalLayout):
             # Special case watermarks
             if wm in ['set', 'symbol']:
                 return get_watermark_svg_from_set(
-                    self.first_print.get('set', self.set) if wm == 'set' else self.set)
+                    self.first_print.set if wm == 'set' and self.first_print else self.set)
 
             # Look for normal watermark
             return get_watermark_svg(wm)
@@ -1572,7 +1583,7 @@ class SplitLayout(NormalLayout):
     @cached_property
     def names(self) -> list[str]:
         """Both side names."""
-        return [get_card_name(c, CFG.use_printed_name or self.is_alt_lang) for c in self.cards]
+        return [self._get_card_name(c) for c in self.cards]
 
     @cached_property
     def name_raw(self) -> str:
@@ -1587,8 +1598,8 @@ class SplitLayout(NormalLayout):
     def type_lines(self) -> list[str]:
         """Both side type lines."""
         if self.is_alt_lang:
-            return [c.get('printed_type_line', c.get('type_line', '')) for c in self.cards]
-        return [c.get('type_line', '') for c in self.cards]
+            return [c.printed_type_line or c.type_line or "" for c in self.cards]
+        return [c.type_line or "" for c in self.cards]
     
     @cached_property
     def mana_cost(self) -> str:
@@ -1597,7 +1608,7 @@ class SplitLayout(NormalLayout):
     @cached_property
     def mana_costs(self) -> list[str]:
         """Both side mana costs."""
-        return [c.get('mana_cost', '') for c in self.cards]
+        return [c.mana_cost or "" for c in self.cards]
     
     @cached_property
     def oracle_text(self) -> str:
@@ -1608,8 +1619,8 @@ class SplitLayout(NormalLayout):
         """Both side oracle texts."""
         text: list[str] = []
         for t in [
-            c.get('printed_text', c.get('oracle_text', ''))
-            if self.is_alt_lang else c.get('oracle_text', '')
+            c.printed_text or c.oracle_text or ""
+            if self.is_alt_lang else c.oracle_text or ""
             for c in self.cards
         ]:
             if 'Fuse' in self.keywords:
@@ -1629,14 +1640,14 @@ class SplitLayout(NormalLayout):
     @cached_property
     def flavor_texts(self) -> list[str]:
         """Both sides flavor text."""
-        return [c.get('flavor_text', '') for c in self.cards]
+        return [c.flavor_text or "" for c in self.cards]
     
     @cached_property
     def shared_reminder(self) -> str:
         prev_match: str = ""
         for oracle_text in [
-            c.get('printed_text', c.get('oracle_text', ''))
-            if self.is_alt_lang else c.get('oracle_text', '')
+            c.printed_text or c.oracle_text or ""
+            if self.is_alt_lang else c.oracle_text or ""
             for c in self.cards
         ]:
             match = CardTextPatterns.TEXT_REMINDER_ENDING.match(oracle_text)
@@ -1769,7 +1780,7 @@ class StationLayout(NormalLayout):
     def oracle_text_unprocessed(self) -> str:
         """Unaltered oracle text."""
         return (
-            self.card.get("printed_text", self.oracle_text_raw)
+            self.card.printed_text or self.oracle_text_raw
             if self.is_alt_lang
             else self.oracle_text_raw
         )

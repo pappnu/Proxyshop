@@ -5,16 +5,15 @@
 # Standard Library Imports
 from contextlib import suppress
 from pathlib import Path
-from typing import TypedDict, Any
+from typing import Any, TypedDict
 
 # Third Party Imports
 from omnitils.strings import normalize_str
-import yarl
 
 # Local Imports
 from src._config import AppConfig
 from src.console import TerminalConsole, msg_warn
-from src.enums.mtg import TransformIcons, non_italics_abilities, CardTextPatterns
+from src.enums.mtg import CardTextPatterns, TransformIcons, non_italics_abilities
 from src.gui.console import GUIConsole
 from src.schema.colors import ColorObject
 from src.utils import scryfall
@@ -55,7 +54,11 @@ class FrameDetails(TypedDict):
 """
 
 
-def get_card_data(card: CardDetails, cfg: AppConfig, logger: GUIConsole | TerminalConsole | None = None) -> dict[str,Any] | None:
+def get_card_data(
+    card: CardDetails,
+    cfg: AppConfig,
+    logger: GUIConsole | TerminalConsole | None = None,
+) -> scryfall.ScryfallCard | None:
     """Fetch card data from the Scryfall API.
 
     Args:
@@ -146,7 +149,7 @@ def parse_card_info(file_path: Path) -> CardDetails:
 """
 
 
-def process_card_data(data: dict[str,Any], card: CardDetails) -> dict[str,Any]:
+def process_card_data(data: scryfall.ScryfallCard, card: CardDetails) -> scryfall.ScryfallCard:
     """Process any additional required data before sending it to the layout object.
 
     Args:
@@ -160,97 +163,108 @@ def process_card_data(data: dict[str,Any], card: CardDetails) -> dict[str,Any]:
     name_normalized = normalize_str(card['name'], no_space=True)
 
     # Modify meld card data to fit transform layout
-    if data['layout'] == 'meld':
+    if data.layout == 'meld':
         # Ignore tokens and other objects
-        front: list[dict[str,Any]] = []
-        back: dict[str,Any] | None =  None
-        for part in data.get('all_parts', []):
-            if part.get('component') == 'meld_part':
+        front: list[scryfall.ScryfallRelatedCard] = []
+        back: scryfall.ScryfallRelatedCard | None =  None
+        for part in data.all_parts if data.all_parts else []:
+            if part.component == 'meld_part':
                 front.append(part)
-            if part.get('component') == 'meld_result':
+            if part.component == 'meld_result':
                 back = part
 
         # Figure out if card is a front or a back
-        faces: list[dict[str,Any] | None] = [front[0], back] if back and (
-            name_normalized == normalize_str(back.get('name', ''), True) or
-            name_normalized == normalize_str(front[0].get('name', ''), True)
+        is_back = back and name_normalized == normalize_str(back.name, no_space=True)
+
+        faces: list[scryfall.ScryfallRelatedCard | None] = [front[0], back] if (
+            is_back or
+            name_normalized == normalize_str(front[0].name, no_space=True)
         ) else [front[1], back]
 
-        # Pull JSON data for each face and set object to card_face
-        data['card_faces'] = [{
-            **scryfall.get_uri_object(yarl.URL(face['uri'])),
-            'object': 'card_face'
-        } for face in faces if face]
+        if is_back and back:
+            data = scryfall.get_card_via_url(str(back.uri))
+            data.layout = "normal"
+        else:
+            # Pull JSON data for each face and set object to card_face
+            data.card_faces = []
+            for face in faces:
+                if face:
+                    face_data = scryfall.get_card_via_url(str(face.uri))
+                    face_data_dict = face_data.model_dump()
+                    face_data_dict["object"] = "card_face"
+                    data.card_faces.append(scryfall.ScryfallCardFace(**face_data_dict))
 
-        # Add meld transform icon if none provided
-        if not any([bool(n in TransformIcons) for n in data.get('frame_effects', [])]):
-            data.setdefault('frame_effects', []).append(TransformIcons.MELD)
-        data['layout'] = 'transform'
+            # Add meld transform icon if none provided
+            if not data.frame_effects or not any([bool(n in TransformIcons) for n in data.frame_effects]):
+                data.frame_effects = ["meld"]
+            data.layout = "transform"
 
     # Check for alternate MDFC / Transform layouts
-    if 'card_faces' in data:
+    if data.card_faces:
         # Select the corresponding face
-        card_faces = data['card_faces']
+        card_faces = data.card_faces
         # Default to front face
         i = 0
         card_face = card_faces[0]
         for idx, face in enumerate(card_faces):
-            if normalize_str(face.get('name', ''), True) == name_normalized:
+            if normalize_str(face.name, True) == name_normalized:
                 i = idx
                 card_face = face
                 break
         # Decide if this is a front face
-        data['front'] = True if i == 0 else False
+        data.front = i == 0
         # Transform / MDFC Planeswalker layout
-        if 'Planeswalker' in card_face.get('type_line', ''):
-            data['layout'] = 'planeswalker_tf' if data.get('layout') == 'transform' else 'planeswalker_mdfc'
-        # Transform Saga layout
-        if 'Saga' in card_face['type_line']:
-            data['layout'] = 'saga'
-        # Battle layout
-        if 'Battle' in card_face['type_line']:
-            data['layout'] = 'battle'
+        if card_face.type_line:
+            if 'Planeswalker' in card_face.type_line:
+                data.layout = 'planeswalker_tf' if data.layout == 'transform' else 'planeswalker_mdfc'
+            # Transform Saga layout
+            elif 'Saga' in card_face.type_line:
+                data.layout = 'saga'
+            # Battle layout
+            elif 'Battle' in card_face.type_line:
+                data.layout = 'battle'
 
         # Fix Adventure Land mana costs locally, as Scryfall seems unwilling to
         # fix the issue on their end even after reporting it and waiting for months.
         # Once Scryfall corrects their data this fix can be removed.
-        if data["layout"] == "adventure":
-            card_faces = data["card_faces"]
+        if data.layout == "adventure":
+            card_faces = data.card_faces
             main_face = card_faces[0]
             adventure_face = card_faces[1]
             if (
-                main_face["type_line"].startswith("Land ")
-                and main_face["mana_cost"]
-                and not adventure_face["mana_cost"]
+                main_face.type_line and
+                main_face.type_line.startswith("Land ")
+                and main_face.mana_cost
+                and not adventure_face.mana_cost
             ):
                 # Swap the Land and Adventure faces' mana costs
-                main_face["mana_cost"], adventure_face["mana_cost"] = (
-                    adventure_face["mana_cost"],
-                    main_face["mana_cost"],
+                main_face.mana_cost, adventure_face.mana_cost = (
+                    adventure_face.mana_cost,
+                    main_face.mana_cost,
                 )
 
         return data
 
     # Add Mutate layout
-    if 'Mutate' in data.get('keywords', []):
-        data['layout'] = 'mutate'
+    if 'Mutate' in data.keywords:
+        data.layout = 'mutate'
         return data
     
-    type_line = data.get('type_line', '')
+    type_line = data.type_line
 
     # Add Planeswalker layout
     if 'Planeswalker' in type_line:
-        data['layout'] = 'planeswalker'
+        data.layout = 'planeswalker'
         return data
     
     # Check for Saga Creature layout
     if 'Saga' in type_line and 'Creature' in type_line:
-        data['layout'] = 'saga'
+        data.layout = 'saga'
         return data
 
     # Check for Station layout
-    if 'STATION ' in data.get('oracle_text', ''):
-        data['layout'] = 'station'
+    if data.oracle_text and 'STATION ' in data.oracle_text:
+        data.layout = 'station'
         return data
 
     # Return updated data

@@ -43,9 +43,9 @@ type = "options"
 default = "en"
 options = ["en", "es", "fr", "de", "it", "pt", "jp", "kr", "ru", "cs", "ct"]
 
-[DATA."Scryfall.Use.Printed.Name"]
-title = "Use printed name"
-desc = """Use the printed name of the card, if it's available in the Scryfall data, instead of the canonical English name. Non-English cards use printed name regardless of this setting's value."""
+[DATA."Scryfall.Use.Printed.Texts"]
+title = "Use printed texts"
+desc = """Use the printed name, type line and rules text of the card, if they are available in the Scryfall data, instead of the canonical English texts. Non-English cards use printed texts regardless of this setting's value."""
 type = "bool"
 default = 0
 

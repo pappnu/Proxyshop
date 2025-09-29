@@ -1,13 +1,21 @@
-from json import dump, load
-from os import unlink
 import subprocess
+from os import unlink
 from tempfile import NamedTemporaryFile
-from typing import Any
+from typing import TypeVar
+
+from pydantic import BaseModel
+
+T = TypeVar("T", bound=BaseModel)
 
 
-def manually_modify_dict(
-    data: dict[str, Any], text_editing_program: str = 'notepad "{}"'
-) -> dict[str, Any]:
+def manually_modify_model(model: T, text_editing_program: str) -> T:
+    """Opens model as JSON in a text editing program, e.g. notepad, for manual editing,
+    waits for editing to be done and then converts the edited JSON back to model form.
+
+    Args:
+        model: Model to edit.
+        text_editing_program: The command to open the text editor. Place curly brackets to where the text file path should go in the call, e.g. `notepad "{}"`.
+    """
     tmp = NamedTemporaryFile(
         "w",
         prefix="Proxyshop_manual_dict_modification_",
@@ -15,10 +23,10 @@ def manually_modify_dict(
         delete=False,
     )
     try:
-        dump(data, tmp, ensure_ascii=False, indent=2)
+        tmp.write(model.model_dump_json(indent=2))
         tmp.close()
         subprocess.run((text_editing_program.format(tmp.name)), check=True)
-        with open(tmp.name, "r", encoding="UTF-8") as f:
-            return load(f)
+        with open(tmp.name, "rb") as f:
+            return model.model_validate_json(f.read())
     finally:
         unlink(tmp.name)

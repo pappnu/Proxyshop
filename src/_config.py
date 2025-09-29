@@ -2,25 +2,22 @@
 * Global Settings Module
 """
 
-# Standard Library Imports
 from typing import Literal, overload
 
-# Third Party Imports
-from omnitils.metaclass import Singleton
 from omnitils.enums import StrConstant
+from omnitils.metaclass import Singleton
 
-# Local Imports
+from src._loader import ConfigManager
 from src._state import AppEnvironment
 from src.enums.settings import (
-    CollectorMode,
     BorderColor,
+    CollectorMode,
+    CollectorPromo,
     OutputFileType,
     ScryfallSorting,
     ScryfallUnique,
-    CollectorPromo,
     WatermarkMode,
 )
-from src._loader import ConfigManager
 
 
 class AppConfig:
@@ -52,8 +49,8 @@ class AppConfig:
 
         # APP - DATA
         self.lang = self.file.get("APP.DATA", "Scryfall.Language", fallback="en")
-        self.use_printed_name = self.file.getboolean(
-            "APP.DATA", "Scryfall.Use.Printed.Name", fallback=False
+        self.use_printed_texts = self.file.getboolean(
+            "APP.DATA", "Scryfall.Use.Printed.Texts", fallback=False
         )
         self.scry_sorting = self.get_option(
             "APP.DATA", "Scryfall.Sorting", ScryfallSorting
