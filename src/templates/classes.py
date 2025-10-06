@@ -2,21 +2,18 @@
 * CLASS TEMPLATES
 """
 
-# Standard Library Imports
+from collections.abc import Callable, Sequence
 from functools import cached_property
-from collections.abc import Sequence, Callable
 
-# Third Party Imports
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
-from src.enums.layers import LAYERS
 import src.helpers as psd
-from src.schema.colors import GradientConfig
+from src.enums.layers import LAYERS
+from src.helpers.bounds import get_dimensions_from_bounds
 from src.helpers.layers import get_reference_layer
 from src.layouts import ClassLayout, NormalLayout
-from src.schema.colors import ColorObject, pinlines_color_map
+from src.schema.colors import ColorObject, GradientConfig, pinlines_color_map
 from src.templates._core import NormalTemplate
 from src.templates._cosmetic import VectorNyxMod
 from src.templates._vector import MaskAction, VectorTemplate
@@ -95,6 +92,10 @@ class ClassMod(NormalTemplate):
     def text_layer_ability(self) -> ArtLayer | None:
         return psd.getLayer(LAYERS.TEXT, self.class_group)
 
+    @cached_property
+    def class_text_layer_reminder(self) -> ArtLayer | None:
+        return psd.getLayer(LAYERS.REMINDER_TEXT, self.class_group)
+
     """
     * Class Abilities
     """
@@ -108,8 +109,12 @@ class ClassMod(NormalTemplate):
         self._class_line_layers = value
 
     """
-    * Class Stage Dividers
+    * Class Dividers
     """
+
+    @cached_property
+    def class_reminder_divider(self) -> ArtLayer | LayerSet | None:
+        return psd.getLayer(LAYERS.DIVIDER, self.class_group)
 
     @property
     def class_stage_layers(self) -> list[LayerSet]:
@@ -136,6 +141,15 @@ class ClassMod(NormalTemplate):
     def text_layers_classes(self) -> None:
         """Add and modify text layers relating to Class type cards."""
         if isinstance(self.layout, ClassLayout) and self.text_layer_ability:
+            # Add reminder text
+            if self.class_text_layer_reminder:
+                self.text.append(
+                    FormattedTextField(
+                        layer=self.class_text_layer_reminder,
+                        contents=self.layout.class_description,
+                    )
+                )
+
             # Add first static line
             self.class_line_layers.append(self.text_layer_ability)
             self.text.append(
@@ -165,7 +179,10 @@ class ClassMod(NormalTemplate):
                     self.text.extend(
                         [
                             FormattedTextField(layer=cost, contents=f"{line['cost']}:"),
-                            TextField(layer=level, contents=f"Level {line['level']}"),
+                            TextField(
+                                layer=level,
+                                contents=f"{line['level_translation']}{line['level']}",
+                            ),
                         ]
                     )
 
@@ -184,6 +201,29 @@ class ClassMod(NormalTemplate):
     def layer_positioning_classes(self) -> None:
         """Positions and sizes class ability layers and stage dividers."""
         if self.textbox_reference:
+            # Ensure that textbox reference bounds don't overlap with reminder
+            reminder_end: float = 0
+            if self.class_text_layer_reminder:
+                reminder_dims = psd.get_layer_dimensions(self.class_text_layer_reminder)
+                reminder_end = reminder_dims["bottom"]
+
+                if self.class_reminder_divider:
+                    divider_dims = psd.get_layer_dimensions(self.class_reminder_divider)
+                    reminder_end += divider_dims["height"]
+
+                textbox_ref_bounds = self.textbox_reference.bounds
+                new_bounds = (
+                    textbox_ref_bounds[0],
+                    max(textbox_ref_bounds[1], reminder_end),
+                    textbox_ref_bounds[2],
+                    textbox_ref_bounds[3],
+                )
+                # Override the cached bounds with modified bounds.
+                # It is assumed that bounds without effects aren't needed,
+                # so they aren't overridden.
+                self.textbox_reference.bounds = new_bounds
+                self.textbox_reference.dims = get_dimensions_from_bounds(new_bounds)
+
             # Core vars
             spacing = self.app.scale_by_dpi(80)
             spaces = len(self.class_line_layers) - 1
@@ -198,7 +238,9 @@ class ClassMod(NormalTemplate):
             )
 
             # Get the exact gap between each layer left over
-            layer_heights = sum([psd.get_layer_height(lyr) for lyr in self.class_line_layers])
+            layer_heights = sum(
+                [psd.get_layer_height(lyr) for lyr in self.class_line_layers]
+            )
             gap = (ref_height - layer_heights) * (spacing / spacing_total)
             inside_gap = (ref_height - layer_heights) * (
                 (spacing + divider_height) / spacing_total
@@ -214,8 +256,23 @@ class ClassMod(NormalTemplate):
 
             # Position a class stage between each ability line
             psd.position_dividers(
-                dividers=self.class_stage_layers, layers=self.class_line_layers, docref=self.docref
+                dividers=self.class_stage_layers,
+                layers=self.class_line_layers,
+                docref=self.docref,
             )
+
+            # Position reminder divider
+            if self.class_reminder_divider:
+                first_line_layer_dims = psd.get_layer_dimensions(
+                    self.class_line_layers[0]
+                )
+                divider_dims = psd.get_layer_dimensions(self.class_reminder_divider)
+                delta = (
+                    (reminder_text_end := reminder_end - divider_dims["height"])
+                    + (first_line_layer_dims["top"] - reminder_text_end) / 2
+                    - divider_dims["center_y"]
+                )
+                self.class_reminder_divider.translate(0, delta)
 
 
 """
@@ -413,7 +470,11 @@ class ClassVectorTemplate(VectorNyxMod, ClassMod, VectorTemplate):
     def enabled_masks(
         self,
     ) -> list[
-        MaskAction | tuple[ArtLayer | LayerSet, ArtLayer | LayerSet] | ArtLayer | LayerSet | None
+        MaskAction
+        | tuple[ArtLayer | LayerSet, ArtLayer | LayerSet]
+        | ArtLayer
+        | LayerSet
+        | None
     ]:
         """Support a pinlines mask."""
         return [self.pinlines_mask]

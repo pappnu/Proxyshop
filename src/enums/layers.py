@@ -136,6 +136,7 @@ class LAYERS (StrConstant):
     RULES_TEXT_NONCREATURE_FLIP = 'Rules Text - Noncreature Flip'
     RULES_TEXT_CREATURE = 'Rules Text - Creature'
     RULES_TEXT_CREATURE_FLIP = 'Rules Text - Creature Flip'
+    REMINDER_TEXT = 'Reminder Text'
     MUTATE = 'Mutate'
     DIVIDER = 'Divider'
     CREATOR = 'Creator'

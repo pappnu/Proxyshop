@@ -73,6 +73,7 @@ class SagaLine(TypedDict):
 
 class ClassLine(TypedDict):
     cost: str | None
+    level_translation: str
     level: str
     text: str
 
@@ -1343,7 +1344,9 @@ class ClassLayout(NormalLayout):
 
         # Initial class ability
         initial, *lines = self.class_text.split('\n')
-        abilities: list[ClassLine] = [{'text': initial, 'cost': None, 'level': "1"}]
+        # Non-English Class cards have extra //Level_X// after first line of each level
+        lines = [line for line in lines if not CardTextPatterns.CLASS_NON_ENGLISH.match(line)]
+        abilities: list[ClassLine] = [{'text': initial, 'cost': None, 'level': "1", "level_translation": ""}]
 
         # Add level-up abilities
         for line in ["\n".join(lines[i:i + 2]) for i in range(0, len(lines), 2)]:
@@ -1352,8 +1355,9 @@ class ClassLayout(NormalLayout):
             if details and len(details.groups()) >= 3:
                 abilities.append({
                     'cost': details[1],
-                    'level': details[2],
-                    'text': details[3]
+                    'level_translation': details[2],
+                    'level': details[3],
+                    'text': details[4]
                 })
                 continue
             # Otherwise add line to the previous ability

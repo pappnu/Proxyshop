@@ -2,22 +2,20 @@
 * Templates: Saga
 """
 
-# Standard Library Imports
+from collections.abc import Callable, Sequence
 from functools import cached_property
-from collections.abc import Sequence, Callable
 
-# Third Party Imports
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
-from src.enums.layers import LAYERS
 import src.helpers as psd
-from src.schema.colors import GradientConfig
+import src.text_layers as text_classes
+from src.enums.layers import LAYERS
 from src.helpers.layers import get_reference_layer
 from src.layouts import NormalLayout, SagaLayout
 from src.schema.colors import (
     ColorObject,
+    GradientConfig,
     pinlines_color_map,
     saga_banner_color_map,
     saga_stripe_color_map,
@@ -26,7 +24,6 @@ from src.templates import VectorNyxMod
 from src.templates._core import NormalTemplate
 from src.templates._vector import MaskAction, VectorTemplate
 from src.templates.transform import VectorTransformMod
-import src.text_layers as text_classes
 from src.utils.adobe import ReferenceLayer
 
 """
@@ -128,7 +125,7 @@ class SagaMod(NormalTemplate):
 
     @cached_property
     def text_layer_reminder(self) -> ArtLayer | None:
-        return psd.getLayer("Reminder Text", self.saga_group)
+        return psd.getLayer(LAYERS.REMINDER_TEXT, self.saga_group)
 
     """
     * References
