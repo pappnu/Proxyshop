@@ -26,13 +26,13 @@ from limits import RateLimitItemPerSecond
 from limits.storage import MemoryStorage
 from limits.strategies import MovingWindowRateLimiter
 from omnitils.exceptions import ExceptionLogger, log_on_exception, return_on_exception
+from omnitils.rate_limit import rate_limit
 from pydantic import BaseModel, HttpUrl, ValidationError
 from requests.exceptions import RequestException
 
 from src import CONSOLE, PATH
 from src.console import get_bullet_points
 from src.utils.download import HEADERS
-from src.utils.rate_limit import rate_limit
 
 """
 * Types
@@ -449,7 +449,7 @@ def scryfall_request_wrapper(
         @on_exception(
             expo, requests.exceptions.RequestException, max_tries=2, max_time=1
         )
-        @rate_limit(strategy=_scryfall_rate_limit, limit=_rate_limit)
+        @rate_limit(limiter=_scryfall_rate_limit, limit=_rate_limit)
         def wrapper(*args: P.args, **kwargs: P.kwargs):
             return func(*args, **kwargs)
 
