@@ -29,7 +29,7 @@ jobs:
         run: echo ("NOW=" + ([datetime]::UtcNow.ToString("yyyy-MM-dd HH:mm:ss")) + " UTC") >> $env:GITHUB_ENV
 
       - name: Set current path friendly date as env variable
-        run: echo ("NOW_PATH=" + ([datetime]::UtcNow.ToString("yyyy-MM-ddTHH-mm-ssZ"))) >> $env:GITHUB_ENV
+        run: echo ("NOW_PATH=" + ([datetime]::UtcNow.ToString("yyyy-MM-ddTHHmmssZ"))) >> $env:GITHUB_ENV
 
       - name: Set commit short sha as env variable
         run: echo "SHORT_SHA=$("${{ github.sha }}".SubString(0, 8))" >> $env:GITHUB_ENV
