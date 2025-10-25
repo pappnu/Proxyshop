@@ -2,32 +2,40 @@
 * Manage Global State (non-GUI)
 * Only local imports should be `enums`, `utils`, or `cards`.
 """
-# Standard Library Imports
 import os
+import sys
 from contextlib import suppress
 from functools import cached_property
 from os import environ
 from pathlib import Path
-import sys
 from threading import Lock
 from typing import TYPE_CHECKING, Any
 
-# Third Party Imports
+from dynaconf import Dynaconf
 from hexproof.hexapi.schema.meta import Meta
 from omnitils.exceptions import return_on_exception
-from omnitils.files import load_data_file, dump_data_file
+from omnitils.files import dump_data_file, load_data_file
 from omnitils.metaclass import Singleton
 from omnitils.properties import tracked_prop
-from dynaconf import Dynaconf
+from pydantic import BaseModel, RootModel
 
-# Local Imports
 from src.enums.layers import LAYERS
-from src.enums.mtg import (
-    mana_symbol_map,
-    CardFonts)
+from src.enums.mtg import CardFonts, mana_symbol_map
 from src.schema.colors import ColorObject, SymbolColorMap
 from src.utils.mtg import get_symbol_colors
 
+
+class HexproofSet(BaseModel):
+    """Cached 'Set' object data from Hexproof.io."""
+    code_symbol: str = "default"
+    code_parent: str | None = None
+    count_cards: int
+    count_tokens: int
+    count_printed: int | None = None
+
+HexproofSets = RootModel[dict[str, HexproofSet]]
+
+HexproofMetas = RootModel[dict[str, Meta]]
 
 """
 * App Paths
@@ -109,6 +117,7 @@ class PATH(DefinedPaths):
 
     # Image Level Files
     SRC_IMG_SYMBOLS_PACKAGE = (SRC_IMG_SYMBOLS / 'package').with_suffix('.zip')
+    SRC_IMG_SYMBOLS_MANIFEST = SRC_IMG_SYMBOLS / "manifest.json"
     SRC_IMG_OVERLAY = (SRC_IMG / 'overlay').with_suffix('.jpg')
     SRC_IMG_NOTFOUND = (SRC_IMG / 'notfound').with_suffix('.jpg')
 
@@ -154,6 +163,10 @@ class CustomDynaconf(Dynaconf):
         def DEV_MODE(self) -> bool: ...
         @cached_property
         def TEST_MODE(self) -> bool: ...
+        @cached_property
+        def APP_UPDATES_REPO(self) -> str: ...
+        @cached_property
+        def SYMBOL_UPDATES_REPO(self) -> str: ...
         @cached_property
         def FORCE_RELOAD(self) -> bool: ...
         @cached_property
@@ -225,6 +238,18 @@ class AppEnvironment(CustomDynaconf):
     def TEST_MODE(self) -> bool:
         """bool: Whether the app is running in testing mode."""
         return super().TEST_MODE
+    
+    """
+    * Update checks
+    """
+
+    @cached_property
+    def APP_UPDATES_REPO(self) -> str:
+        return super().APP_UPDATES_REPO
+    
+    @cached_property
+    def SYMBOL_UPDATES_REPO(self) -> str:
+        return super().SYMBOL_UPDATES_REPO
 
     """
     * Experimental
@@ -421,13 +446,13 @@ class AppConstants:
     """
 
     @tracked_prop
-    def set_data(self) -> dict[str, dict[str,dict[str,Any]]]:
-        """dict[str, dict]: Returns set data pulled from Hexproof.io mapped to set codes."""
+    def set_data(self) -> dict[str, HexproofSet]:
+        """Returns set data pulled from Hexproof.io mapped to set codes."""
         return self.get_set_data()
 
     @tracked_prop
     def metadata(self) -> dict[str, Meta]:
-        """dict[str, dict]: Returns data pulled from Hexproof.io mapped to resources."""
+        """Returns data pulled from Hexproof.io mapped to resources."""
         return self.get_meta_data()
 
     """
@@ -467,21 +492,22 @@ class AppConstants:
     """
 
     @return_on_exception({})
-    def get_set_data(self) -> dict[str, dict[str,dict[str,Any]]]:
-        """dict: Loaded data from the 'set' data file."""
+    def get_set_data(self) -> dict[str, HexproofSet]:
+        """Loaded data from the 'set' data file."""
         if not PATH.SRC_DATA_HEXPROOF_SET.is_file():
-            dump_data_file({}, PATH.SRC_DATA_HEXPROOF_SET)
+            return {}
 
-        # Import watermark library
-        return load_data_file(PATH.SRC_DATA_HEXPROOF_SET)
+        # Read set data
+        return HexproofSets.model_validate_json(
+            PATH.SRC_DATA_HEXPROOF_SET.read_bytes()
+        ).root
 
     @return_on_exception({})
     def get_meta_data(self) -> dict[str, Meta]:
-        """dict: Loaded data from the 'meta' data file."""
+        """Loaded data from the 'meta' data file."""
         if not PATH.SRC_DATA_HEXPROOF_META.is_file():
-            dump_data_file({}, PATH.SRC_DATA_HEXPROOF_META)
+            return {}
 
-        # Import watermark library
-        return {
-            k: Meta(**v) for k, v in
-            load_data_file(PATH.SRC_DATA_HEXPROOF_META)}
+        return HexproofMetas.model_validate_json(
+            PATH.SRC_DATA_HEXPROOF_META.read_bytes()
+        ).root

@@ -1,25 +1,29 @@
 """
 * Load Global Application State
 """
-# Standard Library Imports
-from pathlib import Path
-import sys
 
-# Third Party Imports
+import sys
+from pathlib import Path
+
 from dynaconf import Validator
 from omnitils.files import get_project_version
 
+from src.utils.adobe import PhotoshopHandler
 from src.utils.threading import ThreadInitializedInstance
 
-# Local Imports
 from ._config import AppConfig
-from ._loader import get_all_plugins, get_all_templates, get_template_map, get_template_map_defaults
-from ._state import AppConstants, AppEnvironment, PATH
-from src.utils.adobe import PhotoshopHandler
+from ._loader import (
+    get_all_plugins,
+    get_all_templates,
+    get_template_map,
+    get_template_map_defaults,
+)
+from ._state import PATH, AppConstants, AppEnvironment
 
 """
 * Globally Loaded Objects
 """
+
 
 def _get_proj_version(path: Path) -> str:
     try:
@@ -27,22 +31,25 @@ def _get_proj_version(path: Path) -> str:
     except Exception:
         return "0.0.0"
 
+
 # Global environment object (dynaconf)
 ENV = AppEnvironment(
-    envvar_prefix='PROXYSHOP',
+    envvar_prefix="PROXYSHOP",
     settings_files=[PATH.SRC_DATA_ENV_DEFAULT, PATH.SRC_DATA_ENV],
     validators=[
-        Validator('API_GOOGLE', cast=str, default=''),
-        Validator('API_AMAZON', cast=str, default=''),
-        Validator('PS_ERROR_DIALOG', cast=bool, default=False),
-        Validator('PS_VERSION', cast=AppEnvironment.string_or_none, default=None),
-        Validator('HEADLESS', cast=bool, default=False),
-        Validator('DEV_MODE', cast=bool, default=bool(not hasattr(sys, '_MEIPASS'))),
-        Validator('TEST_MODE', cast=bool, default=False),
-        Validator('VERSION', cast=str, default=_get_proj_version(PATH.PROJECT_FILE)),
-        Validator('FORCE_RELOAD', cast=bool, default=False)
+        Validator("API_GOOGLE", cast=str, default=""),
+        Validator("API_AMAZON", cast=str, default=""),
+        Validator("PS_ERROR_DIALOG", cast=bool, default=False),
+        Validator("PS_VERSION", cast=AppEnvironment.string_or_none, default=None),
+        Validator("HEADLESS", cast=bool, default=False),
+        Validator("DEV_MODE", cast=bool, default=bool(not hasattr(sys, "_MEIPASS"))),
+        Validator("TEST_MODE", cast=bool, default=False),
+        Validator("APP_UPDATES_REPO", cast=str, default=""),
+        Validator("SYMBOL_UPDATES_REPO", cast=str, default=""),
+        Validator("VERSION", cast=str, default=_get_proj_version(PATH.PROJECT_FILE)),
+        Validator("FORCE_RELOAD", cast=bool, default=False),
     ],
-    apply_default_on_none=True
+    apply_default_on_none=True,
 )
 
 # Global constants object
@@ -68,4 +75,4 @@ TEMPLATE_MAP = get_template_map(templates=TEMPLATES)
 TEMPLATE_DEFAULTS = get_template_map_defaults(TEMPLATE_MAP)
 
 # Export objects
-__all__ = ['APP', 'CFG', 'CON', 'CONSOLE', 'ENV', 'PATH']
+__all__ = ["APP", "CFG", "CON", "CONSOLE", "ENV", "PATH"]

@@ -23,7 +23,7 @@ import requests
 from PIL import Image as PImage
 from photoshop.api._document import Document
 from photoshop.api import SaveOptions, PurgeTarget
-from packaging.version import parse
+from packaging.version import parse, InvalidVersion
 
 # Kivy Imports
 from kivy.lang import Builder
@@ -65,6 +65,7 @@ from src.layouts import (
     NormalLayout)
 from src.templates import BaseTemplate
 from src.utils.adobe import get_photoshop_error_message, PhotoshopHandler, PS_EXCEPTIONS
+from src.utils.github import get_github_releases
 from src.utils.hexapi import update_hexproof_cache, get_api_key
 from src.utils.fonts import check_app_fonts
 from src.utils.threading import ThreadInitializedInstance
@@ -1132,10 +1133,13 @@ class ProxyshopGUIApp(App):
         Returns:
             Return True if up to date, otherwise False.
         """
-        with suppress(requests.RequestException, json.JSONDecodeError):
-            response = requests.get(
-                "https://api.github.com/repos/MrTeferi/Proxyshop/releases/latest",
-                timeout=(3, 3))
-            latest = response.json().get("tag_name", self.env.VERSION)
-            return bool(parse(self.env.VERSION.lstrip('v')) >= parse(latest.lstrip('v')))
+        if self.env.APP_UPDATES_REPO:
+            with suppress(requests.RequestException, json.JSONDecodeError):
+                releases = get_github_releases(self.env.APP_UPDATES_REPO, per_page=1)
+                if (len(releases) > 0):
+                    latest = releases[0].tag_name
+                    try:
+                        return bool(parse(self.env.VERSION.lstrip('v')) >= parse(latest.lstrip('v')))
+                    except InvalidVersion:
+                        return self.env.VERSION >= latest
         return True

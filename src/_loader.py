@@ -3,36 +3,35 @@
 * Only import enums and utils
 """
 
-# Standard Library Imports
-import json
+import os
 import shutil
-from concurrent.futures import ThreadPoolExecutor, Future
+import tomllib
+from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
 from configparser import ConfigParser
 from contextlib import suppress
 from functools import cached_property
-import os
 from pathlib import Path
 from traceback import format_exc, print_tb
 from types import ModuleType
-from typing import Optional, TypedDict, NotRequired, Any, overload
-from collections.abc import Callable
+from typing import Any, Literal, NotRequired, Optional, Self, TypedDict
 
-# Third Party Imports
-from py7zr import SevenZipFile
+import yaml
 import yarl
-from omnitils.api.gdrive import gdrive_get_metadata, gdrive_download_file
-from omnitils.files import load_data_file, ensure_file, mkdir_full_perms
-from omnitils.modules import get_local_module, import_package, import_module_from_path
+from omnitils.api.gdrive import gdrive_download_file, gdrive_get_metadata
+from omnitils.files import ensure_file, load_data_file, mkdir_full_perms
+from omnitils.modules import get_local_module, import_module_from_path, import_package
 from omnitils.strings import normalize_ver
+from py7zr import SevenZipFile
+from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 
-# Local Imports
-from src._state import AppConstants, AppEnvironment, PATH
+from src._state import PATH, AppConstants, AppEnvironment
 from src.enums.mtg import (
-    layout_map_types_display,
     layout_map_category,
-    layout_map_types,
-    layout_map_display_condition_dual,
     layout_map_display_condition,
+    layout_map_display_condition_dual,
+    layout_map_types,
+    layout_map_types_display,
 )
 from src.utils.download import download_cloudfront
 
@@ -138,6 +137,137 @@ class IniConfig(TypedDict):
     value: str | int | float
 
 
+class BaseConfig(BaseModel):
+    prefix: str
+
+
+class BaseSection(BaseModel):
+    title: str
+
+
+class SectionTitle(BaseSection):
+    type: Literal["title"] = "title"
+
+
+class BaseSetting(BaseSection):
+    desc: str = ""
+    key: str = ""
+    section: str = ""
+
+
+class BoolSetting(BaseSetting):
+    type: Literal["bool"]
+    # Kivy doesn't support default fields in it's config,
+    # so they should not be serialized.
+    default: bool = Field(default=False, exclude=True)
+
+
+class StringSetting(BaseSetting):
+    type: Literal["string"]
+    default: str = Field(default="", exclude=True)
+
+
+class NumericSetting(BaseSetting):
+    type: Literal["numeric"]
+    default: int | float = Field(default=0, exclude=True)
+
+
+class OptionsSetting(BaseSetting):
+    type: Literal["options"]
+    options: list[str] = []
+    default: str = Field(exclude=True)
+
+
+SettingsSection = BoolSetting | StringSetting | NumericSetting | OptionsSetting
+
+_SomeSetting = RootModel[SettingsSection]
+
+
+class ConfigSection(BaseSection):
+    settings: dict[str, SettingsSection] = Field(default={}, exclude=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def extra_validator(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            for key, value in data.items():  # pyright: ignore[reportUnknownVariableType]
+                if not isinstance(key, str) or key in cls.model_fields:
+                    continue
+                data[key] = _SomeSetting.model_validate(value).root
+        return data  # pyright: ignore[reportUnknownVariableType]
+
+    @model_validator(mode="after")
+    def post_validate(self) -> Self:
+        if self.model_extra:
+            self.settings = self.model_extra
+        return self
+
+    model_config = ConfigDict(extra="allow")
+
+
+class FormattedKivyConfig(RootModel[list[SectionTitle | SettingsSection]]):
+    root: list[SectionTitle | SettingsSection] = []
+
+
+class KivyConfig(BaseModel):
+    config: BaseConfig | None = Field(default=None, alias="__CONFIG__")
+    sections: FormattedKivyConfig = Field(default=FormattedKivyConfig(), exclude=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def extra_validator(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            exclude_keys = [*cls.model_fields.keys(), "__CONFIG__"]
+            for key, value in data.items():  # pyright: ignore[reportUnknownVariableType]
+                if not isinstance(key, str) or key in exclude_keys:
+                    continue
+                data[key] = ConfigSection.model_validate(value)
+        return data  # pyright: ignore[reportUnknownVariableType]
+
+    @model_validator(mode="after")
+    def post_validate(self) -> Self:
+        if self.model_extra:
+            sections: dict[str, ConfigSection] = self.model_extra
+            self.sections = FormattedKivyConfig()
+            prefix = self.config.prefix if self.config else None
+            for section, data in sections.items():
+                self.sections.root.append(SectionTitle(title=data.title))
+                for key, setting in data.settings.items():
+                    setting.key = key
+                    setting.section = f"{prefix}.{section}" if prefix else section
+                    self.sections.root.append(setting)
+        return self
+
+    model_config = ConfigDict(extra="allow")
+
+
+SymbolRarity = Literal["80", "B", "C", "H", "M", "R", "S", "T", "U", "WM"]
+
+
+class SymbolsMeta(BaseModel):
+    date: str
+    version: str
+    uri: str
+
+
+class SymbolsSet(BaseModel):
+    aliases: dict[str, str]
+    routes: dict[str, str]
+    rarities: dict[SymbolRarity, str]
+    symbols: dict[str, list[SymbolRarity]]
+
+
+class SymbolsWatermark(BaseModel):
+    routes: dict[str, str] | None = None
+    symbols: list[str]
+
+
+class SymbolsManifest(BaseModel):
+    meta: SymbolsMeta
+    set: SymbolsSet
+    watermark: SymbolsWatermark
+
+
 """
 * Config File Utils
 """
@@ -146,6 +276,32 @@ class IniConfig(TypedDict):
 class CustomConfigParser(ConfigParser):
     def optionxform(self, optionstr: str) -> str:
         return optionstr
+
+
+def parse_kivy_config(data_path: Path) -> FormattedKivyConfig:
+    """
+    Tries to parse the Kivy config from a file at data_path.
+
+    Raises:
+        OSError: If reading of the file at data_path fails.
+        ValidationError: If the data in file at data_path is invalid.
+    """
+    if data_path.suffix == ".json":
+        return KivyConfig.model_validate_json(data_path.read_bytes()).sections
+    else:
+        if data_path.suffix == ".toml":
+            with open(data_path, "rb") as f:
+                data = tomllib.load(f)
+            return KivyConfig.model_validate(data).sections
+        if data_path.suffix in (".yaml", ".yml"):
+            with open(data_path, "rb") as f:
+                data = yaml.safe_load(f)
+            return KivyConfig.model_validate(data).sections
+    raise NotImplementedError(
+        f"Kivy config can be parsed only from .json, .toml, .yaml and .yml files. Got file: {
+            data_path
+        }"
+    )
 
 
 def verify_config_fields(ini_file: Path, data_file: Path) -> None:
@@ -161,24 +317,23 @@ def verify_config_fields(ini_file: Path, data_file: Path) -> None:
     changed = False
 
     # Data file doesn't exist or is unsupported data type
-    if not data_file.is_file() or data_file.suffix not in [".toml", ".json"]:
+    if not data_file.is_file() or data_file.suffix not in (".toml", ".json"):
         return
 
     # Load data from JSON or TOML file
-    raw = load_data_file(data_file)
-    raw = parse_kivy_config_toml(raw) if data_file.suffix == ".toml" else raw
+    settings_config = parse_kivy_config(data_file)
 
     # Ensure INI file exists and load ConfigParser
     ensure_file(ini_file)
     config = get_config_object(ini_file)
 
     # Build a dictionary of the necessary values
-    for row in raw:
+    for section in settings_config.root:
         # Add row if it's not a title
-        if row.get("type", "title") == "title":
+        if isinstance(section, SectionTitle):
             continue
-        data.setdefault(row.get("section", "BROKEN"), []).append(
-            {"key": row.get("key", ""), "value": row.get("default", 0)}
+        data.setdefault(section.section, []).append(
+            {"key": section.key, "value": section.default}
         )
 
     # Add the data to ini where missing
@@ -199,98 +354,6 @@ def verify_config_fields(ini_file: Path, data_file: Path) -> None:
             config.write(f)  # noqa
 
 
-@overload
-def parse_kivy_config_json(
-    raw: list[KivyConfigTitle | KivyConfigSection],
-) -> list[KivyConfigTitle | KivyConfigSection]: ...
-
-
-@overload
-def parse_kivy_config_json(
-    raw: list[dict[str, str | list[str]]],
-) -> list[dict[str, str | list[str]]]: ...
-
-
-def parse_kivy_config_json(
-    raw: list[dict[str, str | list[str]]] | list[KivyConfigTitle | KivyConfigSection],
-) -> list[dict[str, str | list[str]]] | list[KivyConfigTitle | KivyConfigSection]:
-    """Parse config JSON data for use with Kivy settings panel.
-
-    Args:
-        raw: Raw loaded JSON data.
-
-    Returns:
-        Properly parsed data safe for use with Kivy.
-    """
-    # Remove unsupported keys
-    for row in raw:
-        if "default" in row:
-            row.pop("default")
-    return raw
-
-
-def parse_kivy_config_toml(
-    raw: dict[str, Any],
-) -> list[KivyConfigTitle | KivyConfigSection]:
-    """Parse config TOML data for use with Kivy settings panel.
-
-        Args:
-            raw: Raw loaded TOML data.
-                 Something along the lines of (not yet possible to express in Python):
-
-    ```
-    class Config(TypedDict):
-        prefix: str
-
-    class Section(TypedDict):
-        title: str
-        [str]: dict[str,str|list[str]]
-
-    class RawConf(TypedDict):
-        __CONFIG__: Config
-        [str]: Section
-    ```
-
-        Returns:
-            Properly parsed data safe for use with Kivy.
-    """
-
-    # Process __CONFIG__ header if present
-    cfg_header = raw.pop("__CONFIG__", {})
-    prefix = cfg_header.get("prefix", "")
-
-    # Process data
-    data: list[KivyConfigTitle | KivyConfigSection] = []
-    for section, settings in raw.items():
-        # Add section title if it exists
-        if title := settings.pop("title", None):
-            data.append({"type": "title", "title": title})
-
-        # Add each setting within this section
-        for key, field in settings.items():
-            # Establish data type and default value
-            data_type = field.get("type", "bool")
-            display_default = default = field.get("default", 0)
-            if data_type == "bool":
-                display_default = "True" if default else "False"
-            elif data_type in ["string", "options", "path"]:
-                display_default = f"'{default}'"
-            setting: KivyConfigSection = {
-                "type": data_type,
-                "title": f"[b]{field.get('title', 'Broken Setting')}[/b]",
-                "desc": f"{field.get('desc', '')}\n[b](Default: {display_default})[/b]",
-                "section": f"{prefix}.{section}" if prefix else section,
-                "key": key,
-                "default": default,
-            }
-            if options := field.get("options"):
-                setting["options"] = options
-            data.append(setting)
-
-    # Return parsed data
-    return data
-
-
 def get_kivy_config_from_schema(config: Path) -> str:
     """Return valid JSON data for use with Kivy settings panel.
 
@@ -300,13 +363,7 @@ def get_kivy_config_from_schema(config: Path) -> str:
     Returns:
         Json string dump of validated data.
     """
-    # Need to load data as JSON
-    raw = load_data_file(config)
-
-    # Use correct parser
-    if config.suffix == ".toml":
-        raw = parse_kivy_config_toml(raw)
-    return json.dumps(parse_kivy_config_json(raw))
+    return parse_kivy_config(config).model_dump_json()
 
 
 def copy_config_or_verify(path_from: Path, path_to: Path, data_file: Path) -> None:
@@ -1457,3 +1514,17 @@ def check_for_updates(templates: list[AppTemplate]) -> list[AppTemplate]:
 
     # Return templates needing updates
     return sorted(updates, key=lambda x: x.name)
+
+
+# region Symbols
+
+
+def get_symbols_manifest() -> SymbolsManifest | None:
+    if PATH.SRC_IMG_SYMBOLS_MANIFEST.exists():
+        return SymbolsManifest.model_validate_json(
+            PATH.SRC_IMG_SYMBOLS_MANIFEST.read_bytes()
+        )
+    return None
+
+
+# endregion Symbols

@@ -3,9 +3,11 @@
 """
 from collections.abc import Callable
 from contextlib import suppress
+from datetime import datetime
 from functools import cache
+from io import BytesIO
 from pathlib import Path
-from typing import Any, ParamSpec, TypeVar
+from zipfile import ZipFile
 
 import requests
 from backoff import expo, on_exception
@@ -15,32 +17,15 @@ from limits import RateLimitItemPerSecond
 from limits.storage import MemoryStorage
 from limits.strategies import MovingWindowRateLimiter
 from omnitils.exceptions import ExceptionLogger, log_on_exception, return_on_exception
-from omnitils.fetch import download_file
 from omnitils.files import dump_data_file
-from omnitils.files.archive import unpack_zip
 from omnitils.rate_limit import rate_limit
-from pydantic import BaseModel
-from requests import RequestException
+from requests import RequestException, get
 
-from src import CON, CONSOLE, PATH
+from src import CON, CONSOLE, ENV, PATH
+from src._loader import SymbolsManifest, get_symbols_manifest
+from src._state import HexproofSet, HexproofSets
 from src.utils.download import HEADERS
-
-"""
-* Types
-"""
-
-T = TypeVar("T")
-P = ParamSpec("P")
-
-
-class HexproofSet(BaseModel):
-    """Cached 'Set' object data from Hexproof.io."""
-    code_symbol: str
-    code_parent: str | None = None
-    count_cards: int
-    count_tokens: int
-    count_printed: int | None = None
-
+from src.utils.github import GitHubReleaseAsset, get_github_releases
 
 """
 * Hexproof.io Objects
@@ -59,7 +44,7 @@ hexproof_http_header = HEADERS.Default.copy()
 """
 
 
-def hexproof_request_wrapper(fallback: T, logr: ExceptionLogger | None = None) -> Callable[[Callable[P,T]], Callable[P, T]]:
+def hexproof_request_wrapper[T, **P](fallback: T, logr: ExceptionLogger | None = None) -> Callable[[Callable[P,T]], Callable[P, T]]:
     """Wrapper for a Hexproof.io request function to handle retries, rate limits, and a final exception catch.
 
     Args:
@@ -127,7 +112,7 @@ def get_metadata() -> dict[str, Meta]:
 
 
 @hexproof_request_wrapper({})
-def get_sets() -> dict[str,dict[str,Any]]:
+def get_sets() -> dict[str,HexproofSet]:
     """Retrieve the current 'Set' data manifest from https://api.hexproof.io.
 
     Returns:
@@ -138,40 +123,23 @@ def get_sets() -> dict[str,dict[str,Any]]:
     """
     res = requests.get(str(HexURL.API.Sets.All), headers=hexproof_http_header, timeout=(5, 5))
     if res.status_code == 200:
-        return res.json()
+        return HexproofSets.model_validate_json(res.content).root
     raise RequestException(
         res.json().get('details', 'Failed to get set data!'),
         response=res)
 
 
 """
-* Data Post-Processing
-"""
-
-
-def process_data_sets(data: dict[str,dict[str,Any]]) -> dict[str, HexproofSet]:
-    """Process bulk 'Set' data retrieved from the Hexproof API into a smaller dataset.
-
-    Args:
-        data: Raw data pulled from the `/sets/` Hexproof API endpoint.
-
-    Returns:
-        Dictionary of smaller 'HexproofSet' data entries.
-    """
-    return {
-        code: HexproofSet(
-            code_symbol=d.get('code_symbol', 'DEFAULT'),
-            count_cards=d.get('count_cards', 0),
-            count_tokens=d.get('count_tokens', 0),
-            code_parent=d.get('code_parent'),
-            count_printed=d.get('count_printed'),
-        ) for code, d in data.items()
-    }
-
-
-"""
 * Data Caching
 """
+
+def _download_symbols(url: str) -> SymbolsManifest | None:
+    response = get(url)
+    if response.status_code == 200:
+        with ZipFile(BytesIO(response.content), "r") as zf:
+            zf.extractall(PATH.SRC_IMG_SYMBOLS)
+        return get_symbols_manifest()
+    return None
 
 
 def update_hexproof_cache() -> tuple[bool, str | None]:
@@ -186,36 +154,92 @@ def update_hexproof_cache() -> tuple[bool, str | None]:
         meta: dict[str, Meta] = get_metadata()
 
     # Check against current metadata
+    new_set_data: dict[str,HexproofSet] | None = None
     _current, _next = CON.metadata.get('sets'), meta.get('sets')
     if not _current or not _next or _current.version != _next.version:
         try:
             # Download updated 'Set' data
-            data = get_sets()
-            data = process_data_sets(data)
-            dump_data_file(
-                obj={k: v.model_dump(exclude_none=True) for k, v in data.items()},
-                path=PATH.SRC_DATA_HEXPROOF_SET)
+            new_set_data = get_sets()
             updated = True
         except (RequestException, ValueError, OSError):
             return False, "Unable to update 'Set' data from hexproof.io!"
 
     # Check against current symbol data
-    _current, _next = CON.metadata.get('symbols'), meta.get('symbols')
-    if not _current or not _next or _current.version != _next.version:
+    new_symbols: SymbolsManifest | None = None
+    symbols_dl_url: str | None = None
+    if ENV.SYMBOL_UPDATES_REPO:
+        symbols_releases = get_github_releases(ENV.SYMBOL_UPDATES_REPO, per_page=1)
+        if len(symbols_releases) > 0:
+            latest_release = symbols_releases[0]
+            if len(latest_release.assets) > 0:
+                chosen_asset: GitHubReleaseAsset | None = None
+                for asset in latest_release.assets:
+                    if "optimized" in asset.name:
+                        chosen_asset = asset
+                        break
+                if not chosen_asset:
+                    chosen_asset = latest_release.assets[0]
+                asset_timestamp: datetime
+                try:
+                    asset_timestamp = datetime.fromisoformat(latest_release.tag_name)
+                except ValueError:
+                    asset_timestamp = datetime.fromisoformat(chosen_asset.updated_at)
+                if not (
+                    current_symbols_manifest := get_symbols_manifest()
+                ) or asset_timestamp > datetime.fromisoformat(
+                    current_symbols_manifest.meta.date
+                ):
+                    symbols_dl_url = chosen_asset.browser_download_url
+    else:
+        _current, _next = CON.metadata.get("symbols"), meta.get("symbols")
+        if not _current or not _next or _current.version != _next.version:
+            symbols_dl_url = str(HexURL.API.Symbols.All / "package")
+
+    if symbols_dl_url:
         try:
             # Download and unpack updated 'Symbols' assets
-            download_file(
-                url=HexURL.API.Symbols.All / 'package',
-                path=PATH.SRC_IMG_SYMBOLS_PACKAGE)
-            unpack_zip(PATH.SRC_IMG_SYMBOLS_PACKAGE)
-            updated = True
+            new_symbols = _download_symbols(symbols_dl_url)
+            updated = updated or bool(new_symbols)
         except (RequestException, FileNotFoundError):
-            return False, 'Unable to download symbols package!'
+            return False, "Unable to download symbols package!"
 
     # Update metadata
     try:
         if not updated:
             return updated, None
+        
+        # Ensure that all symbols are present in set data
+        if new_symbols:
+            symbs = new_symbols.set.symbols
+            set_data = new_set_data or CON.set_data
+            for card_set, data in set_data.items():
+                if data.code_symbol == "default":
+                    if card_set.upper() in symbs:
+                        data.code_symbol = card_set
+                    # elif card_set in symbs:
+                    #    data.code_symbol = card_set
+                    else:
+                        curr_key = card_set
+                        curr_data = data
+                        while curr_data.code_parent:
+                            curr_key = curr_data.code_parent
+                            curr_data = set_data.get(curr_key, None)
+                            if not curr_data:
+                                break
+                            if curr_key.upper() in symbs:
+                                data.code_symbol = curr_key
+                                break
+                            # elif curr_key in symbs:
+                            #    data.code_symbol = curr_key
+                            #    break
+            for card_set in symbs:
+                if (card_set_low := card_set.lower()) not in set_data:
+                    set_data[card_set_low] = HexproofSet(
+                        code_symbol=card_set_low, count_cards=0, count_tokens=0
+                    )
+            with open(PATH.SRC_DATA_HEXPROOF_SET, "w") as f:
+                f.write(HexproofSets(set_data).model_dump_json(indent=2))
+
         dump_data_file(
             obj={k: v.model_dump() for k, v in meta.items()},
             path=PATH.SRC_DATA_HEXPROOF_META)
@@ -230,7 +254,7 @@ def update_hexproof_cache() -> tuple[bool, str | None]:
 
 
 @cache
-def get_set_data(code: str) -> dict[str,Any] | None:
+def get_set_data(code: str) -> HexproofSet | None:
     """Returns a specific 'Set' object by set code.
 
     Args:
@@ -258,12 +282,11 @@ def get_watermark_svg_from_set(code: str) -> Path | None:
         return
 
     # Check if this set has a provided symbol code
-    symbol = set_obj.get('code_symbol')
-    if not symbol:
+    if not set_obj.code_symbol:
         return
 
     # Check if this symbol code matches a supported watermark
-    p = PATH.SRC_IMG_SYMBOLS / 'set' / symbol.upper() / 'WM.svg'
+    p = PATH.SRC_IMG_SYMBOLS / 'set' / set_obj.code_symbol.upper() / 'WM.svg'
     return p if p.is_file() else None
 
 

@@ -14,6 +14,7 @@ from typing import Any, NotRequired, TypedDict, Union
 from omnitils.strings import get_line, get_lines, normalize_str, strip_lines
 
 from src import CFG, CON, CONSOLE, ENV, PATH
+from src._state import HexproofSet
 from src.cards import (
     CardDetails,
     FrameDetails,
@@ -197,10 +198,6 @@ class NormalLayout:
         self._file = file
         self._scryfall = scryfall
 
-        # Cache set data and frame data
-        _ = self.set_data
-        _ = self.frame
-
     def __str__(self):
         """String representation of the card layout object."""
         return (f"{self.name}"
@@ -251,9 +248,9 @@ class NormalLayout:
         return self.scryfall.set.upper()
 
     @cached_property
-    def set_data(self) -> dict[str,Any]:
+    def set_data(self) -> HexproofSet | None:
         """Set data from the current hexproof.io data file."""
-        return CON.set_data.get(self.scryfall.set.lower(), {})
+        return CON.set_data.get(self.scryfall.set.lower(), None)
 
     @cached_property
     def set_type(self) -> str:
@@ -454,7 +451,9 @@ Defaulting to first face."""
         """Code used to match a symbol to this card's set. Provided by hexproof.io."""
         if CFG.symbol_force_default:
             return CFG.symbol_default.upper()
-        return self.set_data.get('code_symbol', 'DEFAULT').upper()
+        if self.set_data:
+            return self.set_data.code_symbol.upper()
+        return "DEFAULT"
 
     @cached_property
     def lang(self) -> str:
@@ -516,12 +515,12 @@ Defaulting to first face."""
             return
 
         # Prefer printed count, fallback to card count, skip if count isn't found
-        count = self.set_data.get('count_printed', self.set_data.get('count_cards'))
-        if count is None:
+        if not self.set_data:
             return
+        count = self.set_data.count_printed or self.set_data.count_cards
 
         # Skip if count is smaller than collector number
-        return count if int(count) >= self.collector_number else None
+        return count if count >= self.collector_number else None
 
     @cached_property
     def collector_data(self) -> str:
@@ -1753,7 +1752,9 @@ class TokenLayout(NormalLayout):
     @cached_property
     def set(self) -> str:
         """str: Use parent set code if provided."""
-        return self.set_data.get('code_parent', super().set).upper()
+        if self.set_data and self.set_data.code_parent:
+            return self.set_data.code_parent.upper()
+        return super().set
 
     @cached_property
     def card_count(self) -> int | None:
@@ -1763,8 +1764,9 @@ class TokenLayout(NormalLayout):
         if CFG.collector_mode != CollectorMode.Normal or not self.collector_number_raw:
             return
 
-        # Prefer printed count, fallback to card count, skip if count isn't found
-        return self.set_data.get('count_tokens', None)
+        if self.set_data:
+            return self.set_data.count_tokens
+        return
 
 
 class StationDetails(TypedDict):
