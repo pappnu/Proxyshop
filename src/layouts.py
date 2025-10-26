@@ -543,6 +543,10 @@ Defaulting to first face."""
     @cached_property
     def symbol_svg(self) -> Path | None:
         """SVG path definition for card's expansion symbol."""
+        if CFG.symbol_force_rarity:
+            path = (PATH.SRC_IMG_SYMBOLS / 'set' / self.set / CFG.symbol_force_rarity).with_suffix('.svg')
+            if path.is_file():
+                return path
 
         # If code is default, perform replacement and check if we have a local asset first
         if self.symbol_code == 'DEFAULT':

@@ -122,6 +122,9 @@ class AppConfig:
         self.symbol_force_default = self.file.getboolean(
             "BASE.SYMBOLS", "Force.Default.Symbol", fallback=False
         )
+        self.symbol_force_rarity = self.file.get(
+            "BASE.SYMBOLS", "Force.Rarity", fallback=""
+        )
 
         # BASE - WATERMARKS
         self.watermark_mode = self.get_option(

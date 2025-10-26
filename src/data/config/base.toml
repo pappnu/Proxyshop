@@ -69,6 +69,15 @@ desc = """Forces Proxyshop to always used the Default Expansion Symbol chosen ab
 type = "bool"
 default = 0
 
+[SYMBOLS."Force.Rarity"]
+title = "Force Use of Specific Rarity"
+desc = """Forces Proxyshop to try to use a symbol of a specified rarity. The card's real rarity will be used as a fallback if the specified rarity can't be found.
+Possible rarities include: [b]80[/b], [b]B[/b], [b]C[/b], [b]H[/b], [b]M[/b], [b]R[/b], [b]S[/b], [b]T[/b], [b]U[/b], [b]WM[/b]
+You may also specify a code for any extra symbol variants that you might have copied to your installation. Extra variants are matched case sensitively by their filename without the suffix (.svg).
+Empty string disables this feature."""
+type = "string"
+default = ""
+
 ###
 # * Watermark Settings
 ###
