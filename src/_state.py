@@ -5,19 +5,23 @@
 import os
 import sys
 from contextlib import suppress
-from functools import cached_property
 from os import environ
 from pathlib import Path
 from threading import Lock
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from dynaconf import Dynaconf
 from hexproof.hexapi.schema.meta import Meta
 from omnitils.exceptions import return_on_exception
-from omnitils.files import dump_data_file, load_data_file
+from omnitils.files import dump_data_file, get_project_version, load_data_file
 from omnitils.metaclass import Singleton
 from omnitils.properties import tracked_prop
 from pydantic import BaseModel, RootModel
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+    YamlConfigSettingsSource,
+)
 
 from src.enums.layers import LAYERS
 from src.enums.mtg import CardFonts, mana_symbol_map
@@ -146,128 +150,46 @@ class PATH(DefinedPaths):
 environ.setdefault('KIVY_LOG_MODE', 'PYTHON')
 environ.setdefault('KIVY_NO_FILELOG', '1')
 
+def _get_proj_version(path: Path) -> str:
+    if hasattr(sys, '_MEIPASS'):
+        # Build with Pyinstaller generated module
+        import __VERSION__
+        return str(__VERSION__.version)
+    try:
+        return get_project_version(path)
+    except Exception:
+        return "0.0.0"
 
-class CustomDynaconf(Dynaconf):
-    if TYPE_CHECKING:
-        @cached_property
-        def API_GOOGLE(self) -> str: ...
-        @cached_property
-        def API_AMAZON(self) -> str: ...
-        @cached_property
-        def PS_ERROR_DIALOG(self) -> bool: ...
-        @cached_property
-        def PS_VERSION(self) -> str | None: ...
-        @cached_property
-        def HEADLESS(self) -> bool: ...
-        @cached_property
-        def DEV_MODE(self) -> bool: ...
-        @cached_property
-        def TEST_MODE(self) -> bool: ...
-        @cached_property
-        def APP_UPDATES_REPO(self) -> str: ...
-        @cached_property
-        def SYMBOL_UPDATES_REPO(self) -> str: ...
-        @cached_property
-        def FORCE_RELOAD(self) -> bool: ...
-        @cached_property
-        def VERSION(self) -> str: ...
+class AppEnvironment(BaseSettings):
+    API_GOOGLE: str = ""
+    API_AMAZON: str = ""
+    PS_ERROR_DIALOG: bool = False
+    PS_VERSION: str | None = None
+    HEADLESS: bool = False
+    DEV_MODE: bool = bool(not hasattr(sys, "_MEIPASS"))
+    TEST_MODE: bool = False
+    APP_UPDATES_REPO: str = ""
+    SYMBOL_UPDATES_REPO: str = ""
+    FORCE_RELOAD: bool = False
+    VERSION: str = _get_proj_version(PATH.PROJECT_FILE)
 
+    model_config = SettingsConfigDict(env_prefix="PROXYSHOP_")
 
-class AppEnvironment(CustomDynaconf):
-    """Tracking and modifying global environment behavior."""
-
-    @staticmethod
-    def string_or_none(value: Any) -> str | None:
-        """Casts a value as either a string OR None.
-
-        Args:
-            value: Value to be cast.
-
-        Returns:
-            A string or None.
-        """
-        if value in (None, 'null', 'None', ''):
-            return None
-        return str(value)
-
-    """
-    * File Hosting
-    """
-
-    @cached_property
-    def API_GOOGLE(self) -> str:
-        """str: Google Drive API key."""
-        return super().API_GOOGLE
-
-    @cached_property
-    def API_AMAZON(self) -> str:
-        """str: Amazon S3 cloudfront URL."""
-        return super().API_AMAZON
-
-    """
-    * Photoshop
-    """
-
-    @cached_property
-    def PS_ERROR_DIALOG(self) -> bool:
-        """bool: Whether Photoshop error dialogues are enabled."""
-        return super().PS_ERROR_DIALOG
-
-    @cached_property
-    def PS_VERSION(self) -> str | None:
-        """str: Photoshop version to try and load, for use when multiple Photoshop versions are installed."""
-        if (ver := (super().PS_VERSION)) not in ['', None]:
-            return ver
-        return None
-
-    """
-    * Testing
-    """
-
-    @cached_property
-    def HEADLESS(self) -> bool:
-        """bool: Whether the app is running in headless mode."""
-        return super().HEADLESS
-
-    @cached_property
-    def DEV_MODE(self) -> bool:
-        """bool: Whether the app is running in developer mode."""
-        return super().DEV_MODE
-
-    @cached_property
-    def TEST_MODE(self) -> bool:
-        """bool: Whether the app is running in testing mode."""
-        return super().TEST_MODE
-    
-    """
-    * Update checks
-    """
-
-    @cached_property
-    def APP_UPDATES_REPO(self) -> str:
-        return super().APP_UPDATES_REPO
-    
-    @cached_property
-    def SYMBOL_UPDATES_REPO(self) -> str:
-        return super().SYMBOL_UPDATES_REPO
-
-    """
-    * Experimental
-    """
-
-    @cached_property
-    def FORCE_RELOAD(self) -> bool:
-        """bool: Whether to force plugin template modules to be reloaded on each new render sequence."""
-        return super().FORCE_RELOAD
-
-    @cached_property
-    def VERSION(self) -> str:
-        """str: Current app version."""
-        if hasattr(sys, '_MEIPASS'):
-            # Build with Pyinstaller generated module
-            import __VERSION__  # noqa
-            return str(__VERSION__.version)
-        return super().VERSION
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        # First entry has highest priority
+        return (
+            env_settings,
+            YamlConfigSettingsSource(settings_cls, PATH.SRC_DATA_ENV),
+            YamlConfigSettingsSource(settings_cls, PATH.SRC_DATA_ENV_DEFAULT),
+        )
 
 
 """

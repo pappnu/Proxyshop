@@ -46,8 +46,8 @@ click = "^8.3.0"
 tomli = "^2.3.0"
 yarl = "^1.22.0"
 pydantic = "^2.12.3"
+pydantic-settings = "^2.11.0"
 omnitils = { git = "https://github.com/pappnu/omnitils.git", branch = "dev" }
-dynaconf = { extras = ["yaml"], version = "^3.2.12" }
 hexproof = { git = "https://github.com/pappnu/hexproof.git", branch = "dev" }
 rich = "^14.2.0"
 pywin32 = "^311.0.0"

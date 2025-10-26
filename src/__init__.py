@@ -2,12 +2,6 @@
 * Load Global Application State
 """
 
-import sys
-from pathlib import Path
-
-from dynaconf import Validator
-from omnitils.files import get_project_version
-
 from src.utils.adobe import PhotoshopHandler
 from src.utils.threading import ThreadInitializedInstance
 
@@ -25,32 +19,8 @@ from ._state import PATH, AppConstants, AppEnvironment
 """
 
 
-def _get_proj_version(path: Path) -> str:
-    try:
-        return get_project_version(path)
-    except Exception:
-        return "0.0.0"
-
-
-# Global environment object (dynaconf)
-ENV = AppEnvironment(
-    envvar_prefix="PROXYSHOP",
-    settings_files=[PATH.SRC_DATA_ENV_DEFAULT, PATH.SRC_DATA_ENV],
-    validators=[
-        Validator("API_GOOGLE", cast=str, default=""),
-        Validator("API_AMAZON", cast=str, default=""),
-        Validator("PS_ERROR_DIALOG", cast=bool, default=False),
-        Validator("PS_VERSION", cast=AppEnvironment.string_or_none, default=None),
-        Validator("HEADLESS", cast=bool, default=False),
-        Validator("DEV_MODE", cast=bool, default=bool(not hasattr(sys, "_MEIPASS"))),
-        Validator("TEST_MODE", cast=bool, default=False),
-        Validator("APP_UPDATES_REPO", cast=str, default=""),
-        Validator("SYMBOL_UPDATES_REPO", cast=str, default=""),
-        Validator("VERSION", cast=str, default=_get_proj_version(PATH.PROJECT_FILE)),
-        Validator("FORCE_RELOAD", cast=bool, default=False),
-    ],
-    apply_default_on_none=True,
-)
+# Global environment object
+ENV = AppEnvironment()
 
 # Global constants object
 CON = AppConstants()
