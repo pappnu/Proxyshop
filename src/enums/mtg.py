@@ -361,7 +361,7 @@ class CardTextPatterns:
     """Defined card data regex patterns."""
 
     # Rules Text - Special Card Types
-    LEVELER: re.Pattern[str] = re.compile(r"(.*?)\nLEVEL (\d*-\d*)\n(\d*/\d*)\n(.*?)\nLEVEL (\d*\+)\n(\d*/\d*)\n(.*?)$")
+    LEVELER: re.Pattern[str] = re.compile(r"(.*?)\nLEVEL (\d*-\d*)\n(\d*/\d*)\n(.*?)\n?LEVEL (\d*\+)\n(\d*/\d*)\n?(.*?)$")
     PROTOTYPE: re.Pattern[str] = re.compile(r"Prototype (.+) [—\-] ([0-9]{0,2}/[0-9]{0,2}) \((.+)\)")
     PLANESWALKER: re.Pattern[str] = re.compile(r"(^[^:]*$|^.*:.*$)", re.MULTILINE)
     CLASS: re.Pattern[str] = re.compile(r"(.+?): ([^\d]+ ?)(\d)\n(.+)")
