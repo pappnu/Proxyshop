@@ -204,7 +204,9 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
             )
 
             _logger.info(
-                f"Queueing {len(preparation_routines)} template test entries for render."
+                f"Queueing {
+                    layout_category.value + ' ' if layout_category else ''
+                }tests for template {template.name}."
             )
             await gather(*preparation_routines)
 

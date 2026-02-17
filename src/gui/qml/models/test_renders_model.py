@@ -108,7 +108,9 @@ class TestRendersModel(QObject):
             )
 
         _logger.info(
-            f"Queueing all {len(preparation_routines)} test entries for render."
+            f"Queueing all {
+                layout_category.value + ' ' if layout_category else ''
+            }tests for render."
         )
         await gather(*preparation_routines)
 

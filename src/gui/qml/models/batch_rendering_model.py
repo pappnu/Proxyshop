@@ -245,6 +245,11 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
                 if layout_category:
                     break
 
+            _logger.info(
+                f"Queueing {
+                    layout_category.value + ' ' if layout_category else ''
+                }tests for batch mode selections."
+            )
             await gather(*preparation_routines)
 
         cancel_with_render(ensure_future(action()), self._render_queue)
