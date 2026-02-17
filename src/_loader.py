@@ -1482,9 +1482,9 @@ class AssembledTemplate(RenderableTemplate):
             if layout_category and layout_category not in template.layout_categories:
                 continue
 
-            if not template.parent.is_installed:
-                return False
-        return True
+            if template.parent.is_installed:
+                return True
+        return False
 
     def has_config(self, layout_category: LayoutCategory | None = None) -> bool:
         for template in self.templates:
