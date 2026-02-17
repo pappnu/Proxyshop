@@ -1,22 +1,17 @@
 """
 * Templates: Prototype
 """
-
-# Standard Library
-from functools import cached_property
 from collections.abc import Callable
+from functools import cached_property
 
-# Third Party Imports
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
-from src import CFG
-from src.enums.layers import LAYERS
 import src.helpers as psd
+import src.text_layers as text_classes
+from src.enums.layers import LAYERS
 from src.layouts import PrototypeLayout
 from src.templates._core import NormalTemplate
-import src.text_layers as text_classes
 from src.utils.adobe import ReferenceLayer
 
 """
@@ -183,7 +178,7 @@ class PrototypeMod(NormalTemplate):
                 )
 
             # Remove reminder text if necessary
-            if CFG.remove_reminder and self.text_layer_proto:
+            if self.config.remove_reminder and self.text_layer_proto:
                 self.text_layer_proto.textItem.size = (
                     psd.get_text_scale_factor(self.text_layer_proto) * 9
                 )

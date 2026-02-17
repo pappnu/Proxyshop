@@ -2,19 +2,14 @@
 * Schema: Colors and Gradients
 """
 
-# Standard Library Imports
 from collections.abc import Sequence
 from functools import cache
-from typing import Any, TypeGuard, TypedDict
+from typing import Annotated, Any, TypedDict, TypeGuard
 
-# Third Party Imports
-from omnitils.schema import ArbitrarySchema
-from photoshop.api import SolidColor, CMYKColor, RGBColor, LabColor, HSBColor
+from photoshop.api import CMYKColor, HSBColor, LabColor, RGBColor, SolidColor
 from pydantic import BaseModel, GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema
-from typing import Annotated
-
 
 """
 * General Color Objects
@@ -97,7 +92,7 @@ ColorObject = (
 )
 
 
-class GradientColor(ArbitrarySchema):
+class GradientColor(BaseModel):
     """Defines a color within a gradient."""
 
     color: ColorObject = (0, 0, 0)

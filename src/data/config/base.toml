@@ -71,8 +71,8 @@ default = 0
 
 [SYMBOLS."Force.Rarity"]
 title = "Force Use of Specific Rarity"
-desc = """Forces Proxyshop to try to use a symbol of a specified rarity. The card's real rarity will be used as a fallback if the specified rarity can't be found.
-Possible rarities include: [b]80[/b], [b]B[/b], [b]C[/b], [b]H[/b], [b]M[/b], [b]R[/b], [b]S[/b], [b]T[/b], [b]U[/b], [b]WM[/b]
+desc = """Forces Proxyshop to try to use a symbol of a specified rarity. The card's real rarity will be used as a fallback if the specified rarity can't be found.<br>
+Possible rarities include:<br> <b>80</b>, <b>B</b>, <b>C</b>, <b>H</b>, <b>M</b>, <b>R</b>, <b>S</b>, <b>T</b>, <b>U</b>, <b>WM</b><br>
 You may also specify a code for any extra symbol variants that you might have copied to your installation. Extra variants are matched case sensitively by their filename without the suffix (.svg).
 Empty string disables this feature."""
 type = "string"
@@ -87,9 +87,9 @@ title = "Watermarks"
 
 [WATERMARKS."Watermark.Mode"]
 title = "Watermark Mode"
-desc = """[b]Automatic[/b]: Generates a watermark when present in Scryfall data.
-[b]Fallback[/b]: Automatic, but use Default defined below as a fallback for Scryfall data.
-[b]Forced[/b]: Always use Default watermark defined below."""
+desc = """<b>Automatic</b>: Generates a watermark when present in Scryfall data.<br>
+<b>Fallback</b>: Automatic, but use Default defined below as a fallback for Scryfall data.<br>
+<b>Forced</b>: Always use Default watermark defined below."""
 type = "options"
 default = "Disabled"
 options = ["Disabled", "Automatic", "Fallback", "Forced"]
@@ -103,7 +103,7 @@ default = "WOTC"
 [WATERMARKS."Watermark.Opacity"]
 title = "Watermark Default Opacity"
 desc = """Transparency value of the watermark, 0 being invisible 100 being fully visible."""
-type = "numeric"
+type = "float"
 default = 30
 
 [WATERMARKS."Enable.Basic.Watermark"]

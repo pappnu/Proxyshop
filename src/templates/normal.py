@@ -1,53 +1,48 @@
 """
 * Normal Templates
 """
-
-# Standard Library Imports
-from functools import cached_property
 from collections.abc import Callable, Iterable, Sequence
+from functools import cached_property
 
-# Third Party Imports
 from photoshop.api import AnchorPosition, SolidColor
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
-from src import CFG, CON
-from src.schema.colors import GradientConfig
-from src.helpers.layers import get_reference_layer
-from src.schema.adobe import EffectColorOverlay, EffectBevel
-from src.templates import NicknameMod
-from src.utils.adobe import ReferenceLayer
-from src.enums.mtg import MagicIcons
+import src.helpers as psd
+from src import CON
 from src.enums.layers import LAYERS
+from src.enums.mtg import MagicIcons
 from src.enums.settings import (
     BorderlessColorMode,
     BorderlessTextbox,
-    ModernClassicCrown,
     CollectorMode,
+    ModernClassicCrown,
 )
 from src.frame_logic import is_multicolor_string
-from src.helpers import get_line_count, LayerEffects
-import src.helpers as psd
-from src.schema.colors import ColorObject, pinlines_color_map
+from src.helpers import LayerEffects, get_line_count
+from src.helpers.layers import get_reference_layer
+from src.schema.adobe import EffectBevel, EffectColorOverlay
+from src.schema.colors import ColorObject, GradientConfig, pinlines_color_map
+from src.templates import NicknameMod
 from src.templates._core import NormalTemplate
 from src.templates._cosmetic import (
+    CompanionMod,
     ExtendedMod,
     FullartMod,
     NyxMod,
     VectorBorderlessMod,
-    CompanionMod,
 )
 from src.templates._vector import MaskAction, VectorTemplate
-from src.templates.transform import VectorTransformMod
 from src.templates.mdfc import VectorMDFCMod
+from src.templates.transform import VectorTransformMod
 from src.text_layers import (
-    TextField,
-    ScaledTextField,
-    FormattedTextField,
     FormattedTextArea,
+    FormattedTextField,
+    ScaledTextField,
     ScaledWidthTextField,
+    TextField,
 )
+from src.utils.adobe import ReferenceLayer
 
 """
 * Extendable Templates
@@ -118,7 +113,7 @@ class FullartTemplate(FullartMod, M15Template):
             self.text_layer_rules.textItem.color = psd.rgb_white()
 
         # Make the divider white
-        if self.layout.flavor_text and self.layout.oracle_text and CFG.flavor_divider:
+        if self.layout.flavor_text and self.layout.oracle_text and self.config.flavor_divider:
             psd.enable_layer_fx(self.divider_layer)
 
 
@@ -215,7 +210,7 @@ class ExtendedTemplate(ExtendedMod, M15Template):
     @cached_property
     def is_dark_mode(self) -> bool:
         """Governs whether Dark Mode is enabled."""
-        return bool(CFG.get_bool_setting("FRAME", "Dark.Mode", default=False))
+        return bool(self.config.get_bool_setting("FRAME", "Dark.Mode", default=False))
 
     """
     * Methods
@@ -242,7 +237,7 @@ class ExtendedTemplate(ExtendedMod, M15Template):
             if (
                 self.layout.flavor_text
                 and self.layout.oracle_text
-                and CFG.flavor_divider
+                and self.config.flavor_divider
             ):
                 psd.enable_layer_fx(self.divider_layer)
 
@@ -265,7 +260,7 @@ class InventionTemplate(FullartMod, NormalTemplate):
     def twins(self) -> str:
         """str: Pull twins color from settings. Silver or Bronze."""
         return str(
-            CFG.get_setting(
+            self.config.get_setting(
                 section="FRAME", key="Accent", default="Silver", is_bool=False
             )
         )
@@ -391,17 +386,17 @@ class ClassicTemplate(NormalTemplate):
     @cached_property
     def is_promo_star(self) -> bool:
         """bool: Whether to enable the Promo Star overlay."""
-        return CFG.get_bool_setting(section="FRAME", key="Promo.Star", default=False)
+        return self.config.get_bool_setting(section="FRAME", key="Promo.Star", default=False)
 
     @cached_property
     def is_extended(self) -> bool:
         """bool: Whether to render using Extended Art framing."""
-        return CFG.get_bool_setting(section="FRAME", key="Extended.Art", default=False)
+        return self.config.get_bool_setting(section="FRAME", key="Extended.Art", default=False)
 
     @cached_property
     def is_align_collector_left(self) -> bool:
         """CollectorAlign: Which collector alignment to use."""
-        return CFG.get_bool_setting(
+        return self.config.get_bool_setting(
             section="TEXT", key="Collector.Align.Left", default=False
         )
 
@@ -507,11 +502,11 @@ class ClassicTemplate(NormalTemplate):
 
         # Which collector info mode?
         if (
-            CFG.collector_mode in [CollectorMode.Default, CollectorMode.Modern]
+            self.config.collector_mode in [CollectorMode.Default, CollectorMode.Modern]
             and self.layout.collector_data
         ):
             self.collector_info_authentic()
-        elif CFG.collector_mode == CollectorMode.ArtistOnly:
+        elif self.config.collector_mode == CollectorMode.ArtistOnly:
             self.collector_info_artist_only()
         else:
             self.collector_info_basic()
@@ -796,12 +791,12 @@ class ClassicRemasteredTemplate(VectorTransformMod, VectorTemplate):
     @cached_property
     def color_limit(self) -> int:
         """Supports 2 and 3 color limit setting."""
-        return int(CFG.get_setting("FRAME", "Max.Colors", "3")) + 1
+        return int(self.config.get_setting("FRAME", "Max.Colors", "3")) + 1
 
     @cached_property
     def gold_pt(self) -> bool:
         """Returns True if PT for multicolored cards should be gold."""
-        return CFG.get_bool_setting("FRAME", "Gold.PT", False)
+        return self.config.get_bool_setting("FRAME", "Gold.PT", False)
 
     """
     * Bool
@@ -1379,7 +1374,7 @@ class BorderlessVectorTemplate(
 
         # Get the user's preferred setting
         size = str(
-            CFG.get_option(
+            self.config.get_option(
                 section="FRAME",
                 key="Textbox.Size",
                 enum_class=BorderlessTextbox,
@@ -1419,27 +1414,27 @@ class BorderlessVectorTemplate(
     @cached_property
     def color_limit(self) -> int:
         # Built in setting, dual and triple color split
-        return int(CFG.get_setting(section="COLORS", key="Max.Colors", default="2")) + 1
+        return int(self.config.get_setting(section="COLORS", key="Max.Colors", default="2")) + 1
 
     @cached_property
     def drop_shadow_enabled(self) -> bool:
         """Returns True if Drop Shadow text setting is enabled."""
         return bool(
-            CFG.get_bool_setting(section="TEXT", key="Drop.Shadow", default=True)
+            self.config.get_bool_setting(section="TEXT", key="Drop.Shadow", default=True)
         )
 
     @cached_property
     def crown_texture_enabled(self) -> bool:
         """Returns True if Legendary crown clipping texture should be enabled."""
         return bool(
-            CFG.get_bool_setting(section="FRAME", key="Crown.Texture", default=True)
+            self.config.get_bool_setting(section="FRAME", key="Crown.Texture", default=True)
         )
 
     @cached_property
     def multicolor_textbox(self) -> bool:
         """Returns True if Textbox for multicolored cards should use blended colors."""
         return bool(
-            CFG.get_bool_setting(
+            self.config.get_bool_setting(
                 section="COLORS", key="Multicolor.Textbox", default=True
             )
         )
@@ -1448,7 +1443,7 @@ class BorderlessVectorTemplate(
     def multicolor_pinlines(self) -> bool:
         """Returns True if Pinlines and Crown for multicolored cards should use blended colors."""
         return bool(
-            CFG.get_bool_setting(
+            self.config.get_bool_setting(
                 section="COLORS", key="Multicolor.Pinlines", default=True
             )
         )
@@ -1457,7 +1452,7 @@ class BorderlessVectorTemplate(
     def multicolor_twins(self) -> bool:
         """Returns True if Twins for multicolored cards should use blended colors."""
         return bool(
-            CFG.get_bool_setting(
+            self.config.get_bool_setting(
                 section="COLORS", key="Multicolor.Twins", default=False
             )
         )
@@ -1466,21 +1461,21 @@ class BorderlessVectorTemplate(
     def multicolor_pt(self) -> bool:
         """Returns True if PT Box for multicolored cards should use the last color."""
         return bool(
-            CFG.get_bool_setting(section="COLORS", key="Multicolor.PT", default=False)
+            self.config.get_bool_setting(section="COLORS", key="Multicolor.PT", default=False)
         )
 
     @cached_property
     def hybrid_colored(self) -> bool:
         """Returns True if Twins and PT should be colored on Hybrid cards."""
         return bool(
-            CFG.get_bool_setting(section="COLORS", key="Hybrid.Colored", default=True)
+            self.config.get_bool_setting(section="COLORS", key="Hybrid.Colored", default=True)
         )
 
     @cached_property
     def front_face_colors(self) -> bool:
         """Returns True if lighter color map should be used on front face DFC cards."""
         return bool(
-            CFG.get_bool_setting(
+            self.config.get_bool_setting(
                 section="COLORS", key="Front.Face.Colors", default=True
             )
         )
@@ -1489,13 +1484,13 @@ class BorderlessVectorTemplate(
     def land_colorshift(self) -> bool:
         """Returns True if Land cards should use the darker brown color."""
         return bool(
-            CFG.get_bool_setting(section="COLORS", key="Land.Colorshift", default=False)
+            self.config.get_bool_setting(section="COLORS", key="Land.Colorshift", default=False)
         )
 
     @cached_property
     def artifact_color_mode(self) -> str:
         """Setting determining what elements to color for colored artifacts.."""
-        return CFG.get_option(
+        return self.config.get_option(
             section="COLORS", key="Artifact.Color.Mode", enum_class=BorderlessColorMode
         )
 
@@ -1533,7 +1528,7 @@ class BorderlessVectorTemplate(
     @cached_property
     def is_basic_land(self) -> bool:
         """Disable basic land watermark if Textless is enabled."""
-        if bool(CFG.get_bool_setting(section="FRAME", key="Textless", default=False)):
+        if bool(self.config.get_bool_setting(section="FRAME", key="Textless", default=False)):
             return False
         return super().is_basic_land
 
@@ -1544,19 +1539,19 @@ class BorderlessVectorTemplate(
             [self.layout.oracle_text, self.layout.flavor_text, self.is_basic_land]
         ):
             return True
-        return CFG.get_bool_setting(section="FRAME", key="Textless", default=False)
+        return self.config.get_bool_setting(section="FRAME", key="Textless", default=False)
 
     @cached_property
     def is_nickname(self) -> bool:
         """Return True if this a nickname render."""
         if self.layout.nickname:
             return True
-        return CFG.get_bool_setting(section="TEXT", key="Nickname", default=False)
+        return self.config.get_bool_setting(section="TEXT", key="Nickname", default=False)
 
     @cached_property
     def is_colored_nickname(self) -> bool:
         """Return True if nickname plate should be colored."""
-        return CFG.get_bool_setting(section="COLORS", key="Nickname", default=False)
+        return self.config.get_bool_setting(section="COLORS", key="Nickname", default=False)
 
     @cached_property
     def is_multicolor(self) -> bool:
@@ -1586,7 +1581,7 @@ class BorderlessVectorTemplate(
     @cached_property
     def is_pt_enabled(self) -> bool:
         """Return True if a separate Power/Toughness text layer is used for this render."""
-        return self.is_creature and (not self.is_textless or not CFG.symbol_enabled)
+        return self.is_creature and (not self.is_textless or not self.config.symbol_enabled)
 
     @cached_property
     def is_drop_shadow(self) -> bool:
@@ -1784,7 +1779,7 @@ class BorderlessVectorTemplate(
     @cached_property
     def pt_group(self) -> LayerSet | None:
         """PT Box group, alternative Textless option used when Expansion Symbol is disabled."""
-        if self.is_textless and CFG.symbol_enabled:
+        if self.is_textless and self.config.symbol_enabled:
             return
         if self.is_textless and self.is_pt_enabled:
             return psd.getLayerSet(f"{LAYERS.PT_BOX} {LAYERS.TEXTLESS}")
@@ -2250,7 +2245,7 @@ class BorderlessVectorTemplate(
                     self.text_layer_type.translate(0, delta)
 
                 # Shift expansion symbol
-                if CFG.symbol_enabled and self.expansion_symbol_layer:
+                if self.config.symbol_enabled and self.expansion_symbol_layer:
                     self.expansion_symbol_layer.translate(0, delta)
 
                 # Shift indicator
@@ -2402,7 +2397,7 @@ class ClassicModernTemplate(VectorTransformMod, VectorMDFCMod, VectorTemplate):
     @cached_property
     def crown_mode(self) -> str:
         """Whether to use pinlines when generating the Legendary Crown."""
-        return CFG.get_option("FRAME", "Crown.Mode", ModernClassicCrown)
+        return self.config.get_option("FRAME", "Crown.Mode", ModernClassicCrown)
 
     """
     * References

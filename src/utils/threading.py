@@ -1,16 +1,13 @@
 from collections.abc import Callable
 from functools import cached_property
 from threading import Thread
-from typing import Generic, TypeVar
 
-from src.utils.event import SubscriptableEvent
-
-T = TypeVar("T")
+from src.utils.event import SubscribableEvent
 
 
-class ThreadInitializedInstance(Generic[T]):
+class ThreadInitializedInstance[T]:
     def __init__(self, factory: Callable[[], T]) -> None:
-        self._on_ready: SubscriptableEvent[T] = SubscriptableEvent()
+        self._on_ready: SubscribableEvent[T] = SubscribableEvent()
         self._factory = factory
         self.ready: bool = False
         self._initialization: Thread | None = None

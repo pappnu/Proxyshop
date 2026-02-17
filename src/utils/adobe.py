@@ -1,15 +1,14 @@
 """
 * Utils: Adobe Photoshop
 """
-# Standard Library
-from _ctypes import COMError, ArgumentError
+
+from _ctypes import ArgumentError, COMError
+from collections.abc import Callable
 from contextlib import suppress
 from ctypes import c_uint32
 from functools import cache, cached_property
-from typing import ParamSpec, TypeVar, Any, TypedDict
-from collections.abc import Callable
+from typing import TypedDict
 
-# Third Party
 from packaging.version import parse
 from photoshop.api import (
     ActionDescriptor,
@@ -19,7 +18,8 @@ from photoshop.api import (
     ElementPlacement,
     PhotoshopPythonAPIError,
     TypeUnits,
-    Units)
+    Units,
+)
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._core import Photoshop
 from photoshop.api._document import Document
@@ -27,15 +27,16 @@ from photoshop.api._layer import Layer
 from photoshop.api._layerSet import LayerSet
 from win32api import FormatMessage
 
-# Local Imports
 from src._state import AppEnvironment
-from src.utils.windows import WindowState, get_window_handle_by_process_file_path_suffix, set_window_state
+from src.utils.windows import (
+    WindowState,
+    get_window_handle_by_process_file_path_suffix,
+    set_window_state,
+)
 
 """
 * Types & Definitions
 """
-T = TypeVar("T")
-P = ParamSpec("P")
 
 # Common Layer Objects
 LayerContainer = LayerSet, Document
@@ -144,9 +145,6 @@ class ApplicationHandler(Application):
 class PhotoshopHandler(ApplicationHandler):
     """Wrapper for a single global Photoshop Application object equipped with soft loading,
     caching mechanisms, environment settings, and more."""
-    DIMS_1200 = (3264, 4440)
-    DIMS_800 = (2176, 2960)
-    DIMS_600 = (1632, 2220)
     _instance = None
     _window_handle: int | None = None
 
@@ -158,7 +156,7 @@ class PhotoshopHandler(ApplicationHandler):
             )
         return self._window_handle
 
-    def __new__(cls, env: Any | None = None) -> 'PhotoshopHandler':
+    def __new__(cls, env: AppEnvironment | None = None) -> PhotoshopHandler:
         """Always return the same Photoshop Application instance on successive calls.
 
         Args:
@@ -390,7 +388,7 @@ class ReferenceLayer(ArtLayer):
     """A static ArtLayer whose properties such as width or height are not going to change. Most often
     used as a reference to position or size other layers."""
 
-    def __init__(self, parent: Any = None, app: PhotoshopHandler | None = None):
+    def __init__(self, parent: Photoshop | None = None, app: PhotoshopHandler | None = None):
         self._global_app = app if app else PhotoshopHandler()
         super().__init__(parent=parent)
 
@@ -404,7 +402,7 @@ class ReferenceLayer(ArtLayer):
             insertionLocation: ElementPlacement | None = None
         ) -> ArtLayer:
         """Duplicates the layer and returns it as a `ReferenceLayer` object."""
-        return ReferenceLayer(self.app.duplicate(relativeObject, insertionLocation))
+        return ReferenceLayer(super().duplicate(relativeObject, insertionLocation))
 
     """
     * Cached Conversions
@@ -429,7 +427,7 @@ class ReferenceLayer(ArtLayer):
     @cached_property
     def id(self) -> int:
         """int: This layer's ID (cached)."""
-        return self.app.id
+        return super().id
 
     @cached_property
     def action_getter(self) -> ActionDescriptor:
@@ -449,7 +447,7 @@ class ReferenceLayer(ArtLayer):
     @cached_property
     def bounds(self) -> LayerBounds:
         """LayerBounds: Bounds of the layer (left, top, right, bottom)."""
-        return self.app.bounds
+        return super().bounds
 
     @cached_property
     def bounds_no_effects(self) -> LayerBounds:
@@ -526,7 +524,7 @@ class ReferenceLayer(ArtLayer):
 """
 
 
-def try_photoshop(func: Callable[P, T]) -> Callable[P, T | None]:
+def try_photoshop[**P,T](func: Callable[P, T]) -> Callable[P, T | None]:
     """Decorator to handle trying to run a Photoshop action but allowing exceptions to fail silently.
 
     Args:

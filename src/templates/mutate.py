@@ -1,21 +1,17 @@
 """
 * Mutate Templates
 """
-# Standard Library
-from functools import cached_property
 from collections.abc import Callable
+from functools import cached_property
 
-# Third Party Imports
 from photoshop.api._artlayer import ArtLayer
 
-# Local Imports
-from src import CFG
+import src.helpers as psd
+import src.text_layers as text_classes
 from src.cards import strip_reminder_text
 from src.enums.layers import LAYERS
-import src.helpers as psd
 from src.layouts import MutateLayout
 from src.templates._core import NormalTemplate
-import src.text_layers as text_classes
 from src.utils.adobe import ReferenceLayer
 
 """
@@ -65,7 +61,7 @@ class MutateMod(NormalTemplate):
 
     def process_layout_data(self) -> None:
         """Remove reminder text for mutate text if required."""
-        if CFG.remove_reminder and isinstance(self.layout, MutateLayout):
+        if self.config.remove_reminder and isinstance(self.layout, MutateLayout):
             self.layout.mutate_text = strip_reminder_text(
                 self.layout.mutate_text)
         super().process_layout_data()

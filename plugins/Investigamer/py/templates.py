@@ -2,20 +2,16 @@
 * Plugin: Investigamer
 """
 
-# Standard Library
 from collections.abc import Callable
 from functools import cached_property
 
-# Third Party
 from photoshop.api._artlayer import ArtLayer
 
-# Local Imports
 import src.helpers as psd
-from src import CFG, ENV
+from src import ENV
 from src.enums.layers import LAYERS
 from src.templates import ExtendedMod, NormalTemplate, TransformMod
 
-# Plugin Imports
 from .actions import pencilsketch, sketch
 
 """
@@ -40,7 +36,7 @@ class SketchTemplate(NormalTemplate):
         # Skip action if in test mode
         if ENV.TEST_MODE:
             return
-        action = CFG.get_setting(
+        action = self.config.get_setting(
             section="ACTION",
             key="Sketch.Action",
             default="Advanced Sketch",
@@ -48,17 +44,17 @@ class SketchTemplate(NormalTemplate):
         )
         if action == "Advanced Sketch":
             return lambda: pencilsketch.run(
-                self.event,
-                draft_sketch=CFG.get_bool_setting(
+                self.render_operation,
+                draft_sketch=self.config.get_bool_setting(
                     section="ACTION", key="Draft.Sketch.Lines", default=False
                 ),
-                rough_sketch=CFG.get_bool_setting(
+                rough_sketch=self.config.get_bool_setting(
                     section="ACTION", key="Rough.Sketch.Lines", default=False
                 ),
-                black_and_white=CFG.get_bool_setting(
+                black_and_white=self.config.get_bool_setting(
                     section="ACTION", key="Black.And.White", default=False
                 ),
-                manual_editing=CFG.get_bool_setting(
+                manual_editing=self.config.get_bool_setting(
                     section="ACTION", key="Sketch.Manual.Editing", default=False
                 ),
             )

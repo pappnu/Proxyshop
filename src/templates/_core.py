@@ -2,19 +2,16 @@
 * CORE PROXYSHOP TEMPLATES
 """
 
-# Standard Library Imports
-import os.path as osp
 from collections.abc import Callable, Sequence
 from contextlib import suppress
 from functools import cached_property
+from logging import getLogger
 from pathlib import Path
 from threading import Event
-from typing import Any, Unpack
+from traceback import format_stack
+from typing import TYPE_CHECKING, Any, Unpack
 
 from omnitils.files import get_unique_filename
-
-# Third Party Imports
-from pathvalidate import sanitize_filename
 from photoshop.api import BlendMode, ElementPlacement, SaveOptions, SolidColor
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
@@ -23,11 +20,9 @@ from photoshop.api._selection import Selection
 from PIL import Image
 
 import src.helpers as psd
-
-# Local Imports
-from src import APP, CFG, CON, CONSOLE, ENV, PATH
-from src.cards import strip_reminder_text
-from src.console import TerminalConsole, msg_error, msg_warn
+from src import APP, CON
+from src._state import PATH
+from src.cards import sanitize_card_filename, strip_reminder_text
 from src.enums.layers import LAYERS
 from src.enums.mtg import CardTextPatterns, MagicIcons
 from src.enums.settings import (
@@ -38,7 +33,6 @@ from src.enums.settings import (
     WatermarkMode,
 )
 from src.frame_logic import is_multicolor_string
-from src.gui.console import GUIConsole
 from src.helpers.adjustments import CreateColorLayerKwargs
 from src.helpers.effects import LayerEffects
 from src.helpers.position import DimensionNames
@@ -69,6 +63,15 @@ from src.utils.adobe import (
 from src.utils.scryfall import get_card_scan
 from src.utils.windows import WindowState
 
+if TYPE_CHECKING:
+    from src.gui.qml.models.file_dialog_model import FileDialogModel
+    from src.gui.qml.models.message_dialog_content_model import (
+        MessageDialogContentModel,
+    )
+    from src.render.setup import RenderOperation
+
+_logger = getLogger(__name__)
+
 """
 * Template Classes
 """
@@ -88,50 +91,8 @@ class BaseTemplate:
     def __init__(self, layout: NormalLayout):
         # Setup manual properties
         self.layout = layout
+        self.config = layout.config
         self._text: list[FormattedTextLayer] = []
-
-    """
-    * Template Class Routing
-    """
-
-    def __new__(cls, layout: NormalLayout) -> "BaseTemplate":
-        """Governs which class is called to instantiate a new object."""
-        return cls.get_template_route(layout)
-
-    @staticmethod
-    def redirect_template(
-        template_class: type["BaseTemplate"],
-        template_file: str | Path,
-        layout: NormalLayout,
-    ) -> "BaseTemplate":
-        """Reroutes template initialization to another template class and PSD file.
-
-        Args:
-            template_class: Template class to reroute to.
-            template_file: Filename of the PSD to load with this template class.
-            layout: The card layout object.
-
-        Returns:
-            Initialized template class object.
-        """
-        if isinstance(template_file, Path):
-            layout.template_file = template_file
-        else:
-            layout.template_file = layout.template_file.with_name(template_file)
-        return template_class(layout)
-
-    @classmethod
-    def get_template_route(cls, layout: NormalLayout) -> "BaseTemplate":
-        """Overwrite this method to reroute a template class to another class under a set of
-        conditions. See the 'IxalanTemplate' class for an example.
-
-        Args:
-            layout: The card layout object.
-
-        Returns:
-            Initialized template class object.
-        """
-        return super().__new__(cls)
 
     """
     * Enabled Method Lists
@@ -204,14 +165,21 @@ class BaseTemplate:
     """
 
     @cached_property
+    def render_operation(self) -> RenderOperation:
+        raise ValueError("Render operation not assigned")
+
+    @cached_property
+    def file_dialog(self) -> FileDialogModel | None:
+        return None
+
+    @cached_property
+    def message_dialog(self) -> MessageDialogContentModel | None:
+        return None
+
+    @cached_property
     def event(self) -> Event:
         """Event: Threading Event used to signal thread cancellation."""
         return Event()
-
-    @cached_property
-    def console(self) -> GUIConsole | TerminalConsole:
-        """type[CONSOLE]: Console output object used to communicate with the user."""
-        return CONSOLE
 
     @property
     def app(self) -> PhotoshopHandler:
@@ -220,8 +188,8 @@ class BaseTemplate:
 
     @cached_property
     def docref(self) -> Document:
-        """Optional[Document]: This template's document open in Photoshop."""
-        if doc := psd.get_document(osp.basename(self.layout.template_file)):
+        """This template's document open in Photoshop."""
+        if doc := psd.get_document(self.layout.template_file.name):
             return doc
         raise ValueError("Failed to get document reference for the template.")
 
@@ -265,26 +233,22 @@ class BaseTemplate:
     @cached_property
     def save_mode(self) -> Callable[[Path, Document | None], None]:
         """Callable: Function called to save the rendered image."""
-        if CFG.output_file_type == OutputFileType.PNG:
+        if self.config.output_file_type == OutputFileType.PNG:
             return psd.save_document_png
-        if CFG.output_file_type == OutputFileType.PSD:
+        if self.config.output_file_type == OutputFileType.PSD:
             return psd.save_document_psd
         return psd.save_document_jpeg
 
     @cached_property
     def output_directory(self) -> Path:
-        """Path: Directory where the rendered image will be saved to."""
-        if ENV.TEST_MODE:
-            path = PATH.OUT / "test_mode_renders" / self.__class__.__name__
-            path.mkdir(mode=777, parents=True, exist_ok=True)
-            return path
+        """Directory where the rendered image will be saved to."""
         return PATH.OUT
 
     @cached_property
     def output_file_name(self) -> Path:
-        """Path: The formatted filename for the rendered image."""
+        """The formatted path for the rendered image."""
         name, tag_map = (
-            CFG.output_file_name,
+            self.config.output_file_name,
             {
                 "#name": self.layout.name_raw,
                 "#artist": self.layout.artist,
@@ -313,12 +277,13 @@ class BaseTemplate:
         for tag, value in tag_map.items():
             if value:
                 name = name.replace(tag, value)
-        path = Path(self.output_directory, sanitize_filename(name)).with_suffix(
-            f".{CFG.output_file_type}"
+
+        path = Path(self.output_directory, sanitize_card_filename(name)).with_suffix(
+            f".{self.config.output_file_type}"
         )
 
         # Are we overwriting duplicate names?
-        if not CFG.overwrite_duplicate:
+        if not self.config.overwrite_duplicate:
             path = get_unique_filename(path)
         return path
 
@@ -479,9 +444,12 @@ class BaseTemplate:
     @cached_property
     def is_collector_promo(self) -> bool:
         """bool: Governs whether to use promo star in collector info."""
-        if CFG.collector_promo == CollectorPromo.Always:
+        if self.config.collector_promo == CollectorPromo.Always:
             return True
-        if self.layout.is_promo and CFG.collector_promo == CollectorPromo.Automatic:
+        if (
+            self.layout.is_promo
+            and self.config.collector_promo == CollectorPromo.Automatic
+        ):
             return True
         return False
 
@@ -694,7 +662,7 @@ class BaseTemplate:
     def art_reference(self) -> ReferenceLayer | None:
         """ReferenceLayer: Reference frame used to scale and position the art layer."""
         # Check if art is vertically oriented, or forced vertical, and for valid vertical frame
-        if self.is_art_vertical or (self.is_fullart and CFG.vertical_fullart):
+        if self.is_art_vertical or (self.is_fullart and self.config.vertical_fullart):
             if layer := psd.get_reference_layer(self.art_frame_vertical):
                 return layer
         # Check for normal art frame
@@ -750,14 +718,14 @@ class BaseTemplate:
         """Performs any required pre-processing on the provided layout data."""
 
         # Strip flavor text, string or list
-        if CFG.remove_flavor:
+        if self.config.remove_flavor:
             if isinstance(self.layout, SplitLayout):
                 self.layout.flavor_texts = ["" for _ in self.layout.flavor_texts]
             else:
                 self.layout.flavor_text = ""
 
         # Strip reminder text, string or list
-        if CFG.remove_reminder:
+        if self.config.remove_reminder:
             if isinstance(self.layout, SplitLayout):
                 self.layout.oracle_texts = [
                     strip_reminder_text(txt) for txt in self.layout.oracle_texts
@@ -799,10 +767,6 @@ class BaseTemplate:
         if not art_layer:
             raise ValueError("Failed to get art layer.")
 
-        # Check for full-art test image
-        if ENV.TEST_MODE and self.is_fullart:
-            art_file = PATH.SRC_IMG / "test-fa.jpg"
-
         # Import art file
         if self.art_action:
             # Use action pipeline
@@ -825,23 +789,24 @@ class BaseTemplate:
         # Perform content aware fill if needed
         if self.is_content_aware_enabled:
             # Perform a generative fill
-            if CFG.generative_fill:
+            if self.config.generative_fill:
                 if _doc_generated := psd.generative_fill_edges(
                     layer=art_layer,
-                    feather=CFG.feathered_fill,
-                    close_doc=bool(not CFG.select_variation),
+                    feather=self.config.feathered_fill,
+                    close_doc=bool(not self.config.select_variation),
                     docref=self.docref,
                 ):
                     # Document reference was returned, await user intervention
-                    self.console.await_choice(
-                        self.event,
-                        msg="Select a Generative Fill variation, then click Continue ...",
+                    self.render_operation.pause_sync(
+                        "Select a Generative Fill variation, then click Continue ...",
                     )
                     _doc_generated.close(SaveOptions.SaveChanges)
                 return
 
             # Perform a content aware fill
-            psd.content_aware_fill_edges(layer=art_layer, feather=CFG.feathered_fill)
+            psd.content_aware_fill_edges(
+                layer=art_layer, feather=self.config.feathered_fill
+            )
 
     def paste_scryfall_scan(
         self, rotate: bool = False, visible: bool = True
@@ -899,11 +864,11 @@ class BaseTemplate:
 
         # Which collector info mode?
         if (
-            CFG.collector_mode in [CollectorMode.Default, CollectorMode.Modern]
+            self.config.collector_mode in [CollectorMode.Default, CollectorMode.Modern]
             and self.layout.collector_data
         ):
             return self.collector_info_authentic()
-        elif CFG.collector_mode == CollectorMode.ArtistOnly:
+        elif self.config.collector_mode == CollectorMode.ArtistOnly:
             return self.collector_info_artist_only()
         return self.collector_info_basic()
 
@@ -1013,10 +978,10 @@ class BaseTemplate:
         """Imports and positions the expansion symbol SVG image."""
 
         # Check for expansion symbol disabled
-        if not CFG.symbol_enabled or not self.expansion_reference:
+        if not self.config.symbol_enabled or not self.expansion_reference:
             return
         if not self.layout.symbol_svg:
-            return self.log("Expansion symbol disabled, SVG file not found.")
+            return _logger.error("Expansion symbol disabled. SVG file not found.")
 
         # Try to import the expansion symbol
         try:
@@ -1039,8 +1004,8 @@ class BaseTemplate:
             svg.name = "Expansion Symbol"
             self.expansion_symbol_layer = svg
 
-        except Exception as e:
-            return self.log("Expansion symbol disabled due to an error.", e)
+        except Exception:
+            _logger.exception("Expansion symbol disabled due to an error")
 
     """
     * Watermark
@@ -1120,7 +1085,7 @@ class BaseTemplate:
         )
 
         # Apply opacity, blending, and effects
-        wm.opacity = wm_details.get("opacity", CFG.watermark_opacity)
+        wm.opacity = wm_details.get("opacity", self.config.watermark_opacity)
         wm.blendMode = self.watermark_blend_mode
         psd.apply_fx(wm, self.watermark_fx)
 
@@ -1198,8 +1163,8 @@ class BaseTemplate:
     @cached_property
     def border_color(self) -> str:
         """Use 'black' unless an alternate color and a valid border group is provided."""
-        if CFG.border_color != BorderColor.Black and self.border_group:
-            return CFG.border_color
+        if self.config.border_color != BorderColor.Black and self.border_group:
+            return self.config.border_color
         return "black"
 
     @try_photoshop
@@ -1247,10 +1212,8 @@ class BaseTemplate:
             return
 
         # Connection with Photoshop couldn't be established, try again?
-        if not self.console.await_choice(
-            self.event,
-            get_photoshop_error_message(check),
-            end="Hit Continue to try again, or Cancel to end the operation.\n\n",
+        if not self.render_operation.pause_sync(
+            f"{get_photoshop_error_message(check)}\nPress OK to try again, or Cancel to end the render.",
         ):
             # Cancel the operation
             raise OSError(check)
@@ -1263,29 +1226,16 @@ class BaseTemplate:
                 psd.reset_document(self.docref)
         except PS_EXCEPTIONS:
             pass
-        self.console.end_await()
 
     """
     * Tasks and Logging
     """
 
-    def log(self, text: str, e: Exception | None = None) -> None:
-        """Writes a message to console if test mode isn't enabled, logs an exception if provided.
-
-        Args:
-            text: Message to write to console.
-            e: Exception to log if provided.
-        """
-        if e:
-            self.console.log_exception(e)
-        if not ENV.TEST_MODE:
-            self.console.update(text)
-
     def run_tasks(
         self,
         funcs: list[Callable[[], Any]],
         message: str,
-        warning: bool = False,
+        ignore_exception: bool = False,
     ) -> bool:
         """Run a list of functions, checking for thread cancellation and exceptions on each.
 
@@ -1295,7 +1245,7 @@ class BaseTemplate:
             warning: Warn the user if True, otherwise raise error.
 
         Returns:
-            True if tasks completed, False if exception occurs or thread is cancelled.
+            True if tasks completed, False if exception occurred or thread was cancelled.
         """
 
         # Execute each function
@@ -1306,44 +1256,17 @@ class BaseTemplate:
             try:
                 # Run the task
                 func()
-            except Exception as e:
-                # Raise error or warning
-                if not warning:
-                    self.raise_error(message=message, error=e)
+            except Exception:
+                _logger.exception(self.format_exception_message(message))
+                if not ignore_exception:
                     return False
-                self.raise_warning(message=message, error=e)
             # Once again, check if thread was cancelled
             if self.event.is_set():
                 return False
         return True
 
-    def raise_error(self, message: str, error: Exception | None = None) -> None:
-        """Raise an error on the console display.
-
-        Args:
-            message: Message to be displayed
-            error: Exception object
-        """
-        self.console.log_error(
-            thr=self.event,
-            card=self.layout.name,
-            template=str(self.layout.template_file),
-            msg=f"{msg_error(message)}\nCheck [b]/logs/error.txt[/b] for details.",
-            e=error,
-        )
-        self.reset()
-
-    def raise_warning(self, message: str, error: Exception | None = None) -> None:
-        """Raise a warning on the console display.
-
-        Args:
-            message: Message to be displayed.
-            error: Exception object.
-        """
-        if error:
-            self.console.log_exception(error)
-            message += "\nCheck [b]/logs/error.txt[/b] for details."
-        self.console.update(msg_warn(message), exception=error)
+    def format_exception_message(self, message: str) -> str:
+        return f"An exception occurred while rendering <b>{self.layout.display_name}</b>: {message}"
 
     """
     * Layer Generator Utilities
@@ -1541,7 +1464,9 @@ class BaseTemplate:
 
         # Failed to match a recognized color notation
         if group:
-            self.log(f"Couldn't generate frame element: '{group.name}'")
+            _logger.warning(
+                f"Couldn't generate layer: <i>{group.name}</i>\n{''.join(format_stack())}"
+            )
 
     """
     * Extendable Methods
@@ -1572,7 +1497,10 @@ class BaseTemplate:
     * Execution Sequence
     """
 
-    def execute(self) -> bool:
+    def cancel(self) -> None:
+        self.event.set()
+
+    async def execute(self) -> bool:
         """Perform actions to render the card using this template.
 
         Notes:
@@ -1586,7 +1514,7 @@ class BaseTemplate:
         ):
             return False
 
-        if CFG.minimize_photoshop:
+        if self.config.minimize_photoshop:
             APP.instance.set_window_state(WindowState.MINIMIZE)
 
         # Pre-process layout data
@@ -1609,29 +1537,29 @@ class BaseTemplate:
             return False
 
         # Load in Scryfall scan and frame it
-        if CFG.import_scryfall_scan:
+        if self.config.import_scryfall_scan:
             self.run_tasks(
                 funcs=[self.paste_scryfall_scan],
                 message="Couldn't import Scryfall scan, continuing without it!",
-                warning=True,
+                ignore_exception=True,
             )
 
         # Add expansion symbol
         self.run_tasks(
             funcs=[self.load_expansion_symbol],
             message="Unable to generate expansion symbol!",
-            warning=True,
+            ignore_exception=True,
         )
 
         # Add watermark
-        if CFG.enable_basic_watermark and self.is_basic_land:
+        if self.config.enable_basic_watermark and self.is_basic_land:
             # Basic land watermark
             if not self.run_tasks(
                 funcs=[self.create_basic_watermark],
                 message="Unable to generate basic land watermark!",
             ):
                 return False
-        elif CFG.watermark_mode is not WatermarkMode.Disabled:
+        elif self.config.watermark_mode is not WatermarkMode.Disabled:
             # Normal watermark
             if not self.run_tasks(
                 funcs=[self.create_watermark], message="Unable to generate watermark!"
@@ -1663,8 +1591,8 @@ class BaseTemplate:
             return False
 
         # Manual edit step?
-        if CFG.exit_early and not ENV.TEST_MODE:
-            self.console.await_choice(self.event)
+        if self.config.exit_early:
+            await self.render_operation.pause("Rendering paused for manual editing.")
 
         # Save the document
         if not self.run_tasks(
@@ -1680,11 +1608,7 @@ class BaseTemplate:
         ):
             return False
 
-        # Reset document, return success
-        if not ENV.TEST_MODE:
-            self.console.update(
-                f"[b]{self.output_file_name.stem}[/b] rendered successfully!"
-            )
+        # Reset document
         self.reset()
         return True
 

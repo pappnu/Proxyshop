@@ -1,15 +1,15 @@
 """
 * Enums: Layer Names
 """
-# Third Party Imports
-from omnitils.enums import StrConstant
+
+from enum import StrEnum
 
 """
 * Enums
 """
 
 
-class LAYERS (StrConstant):
+class LAYERS (StrEnum):
     """Layer name definitions."""
 
     # Default art layer

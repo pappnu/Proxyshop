@@ -1,0 +1,3 @@
+module qml.dialogs
+CustomFileDialog CustomFileDialog.qml
+CustomMessageDialog CustomMessageDialog.qml

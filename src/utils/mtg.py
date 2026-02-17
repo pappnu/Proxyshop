@@ -2,8 +2,8 @@
 * MTG Related Utiltiies
 """
 
-from src.schema.colors import SymbolColorMap, ColorObject
 from src.enums.mtg import CardTextPatterns as _P
+from src.schema.colors import ColorObject, SymbolColorMap
 
 """
 * MTG Color Utilities
@@ -13,7 +13,7 @@ from src.enums.mtg import CardTextPatterns as _P
 def get_symbol_colors(
     symbol: str, chars: str, color_map: SymbolColorMap
 ) -> list[ColorObject | None]:
-    """Determines the colors of a symbol (represented as Scryfall string) and returns an array Symbol colors.
+    """Determines the colors of a symbol (represented as Scryfall string) and returns a list of Symbol colors.
 
     Args:
         symbol: Symbol to determine the colors of.

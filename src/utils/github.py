@@ -1,16 +1,19 @@
 from collections.abc import Callable
+from logging import getLogger
 from typing import Literal
 
 from backoff import expo, on_exception
 from limits import RateLimitItemPerHour
 from limits.storage import MemoryStorage
 from limits.strategies import MovingWindowRateLimiter
-from omnitils.exceptions import ExceptionLogger, log_on_exception, return_on_exception
+from omnitils.exceptions import return_on_exception
 from omnitils.rate_limit import rate_limit
 from pydantic import BaseModel, RootModel
 from requests import RequestException, get
 
-from src import CONSOLE
+from src.utils.logging import log_on_exception
+
+_logger = getLogger(__name__)
 
 # Rate limiter to safely limit GitHub requests
 _rate_limit_storage = MemoryStorage()
@@ -54,15 +57,13 @@ GitHubReleases = RootModel[list[GitHubRelease]]
 
 
 def github_request_wrapper[T, **P](
-    fallback: T, logr: ExceptionLogger | None = None
+    fallback: T,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    logr = logr or CONSOLE
-
     def decorator(func: Callable[P, T]):
         @return_on_exception(fallback)
-        @log_on_exception(logr)
+        @log_on_exception(logger=_logger)
         @rate_limit(limiter=_rate_limiter, limit=_rate_limit)
-        @on_exception(expo, RequestException, max_tries=2, max_time=1)
+        @on_exception(expo, RequestException, logger=None, max_tries=1, max_time=1)
         def wrapper(*args: P.args, **kwargs: P.kwargs):
             return func(*args, **kwargs)
 

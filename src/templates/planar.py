@@ -1,20 +1,15 @@
 """
 * PLANAR TEMPLATES
 """
-
-# Standard Library Imports
 from functools import cached_property
 
-# Third Party Imports
 from photoshop.api._artlayer import ArtLayer
 
-# Local Imports
-from src import CFG
-from src.templates._core import StarterTemplate
+import src.helpers as psd
 import src.text_layers as text_classes
 from src.enums.layers import LAYERS
 from src.layouts import NormalLayout
-import src.helpers as psd
+from src.templates._core import StarterTemplate
 
 """
 * Template Classes
@@ -29,8 +24,8 @@ class PlanarTemplate(StarterTemplate):
     """
 
     def __init__(self, layout: NormalLayout):
-        CFG.exit_early = True
         super().__init__(layout)
+        self.config.exit_early = True
 
     @cached_property
     def text_layer_static_ability(self) -> ArtLayer | None:

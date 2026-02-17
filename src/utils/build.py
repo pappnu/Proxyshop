@@ -1,27 +1,21 @@
 """
 * Utils: Building Releases and Docs
 """
-# Standard Library
-import os
+
 import ast
+import os
 import zipfile
 from contextlib import suppress
 from glob import glob
 from pathlib import Path
-from typing import TypedDict, NotRequired
-from shutil import (
-    copy2,
-    copytree,
-    rmtree,
-    move
-)
+from shutil import copy2, copytree, move, rmtree
+from subprocess import run
+from typing import NotRequired, TypedDict
 
-# Third party imports
 import PyInstaller.__main__
-from omnitils.files import get_project_version, load_data_file, dump_data_file
+from omnitils.files import dump_data_file, get_project_version, load_data_file
 
-# Local Imports
-from src import PATH
+from src._state import PATH
 
 # Directory definitions
 SRC: Path = PATH.CWD
@@ -174,9 +168,9 @@ def clear_build_files(clear_dist: bool = True) -> None:
         clear_dist: Remove previous dist directory if True, otherwise skip.
     """
     # Run pyclean on main directory and venv
-    os.system("pyclean -v .")
-    if os.path.exists(os.path.join(SRC, '.venv')):
-        os.system("pyclean -v .venv")
+    run(("pyclean", "-v", "."), check=True)
+    if (SRC / '.venv').is_dir():
+        run(("pyclean", "-v", ".venv"))
 
     # Remove build directory
     with suppress(Exception):

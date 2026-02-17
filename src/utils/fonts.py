@@ -1,24 +1,25 @@
 """
 * Font Utils
 """
-# Standard Library Imports
+
 import ctypes
 import os
-from contextlib import suppress
-from ctypes import wintypes
 import os.path as osp
 import re
+from contextlib import suppress
+from ctypes import wintypes
+from logging import getLogger
 from typing import TypedDict
 
-# Third Party Imports
-from photoshop.api._document import Document
-from photoshop.api.enumerations import LayerKind
-from photoshop.api._layerSet import LayerSet
 from fontTools.ttLib import TTFont, TTLibError
 from packaging.version import parse
+from photoshop.api._document import Document
+from photoshop.api._layerSet import LayerSet
+from photoshop.api.enumerations import LayerKind
 
-# Local Imports
-from src.utils.adobe import PhotoshopHandler, PS_EXCEPTIONS
+from src.utils.adobe import PS_EXCEPTIONS, PhotoshopHandler
+
+_logger = getLogger(__name__)
 
 # Precompile font version pattern
 REG_FONT_VER: re.Pattern[str] = re.compile(r"\b(\d+\.\d+)\b")
@@ -54,14 +55,14 @@ def register_font(ps_app: PhotoshopHandler, font_path: str) -> bool:
         # Font Resource added successfully
         try:
             # Notify all programs
-            print(f"{osp.basename(font_path)} added to font cache!")
+            _logger.debug(f"Font '{osp.basename(font_path)}' added to font cache.")
             hwnd_broadcast = wintypes.HWND(-1)
             ctypes.windll.user32.SendMessageW(
                 hwnd_broadcast, wintypes.UINT(0x001D), wintypes.WPARAM(0), wintypes.LPARAM(0)
             )
             ps_app.refreshFonts()
-        except Exception as e:
-            print(e)
+        except Exception:
+            _logger.exception(f"Couldn't register font: {font_path}")
         return True
     return False
 
@@ -81,14 +82,14 @@ def unregister_font(ps_app: PhotoshopHandler, font_path: str) -> bool:
         # Font Resource removed successfully
         try:
             # Notify all programs
-            print(f"{osp.basename(font_path)} removed from font cache!")
+            _logger.debug(f"Font {osp.basename(font_path)} removed from font cache!")
             hwnd_broadcast = wintypes.HWND(-1)
             ctypes.windll.user32.SendMessageW(
                 hwnd_broadcast, wintypes.UINT(0x001D), wintypes.WPARAM(0), wintypes.LPARAM(0)
             )
             ps_app.refreshFonts()
-        except Exception as e:
-            print(e)
+        except Exception:
+            _logger.exception(f"Couldn't unregister font: {font_path}")
         return True
     return False
 
@@ -151,9 +152,8 @@ def get_document_fonts(
                     'name': ps_fonts.get(font, None),
                     'count': 1
                 }
-        except PS_EXCEPTIONS:
-            # Font property couldn't be accessed
-            print(f"Font unreadable for layer: {layer.name}")
+        except PS_EXCEPTIONS as exc:
+            _logger.warning(f"Couldn't read font from layer: {layer.name}", exc_info=exc)
 
     # Make additional calls for nested groups
     for group in container.layerSets:
@@ -177,12 +177,18 @@ def get_font_details(path: str) -> tuple[str, FontDetails] | None:
     """
     with suppress(*PS_EXCEPTIONS, TTLibError):
         with TTFont(path) as font:
-            font_name = font['name'].getName(4, 3, 1, 1033).toUnicode()
-            font_postscript = font['name'].getDebugName(6)
-            version_match = REG_FONT_VER.search(font['name'].getDebugName(5))
-            font_version = version_match.group(1).lstrip('0') if version_match else None
-        return font_postscript, {'name': font_name, 'version': font_version}
-    return
+            if (
+                (name_record := font["name"].getName(4, 3, 1, 1033))
+                and (font_postscript := font["name"].getDebugName(6)) is not None
+                and (font_version := font["name"].getDebugName(5)) is not None
+            ):
+                font_name = name_record.toUnicode()
+
+                version_match = REG_FONT_VER.search(font_version)
+                font_version = (
+                    version_match.group(1).lstrip("0") if version_match else None
+                )
+                return font_postscript, {"name": font_name, "version": font_version}
 
 
 def get_fonts_from_folder(folder: str | os.PathLike[str]) -> dict[str, FontDetails]:

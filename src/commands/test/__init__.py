@@ -1,12 +1,15 @@
 """
 * CLI Commands: Testing
 """
-# Third Party
+
+from logging import getLogger
+
 import click
 
-# Local Imports
-from src import CONSOLE, PATH
+from src._state import PATH
 from src.commands.test import frame_logic, text_logic
+
+_logger = getLogger(__name__)
 
 """
 * Commands
@@ -20,7 +23,7 @@ from src.commands.test import frame_logic, text_logic
 @click.option('-T', '--target', is_flag=True, default=False, help="Evaluate a specific test case.")
 def test_frame_logic(target: bool = False):
     """Run Frame Logic test on all cases."""
-    CONSOLE.info(f"Test Utility: Frame Logic ({PATH.CWD})")
+    _logger.info(f"Test Utility: Frame Logic ({PATH.CWD})")
     cases = frame_logic.get_frame_logic_cases()
 
     # Was this a targeted case?
@@ -38,7 +41,7 @@ def test_frame_logic(target: bool = False):
 
     # Run the test
     case = options[choice]
-    CONSOLE.info(f"CASE: {case}")
+    _logger.info(f"CASE: {case}")
     frame_logic.test_target_case(cases[case])
 
 

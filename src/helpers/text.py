@@ -2,16 +2,15 @@
 * Helpers: Text Items
 """
 
-# Standard Library Imports
-from typing import Literal, overload
 from collections.abc import Sequence
+from logging import getLogger
+from typing import Literal, overload
 
-# Third Party Imports
 from photoshop.api import (
-    DialogModes,
     ActionDescriptor,
-    ActionReference,
     ActionList,
+    ActionReference,
+    DialogModes,
     LayerKind,
 )
 from photoshop.api._artlayer import ArtLayer
@@ -19,7 +18,6 @@ from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
 from photoshop.api.text_item import TextItem
 
-# Local Imports
 from src import APP
 from src.helpers.bounds import (
     get_layer_height,
@@ -30,8 +28,7 @@ from src.helpers.bounds import (
 from src.helpers.document import pixels_to_points
 from src.utils.adobe import PS_EXCEPTIONS
 
-# QOL Definitions
-NO_DIALOG = DialogModes.DisplayNoDialogs
+_logger = getLogger(__name__)
 
 """
 * Text Utils
@@ -70,7 +67,9 @@ def apply_text_key(text_layer: ArtLayer, text_key: ActionDescriptor) -> None:
     ref.putIdentifier(APP.instance.sID("layer"), text_layer.id)
     action.putReference(APP.instance.sID("target"), ref)
     action.putObject(APP.instance.sID("to"), APP.instance.sID("textLayer"), text_key)
-    APP.instance.executeAction(APP.instance.sID("set"), action, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("set"), action, DialogModes.DisplayNoDialogs
+    )
 
 
 def get_line_count(layer: ArtLayer, docref: Document | None = None) -> int:
@@ -110,10 +109,7 @@ def replace_text(layer: ArtLayer, find: str, replace: str) -> None:
 
     # Check if our target text exists
     if find not in current_text:
-        print(
-            f"Text replacement couldn't find the text '{find}' "
-            f"in layer with name '{layer.name}'!"
-        )
+        _logger.warning(f"Couldn't find the text '{find}' in layer: '{layer.name}'")
         return
 
     # Reusable ID's
@@ -144,10 +140,7 @@ def replace_text(layer: ArtLayer, find: str, replace: str) -> None:
 
     # Skip applying changes if no replacement could be made
     if not replaced:
-        print(
-            f"Text replacement couldn't find the text '{find}' "
-            f"in layer with name '{layer.name}'!"
-        )
+        _logger.warning(f"Couldn't replace the text '{find}' in layer: {layer.name}")
         return
 
     # Apply changes
@@ -188,8 +181,8 @@ def replace_text_legacy(
         APP.instance.sID("targetEnum"),
     )
     desc31.putReference(APP.instance.sID("target"), ref3)
-    desc32.putString(APP.instance.sID("find"), f"""{find}""")
-    desc32.putString(APP.instance.sID("replace"), f"""{replace}""")
+    desc32.putString(APP.instance.sID("find"), find)
+    desc32.putString(APP.instance.sID("replace"), replace)
     desc32.putBoolean(
         APP.instance.sID(
             "checkAll"
@@ -204,7 +197,7 @@ def replace_text_legacy(
     desc32.putBoolean(APP.instance.sID("ignoreAccents"), True)
     desc31.putObject(APP.instance.sID("using"), idFindReplace, desc32)
     try:
-        APP.instance.executeAction(idFindReplace, desc31, NO_DIALOG)
+        APP.instance.executeAction(idFindReplace, desc31, DialogModes.DisplayNoDialogs)
     except PS_EXCEPTIONS:
         replace_text_legacy(
             find=find, replace=replace, layer=layer, targeted_replace=False
@@ -446,7 +439,9 @@ def set_space_after(space: int | float) -> None:
         APP.instance.sID("spaceAfter"), APP.instance.sID("pointsUnit"), space
     )
     desc1.putObject(APP.instance.sID("to"), APP.instance.sID("paragraphStyle"), deesc2)
-    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("set"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def set_text_leading(layer: ArtLayer, leading: float | int) -> None:
@@ -466,7 +461,9 @@ def set_text_leading(layer: ArtLayer, leading: float | int) -> None:
         APP.instance.sID("leading"), APP.instance.sID("pointsUnit"), leading
     )
     desc1.putObject(APP.instance.sID("to"), APP.instance.sID("textStyle"), desc2)
-    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("set"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def set_text_size(layer: ArtLayer, size: float | int) -> None:
@@ -485,7 +482,9 @@ def set_text_size(layer: ArtLayer, size: float | int) -> None:
     desc1.putReference(APP.instance.sID("target"), ref1)
     desc2.putUnitDouble(APP.instance.sID("size"), APP.instance.sID("pointsUnit"), size)
     desc1.putObject(APP.instance.sID("to"), textStyle, desc2)
-    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("set"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def set_text_size_and_leading(
@@ -509,7 +508,9 @@ def set_text_size_and_leading(
     desc2.putUnitDouble(APP.instance.sID("size"), ptUnit, size)
     desc2.putUnitDouble(APP.instance.sID("leading"), ptUnit, leading)
     desc1.putObject(APP.instance.sID("to"), textStyle, desc2)
-    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("set"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def set_composer(layer: ArtLayer, every: bool = False) -> None:
@@ -529,7 +530,9 @@ def set_composer(layer: ArtLayer, every: bool = False) -> None:
     desc1.putReference(APP.instance.sID("target"), ref1)
     desc2.putBoolean(APP.instance.sID("textEveryLineComposer"), every)
     desc1.putObject(APP.instance.sID("to"), paraStyle, desc2)
-    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("set"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def set_composer_single_line(layer: ArtLayer) -> None:

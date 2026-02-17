@@ -1,18 +1,17 @@
 """
 * Tests: Compression
 """
-# Standard Library Imports
+
+from logging import getLogger
 from pathlib import Path
 from time import perf_counter
 
-# Third Party Imports
 import matplotlib.pyplot as plt
-from PIL.Image import Resampling
-from omnitils.files.archive import WordSize, DictionarySize, compress_7z
+from omnitils.files.archive import DictionarySize, WordSize, compress_7z
 from omnitils.img import downscale_image_by_width
+from PIL.Image import Resampling
 
-# Local Imports
-from src import CONSOLE
+_logger = getLogger(__name__)
 
 """
 * Test Funcs
@@ -95,9 +94,9 @@ def test_7z_compression(path: Path) -> dict:
 
 def test_jpeg_compression(
         path: Path,
-        test_dpi=True,
-        test_resample=True,
-        test_optimize=True,
+        test_dpi: bool =True,
+        test_resample: bool =True,
+        test_optimize: bool =True,
         test_quality: list[int] | None = None
 ) -> None:
     """
@@ -116,7 +115,7 @@ def test_jpeg_compression(
     QUALITY, i = test_quality or [95, 90, 85, 80], 0
 
     # Loop through each required test
-    CONSOLE.info("=" * 50)
+    _logger.info("=" * 50)
     for _W in WIDTH:
         for _R in RESAMPLE:
             for _Q in QUALITY:
@@ -127,7 +126,7 @@ def test_jpeg_compression(
                     CURRENT = (f"{i}. {'800' if _W < 3264 else '1200'} "
                                f"{'lanczos' if _R == Resampling.LANCZOS else 'bicubic'} "
                                f"{_Q} {'optimize_YES' if _O else 'optimize_NO'}")
-                    CONSOLE.info(f"TESTING: {CURRENT}")
+                    _logger.info(f"TESTING: {CURRENT}")
                     SAVE_TO = path.parent / 'compressed' / f'{CURRENT}.jpg'
                     downscale_image_by_width(
                         path_img=path,
@@ -139,9 +138,9 @@ def test_jpeg_compression(
                     )
 
                     # Print the time of execution
-                    CONSOLE.info(f"TIME COMPLETED: {perf_counter() - s} SECONDS")
-                    CONSOLE.info("=" * 50)
+                    _logger.info(f"TIME COMPLETED: {perf_counter() - s} SECONDS")
+                    _logger.info("=" * 50)
                     i += 1
 
     # Test completed
-    CONSOLE.info("ALL TESTS COMPLETED!")
+    _logger.info("ALL TESTS COMPLETED!")

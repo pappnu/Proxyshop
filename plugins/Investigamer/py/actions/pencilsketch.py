@@ -2,17 +2,13 @@
 Pencil Sketchify Action Module
 """
 
-# Standard Library Imports
-from threading import Event
 from collections.abc import Iterable
 
-# Third Party Imports
 import photoshop.api as ps
 
-# Local Imports
-from src import APP, CONSOLE
+from src import APP
+from src.render.setup import RenderOperation
 
-# QOL Definitions
 dialog_mode = ps.DialogModes.DisplayNoDialogs
 
 """
@@ -243,7 +239,7 @@ def blend_color():
 
 
 def run(
-    thr: Event,
+    render_operation: RenderOperation,
     draft_sketch: bool = False,
     rough_sketch: bool = False,
     black_and_white: bool = True,
@@ -1392,5 +1388,7 @@ def run(
 
     # Flatten
     if manual_editing:
-        CONSOLE.await_choice(thr, "Sketch Action complete, hit continue when ready!")
+        render_operation.pause_sync(
+            "Sketch Action complete."
+        )
     APP.instance.executeAction(APP.instance.cID("FltI"), None, dialog_mode)

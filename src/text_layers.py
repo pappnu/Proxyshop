@@ -2,58 +2,57 @@
 * Text Layer Classes
 """
 
-# Standard Library Imports
+from _ctypes import COMError
 from contextlib import suppress
 from functools import cached_property
+from logging import getLogger
 from typing import NotRequired, TypedDict, Unpack
 
-# Third Party Imports
 from photoshop.api import (
     ActionDescriptor,
-    ActionReference,
     ActionList,
+    ActionReference,
     DialogModes,
-    LayerKind,
-    SolidColor,
-    Language,
     Justification,
+    Language,
+    LayerKind,
     RasterizeType,
+    SolidColor,
 )
-from photoshop.api._document import Document
 from photoshop.api._artlayer import ArtLayer
+from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
 from photoshop.api._selection import Selection
 from photoshop.api.text_item import TextItem
 
-# Local Imports
-from src import APP, CFG, CON, CONSOLE
+from src import APP, CFG, CON
 from src.cards import (
-    generate_italics,
-    locate_symbols,
-    locate_italics,
     CardItalicString,
     CardSymbolString,
+    generate_italics,
+    locate_italics,
+    locate_symbols,
 )
 from src.enums.mtg import CardFonts
 from src.helpers import select_layer
-from src.helpers.bounds import get_layer_dimensions, LayerDimensions, get_layer_width
-from src.helpers.colors import apply_color
-from src.helpers.position import position_between_layers, clear_reference_vertical
+from src.helpers.bounds import LayerDimensions, get_layer_dimensions, get_layer_width
+from src.helpers.colors import apply_color, rgb_black
+from src.helpers.position import clear_reference_vertical, position_between_layers
 from src.helpers.selection import select_layer_bounds
 from src.helpers.text import (
     get_text_scale_factor,
     remove_trailing_text,
-    scale_text_to_width_textbox,
-    scale_text_to_width,
-    scale_text_to_height,
     scale_text_left_overlap,
     scale_text_right_overlap,
+    scale_text_to_height,
+    scale_text_to_width,
+    scale_text_to_width_textbox,
 )
 from src.schema.colors import ColorObject
 from src.utils.adobe import ReferenceLayer
+from src.utils.lazy import LazyLoader
 
-# QOL Definitions
-NO_DIALOG = DialogModes.DisplayNoDialogs
+_logger = getLogger(__name__)
 
 """
 * Text Layer Classes
@@ -151,11 +150,24 @@ class TextField:
         """Symbol map to use for formatting mana symbols."""
         if not (symbol_map := self.kwargs.get("symbol_map")):
             symbol_map = {}
+
+            def get_default_color() -> SolidColor:
+                # For some reason fetching color from a seemingly valid TextItem can fail.
+                # The error goes away if the color is changed via Photoshop's GUI.
+                try:
+                    return self.TI.color
+                except COMError:
+                    return rgb_black()
+
             # Use text layer's color for all None colors
+            default_color = LazyLoader(get_default_color)
             for key, value in CON.symbol_map.items():
                 symbol_map[key] = (
                     value[0],
-                    [item if item is not None else self.TI.color for item in value[1]],
+                    [
+                        item if item is not None else default_color()
+                        for item in value[1]
+                    ],
                 )
         return symbol_map
 
@@ -361,7 +373,7 @@ class FormattedTextField(TextField):
 
         # Locate symbols and update the rules string
         rules, symbols = locate_symbols(
-            text=self.contents, symbol_map=self.kw_symbol_map, logger=CONSOLE
+            text=self.contents, symbol_map=self.kw_symbol_map, logger=_logger
         )
 
         # Create the new input string
@@ -376,7 +388,7 @@ class FormattedTextField(TextField):
             st=input_str,
             italics_strings=italic_text,
             symbol_map=self.kw_symbol_map,
-            logger=CONSOLE,
+            logger=_logger,
         )
 
         # Return text details
@@ -728,7 +740,9 @@ class FormattedTextField(TextField):
         )
         main_target.putReference(APP.instance.sID("target"), main_ref)
         main_target.putObject(idTo, textLayer, main_desc)
-        APP.instance.executeAction(APP.instance.sID("set"), main_target, NO_DIALOG)
+        APP.instance.executeAction(
+            APP.instance.sID("set"), main_target, DialogModes.DisplayNoDialogs
+        )
 
     def execute(self):
         super().execute()

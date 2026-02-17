@@ -11,7 +11,7 @@ from omnitils.files import load_data_file
 # Local Imports
 from src import CON, TEMPLATE_DEFAULTS
 from src._loader import TemplateDetails
-from src.cards import CardDetails
+from src.cards import CardDetails, parse_card_info
 from src.layouts import layout_map
 
 """
@@ -54,10 +54,7 @@ def render_target(data_file: str = None):
     # Todo: Make custom card data an optional filepath argument
     data_file = Path(CON.cwd, 'customs', data_file).with_suffix('.json')
     card = load_data_file(data_file)
-    file_details: CardDetails = {
-        'file': art_file, 'name': card.get('name', ''),
-        'set': '', 'artist': '', 'creator': '', 'number': ''
-    }
+    file_details: CardDetails = parse_card_info(art_path)
 
     # Get appropriate layout class and initialize it
     # Todo: Use the appropriate layout class provided
@@ -66,7 +63,7 @@ def render_target(data_file: str = None):
 
     # Get appropriate template for this layout
     # Todo: Use default, support optional template name argument or custom defined
-    template: TemplateDetails = TEMPLATE_DEFAULTS.get(layout.card_class)
+    template: TemplateDetails = TEMPLATE_DEFAULTS.get(layout.type)
     template_class = template['object'].get_template_class(template['class_name'])
     layout.template_file = template['object'].path_psd
 

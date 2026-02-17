@@ -3,9 +3,10 @@
 """
 
 from _ctypes import COMError
-from functools import cached_property
-from pathlib import Path
 from collections.abc import Callable, Sequence
+from functools import cached_property
+from logging import getLogger
+from pathlib import Path
 
 from omnitils.strings import normalize_str
 from photoshop.api import BlendMode, ElementPlacement
@@ -13,18 +14,19 @@ from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
 import src.helpers as psd
-from src import CFG, CON
+from src import CON
 from src.enums.layers import LAYERS
 from src.helpers import LayerEffects
-from src.schema.colors import GradientConfig
 from src.helpers.effects import copy_layer_fx
 from src.helpers.layers import get_reference_layer
 from src.layouts import SplitLayout
 from src.schema.adobe import EffectColorOverlay, EffectGradientOverlay
-from src.schema.colors import ColorObject, GradientColor
+from src.schema.colors import ColorObject, GradientColor, GradientConfig
 from src.templates import BaseTemplate
 from src.text_layers import FormattedTextArea, FormattedTextField, ScaledTextField
 from src.utils.adobe import ReferenceLayer
+
+_logger = getLogger(__name__)
 
 
 class SplitMod(BaseTemplate):
@@ -64,7 +66,7 @@ class SplitMod(BaseTemplate):
     @cached_property
     def color_limit(self) -> int:
         """One more than the max number of colors this card can split by."""
-        return CFG.get_int_setting(section="COLORS", key="Max.Colors", default=2) + 1
+        return self.config.get_int_setting(section="COLORS", key="Max.Colors", default=2) + 1
 
     # endregion Settings
 
@@ -370,11 +372,10 @@ class SplitMod(BaseTemplate):
             # Second art not provided
             if len(art_files) == 1:
                 # Manually select a second art
-                self.console.update("Please select the second split art!")
+                _logger.info("Please select the second split art!")
                 file: list[Path] = self.app.openDialog()
                 if not file:
-                    self.console.update("No art selected, cancelling render.")
-                    self.console.cancel_thread(thr=self.event)
+                    _logger.info("No art selected, cancelling render.")
                     return
 
                 # Place new art in the correct order
@@ -480,7 +481,7 @@ class SplitMod(BaseTemplate):
                     )
 
                     # Apply opacity, blending, and effects
-                    wm.opacity = wm_details.get("opacity", CFG.watermark_opacity)
+                    wm.opacity = wm_details.get("opacity", self.config.watermark_opacity)
                     wm.blendMode = BlendMode.ColorBurn
                     psd.apply_fx(wm, self.watermark_fxs[i])
         else:

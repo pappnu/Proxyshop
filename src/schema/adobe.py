@@ -2,14 +2,10 @@
 * Schema: Photoshop
 """
 
-# Standard Library Imports
 from typing import Literal
 
-# Third Party Imports
-from omnitils.schema import ArbitrarySchema
 from pydantic import BaseModel
 
-# Local Imports
 from src.schema.colors import ColorObject, GradientColor
 
 """
@@ -66,7 +62,7 @@ BlendMode = Literal[
 GradientMethod = Literal["perceptual", "linear", "classic", "smooth", "stripes"]
 
 
-class EffectBevel(ArbitrarySchema):
+class EffectBevel(BaseModel):
     """Layer Effect: Bevel"""
 
     highlight_color: ColorObject = (255, 255, 255)
@@ -81,14 +77,14 @@ class EffectBevel(ArbitrarySchema):
     softness: float | int = 14
 
 
-class EffectColorOverlay(ArbitrarySchema):
+class EffectColorOverlay(BaseModel):
     """Layer Effect: Color Overlay"""
 
     color: ColorObject = (0, 0, 0)
     opacity: float | int = 100
 
 
-class EffectDropShadow(ArbitrarySchema):
+class EffectDropShadow(BaseModel):
     """Layer Effect: Drop Shadow"""
 
     color: ColorObject = (0, 0, 0)
@@ -100,7 +96,7 @@ class EffectDropShadow(ArbitrarySchema):
     noise: float | int = 0
 
 
-class EffectGradientOverlay(ArbitrarySchema):
+class EffectGradientOverlay(BaseModel):
     """Layer Effect: Drop Shadow"""
 
     colors: list[GradientColor] = []
@@ -113,7 +109,7 @@ class EffectGradientOverlay(ArbitrarySchema):
     method: GradientMethod = "classic"
 
 
-class EffectStroke(ArbitrarySchema):
+class EffectStroke(BaseModel):
     """Layer Effect: Stroke"""
 
     color: ColorObject = (0, 0, 0)

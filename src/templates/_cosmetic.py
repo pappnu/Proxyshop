@@ -2,17 +2,14 @@
 * Cosmetic Template Class Modifiers
 """
 
-# Standard Library Imports
-from functools import cached_property
 from collections.abc import Callable
+from functools import cached_property
 
-# Third Party Imports
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
-from src.enums.layers import LAYERS
 import src.helpers as psd
+from src.enums.layers import LAYERS
 from src.helpers.layers import select_layer
 from src.templates._core import BaseTemplate
 from src.templates._vector import VectorTemplate
@@ -373,7 +370,7 @@ class NicknameMod(VectorTemplate):
             _textItem = self.text_layer_name.textItem
             _textItem.contents = "ENTER NICKNAME"
             select_layer(self.text_layer_name)
-            self.console.await_choice(
-                self.event, msg="Enter nickname text, then hit continue ..."
+            self.render_operation.pause_sync(
+                "Enter nickname text."
             )
             self.layout.nickname = _textItem.contents

@@ -2,21 +2,29 @@
 * Card Data Module
 * Handles raw card data fetching and processing
 """
-# Standard Library Imports
+
 from contextlib import suppress
+from logging import Logger, getLogger
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import TypedDict
 
-# Third Party Imports
 from omnitils.strings import normalize_str
+from pathvalidate import sanitize_filename
 
-# Local Imports
 from src._config import AppConfig
-from src.console import TerminalConsole, msg_warn
 from src.enums.mtg import CardTextPatterns, TransformIcons, non_italics_abilities
-from src.gui.console import GUIConsole
 from src.schema.colors import ColorObject
-from src.utils import scryfall
+from src.utils.scryfall import (
+    ScryfallCard,
+    ScryfallCardFace,
+    ScryfallException,
+    ScryfallRelatedCard,
+    get_card_search,
+    get_card_unique,
+    get_card_via_url,
+)
+
+_logger = getLogger(__name__)
 
 """
 * Types
@@ -36,7 +44,7 @@ class CardDetails(TypedDict):
     number: str
     artist: str
     creator: str
-    file: str | Path
+    file: Path
 
 
 class FrameDetails(TypedDict):
@@ -49,6 +57,29 @@ class FrameDetails(TypedDict):
     is_hybrid: bool
 
 
+_filename_character_replacements: dict[str,str] = {
+    "＜": "<",
+    "＞": ">",
+    "：": ":",
+    "＂": '"',
+    "／": "/",
+    "＼": "\\",
+    "￨": "|",
+    "？": "?",
+    "＊": "*"
+}
+"""
+Windows filenames disallow many characters which might be needed in some
+card or artist names, so we can use similar fullwidth unicode characters,
+which otherwise won't likely see much or any use when proxying cards, in the
+filenames and then replace them with the disallowed characters after reading the
+names into Proxyshop.
+"""
+
+_reverse_filename_character_replacements: dict[str,str] = {
+    value: key for key, value in _filename_character_replacements.items()
+}
+
 """
 * Handling Data Requests
 """
@@ -57,8 +88,7 @@ class FrameDetails(TypedDict):
 def get_card_data(
     card: CardDetails,
     cfg: AppConfig,
-    logger: GUIConsole | TerminalConsole | None = None,
-) -> scryfall.ScryfallCard | None:
+) -> ScryfallCard | None:
     """Fetch card data from the Scryfall API.
 
     Args:
@@ -83,31 +113,32 @@ def get_card_data(
     } if not number else {}
 
     # Establish Scryfall fetch action
-    action = scryfall.get_card_unique if number else scryfall.get_card_search
+    action = get_card_unique if number else get_card_search
     params = [code, number] if number else [name, code]
 
     # Is this an alternate language request?
     if cfg.lang != "en":
 
         # Pull the alternate language card
-        with suppress(Exception):
-            data = action(*params, lang=cfg.lang, **kwargs)
-            return data
-        # Language couldn't be found
-        if logger:
-            logger.update(msg_warn(f'Reverting to English: [b]{name}[/b]'))
+        try:
+            return action(*params, lang=cfg.lang, **kwargs)
+        except ScryfallException as exc:
+            _logger.warning(
+                f"Couldn't find language <i>{cfg.lang}</i> for <i>{name}</i>. Reverting to English.",
+                exc_info=exc
+            )
 
     # Query the card in English, retry with extras if failed
     with suppress(Exception):
-        data = action(*params, **kwargs)
-        return data
+        return action(*params, **kwargs)
     if not number and not cfg.scry_extras:
         # Retry with extras included, case: Planar cards
-        with suppress(Exception):
+        try:
             kwargs['include_extras'] = 'True'
             data = action(*params, **kwargs)
             return data
-    return
+        except ScryfallException:
+            _logger.exception("Couldn't retrieve card from Scryfall even with <i>include_extras</i> enabled.")
 
 
 """
@@ -115,7 +146,7 @@ def get_card_data(
 """
 
 
-def parse_card_info(file_path: Path) -> CardDetails:
+def parse_card_info(file_path: Path, name_override: str | None = None) -> CardDetails:
     """Retrieve card name from the input file, and optional tags (artist, set, number).
 
     Args:
@@ -125,7 +156,10 @@ def parse_card_info(file_path: Path) -> CardDetails:
         Dict of card details.
     """
     # Extract just the card name
-    file_name = file_path.stem
+    file_name = name_override or file_path.stem
+
+    for substitute, replacement in _filename_character_replacements.items():
+        file_name = file_name.replace(substitute, replacement)
 
     # Match pattern and format data
     name_split = CardTextPatterns.PATH_SPLIT.split(file_name)
@@ -149,7 +183,7 @@ def parse_card_info(file_path: Path) -> CardDetails:
 """
 
 
-def process_card_data(data: scryfall.ScryfallCard, card: CardDetails) -> scryfall.ScryfallCard:
+def process_card_data(data: ScryfallCard, card: CardDetails) -> ScryfallCard:
     """Process any additional required data before sending it to the layout object.
 
     Args:
@@ -165,8 +199,8 @@ def process_card_data(data: scryfall.ScryfallCard, card: CardDetails) -> scryfal
     # Modify meld card data to fit transform layout
     if data.layout == 'meld':
         # Ignore tokens and other objects
-        front: list[scryfall.ScryfallRelatedCard] = []
-        back: scryfall.ScryfallRelatedCard | None =  None
+        front: list[ScryfallRelatedCard] = []
+        back: ScryfallRelatedCard | None =  None
         for part in data.all_parts if data.all_parts else []:
             if part.component == 'meld_part':
                 front.append(part)
@@ -176,28 +210,32 @@ def process_card_data(data: scryfall.ScryfallCard, card: CardDetails) -> scryfal
         # Figure out if card is a front or a back
         is_back = back and name_normalized == normalize_str(back.name, no_space=True)
 
-        faces: list[scryfall.ScryfallRelatedCard | None] = [front[0], back] if (
+        faces: list[ScryfallRelatedCard | None] = [front[0], back] if (
             is_back or
             name_normalized == normalize_str(front[0].name, no_space=True)
         ) else [front[1], back]
 
-        if is_back and back:
-            data = scryfall.get_card_via_url(str(back.uri))
-            data.layout = "normal"
-        else:
-            # Pull JSON data for each face and set object to card_face
-            data.card_faces = []
-            for face in faces:
-                if face:
-                    face_data = scryfall.get_card_via_url(str(face.uri))
-                    face_data_dict = face_data.model_dump()
-                    face_data_dict["object"] = "card_face"
-                    data.card_faces.append(scryfall.ScryfallCardFace(**face_data_dict))
-
-            # Add meld transform icon if none provided
-            if not data.frame_effects or not any([bool(n in TransformIcons) for n in data.frame_effects]):
-                data.frame_effects = ["meld"]
-            data.layout = "transform"
+        try:
+            if is_back and back:
+                data = get_card_via_url(str(back.uri))
+                data.layout = "normal"
+            else:
+                # Pull JSON data for each face and set object to card_face
+                data.card_faces = []
+                for face in faces:
+                    if face:
+                        face_data = get_card_via_url(str(face.uri))
+                        face_data_dict = face_data.model_dump()
+                        face_data_dict["object"] = "card_face"
+                        data.card_faces.append(ScryfallCardFace(**face_data_dict))
+    
+                # Add meld transform icon if none provided
+                if not data.frame_effects or not any([bool(n in TransformIcons) for n in data.frame_effects]):
+                    data.frame_effects = ["meld"]
+                data.layout = "transform"
+        except ScryfallException:
+            _logger.exception("Couldn't retrieve additional card details for a meld card.")
+            raise
 
     # Check for alternate MDFC / Transform layouts
     if data.card_faces:
@@ -263,12 +301,18 @@ def process_card_data(data: scryfall.ScryfallCard, card: CardDetails) -> scryfal
         return data
 
     # Check for Station layout
-    if data.oracle_text and 'STATION ' in data.oracle_text:
+    if data.keywords and "Station" in data.keywords:
         data.layout = 'station'
         return data
 
     # Return updated data
     return data
+
+
+def sanitize_card_filename(name: str) -> str:
+    for illegal, substitute in _reverse_filename_character_replacements.items():
+        name = name.replace(illegal, substitute)
+    return sanitize_filename(name)
 
 
 """
@@ -279,7 +323,7 @@ def process_card_data(data: scryfall.ScryfallCard, card: CardDetails) -> scryfal
 def locate_symbols(
     text: str,
     symbol_map: dict[str, tuple[str, list[ColorObject]]],
-    logger: Any | None = None
+    logger: Logger | None = None
 ) -> tuple[str, list[CardSymbolString]]:
     """Locate symbols in the input string, replace them with the proper characters from the mana font,
     and determine the colors those characters need to be.
@@ -311,7 +355,7 @@ def locate_symbols(
             symbol_indices.append((start, symbol_color))
         except (KeyError, IndexError):
             if logger:
-                logger.update(f'Symbol not recognized: {symbol}')
+                logger.warning(f'Symbol not recognized: {symbol}')
             text = text.replace(symbol, symbol.strip('{}'))
         # Move to the next symbols
         start, end = text.find('{'), text.find('}')
@@ -322,7 +366,7 @@ def locate_italics(
     st: str,
     italics_strings: list[str],
     symbol_map: dict[str, tuple[str, list[ColorObject]]],
-    logger: Any | None = None
+    logger: Logger | None = None
 ) -> list[CardItalicString]:
     """Locate all instances of italic strings in the input string and record their start and end indices.
 
@@ -349,7 +393,7 @@ def locate_italics(
                     italic = italic.replace(symbol, symbol_map[symbol][0])
                 except (KeyError, IndexError):
                     if logger:
-                        logger.update(f'Symbol not recognized: {symbol}')
+                        logger.warning(f'Symbol not recognized: {symbol}')
                     st = st.replace(symbol, symbol.strip('{}'))
                 # Move to the next symbol
                 start, end = italic.find('{'), italic.find('}')

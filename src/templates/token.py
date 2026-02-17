@@ -3,22 +3,18 @@
 * Treated as 'Normal' templates, separated for better organization.
 """
 
-# Standard Library Imports
-from functools import cached_property
 from collections.abc import Callable
+from functools import cached_property
 
-# Third Party Imports
-from omnitils.strings import is_multiline
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
+import src.helpers as psd
+import src.text_layers as text_classes
 from src import CON
 from src.enums.layers import LAYERS
-import src.helpers as psd
 from src.templates._core import StarterTemplate
 from src.templates._cosmetic import FullartMod
-import src.text_layers as text_classes
 from src.utils.adobe import ReferenceLayer
 
 """
@@ -81,7 +77,9 @@ class TokenTemplate(FullartMod, StarterTemplate):
         if all([self.layout.oracle_text, self.layout.flavor_text]):
             # Both rules and flavor text
             group = LAYERS.FULL
-        if any(is_multiline([self.layout.oracle_text, self.layout.flavor_text])):
+        if any(
+            "\n" in text for text in (self.layout.oracle_text, self.layout.flavor_text)
+        ):
             # Multi-line text
             group = LAYERS.FULL
         if len(self.layout.oracle_text) > 50:

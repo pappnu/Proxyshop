@@ -1,14 +1,14 @@
 """
 * Helpers: Layer Effects
 """
-# Standard Library Imports
 
-# Third Party Imports
+from _ctypes import COMError
+from logging import getLogger
+
 from photoshop.api import ActionDescriptor, ActionList, ActionReference, DialogModes
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
 from src import APP
 from src.enums.adobe import Stroke
 from src.helpers.colors import add_color_to_gradient, apply_color, get_color
@@ -21,8 +21,7 @@ from src.schema.adobe import (
     LayerEffects,
 )
 
-# QOL Definitions
-NO_DIALOG = DialogModes.DisplayNoDialogs
+_logger = getLogger(__name__)
 
 """
 * Blending Utilities
@@ -54,7 +53,7 @@ def set_fill_opacity(opacity: float, layer: ArtLayer | LayerSet | None) -> None:
         APP.instance.sID("fillOpacity"), APP.instance.sID("percentUnit"), opacity
     )
     d.putObject(APP.instance.sID("to"), APP.instance.sID("layer"), d1)
-    APP.instance.executeAction(APP.instance.sID("set"), d, NO_DIALOG)
+    APP.instance.executeAction(APP.instance.sID("set"), d, DialogModes.DisplayNoDialogs)
 
 
 """
@@ -88,7 +87,7 @@ def set_layer_fx_visibility(
     action_list.putReference(ref)
     desc.putList(APP.instance.sID("target"), action_list)
     APP.instance.executeAction(
-        APP.instance.sID("show" if visible else "hide"), desc, NO_DIALOG
+        APP.instance.sID("show" if visible else "hide"), desc, DialogModes.DisplayNoDialogs
     )
 
 
@@ -128,12 +127,11 @@ def clear_layer_fx(layer: ArtLayer | LayerSet | None) -> None:
         )
         desc1600.putReference(APP.instance.sID("target"), ref126)
         APP.instance.executeAction(
-            APP.instance.sID("disableLayerStyle"), desc1600, NO_DIALOG
+            APP.instance.sID("disableLayerStyle"), desc1600, DialogModes.DisplayNoDialogs
         )
-    except Exception as e:
-        print(
-            e,
-            f"""\nLayer "{layer.name if layer else "<no_layer_provided>"}" has no effects!""",
+    except COMError:
+        _logger.exception(
+            f"""\nLayer "{layer.name if layer else "<no_layer_provided>"}" has no effects.""",
         )
 
 
@@ -152,7 +150,7 @@ def rasterize_layer_fx(layer: ArtLayer) -> None:
         APP.instance.sID("rasterizeItem"),
         APP.instance.sID("layerStyle"),
     )
-    APP.instance.executeAction(APP.instance.sID("rasterizeLayer"), desc1, NO_DIALOG)
+    APP.instance.executeAction(APP.instance.sID("rasterizeLayer"), desc1, DialogModes.DisplayNoDialogs)
 
 
 def copy_layer_fx(
@@ -175,7 +173,7 @@ def copy_layer_fx(
         APP.instance.sID("layerEffects"),
     )
     result_desc = APP.instance.executeAction(
-        APP.instance.sID("get"), desc_get, NO_DIALOG
+        APP.instance.sID("get"), desc_get, DialogModes.DisplayNoDialogs
     )
 
     # Apply layer effects to target layer
@@ -188,7 +186,7 @@ def copy_layer_fx(
         APP.instance.sID("layerEffects"),
         result_desc.getObjectValue(APP.instance.sID("layerEffects")),
     )
-    APP.instance.executeAction(APP.instance.sID("set"), desc_set, NO_DIALOG)
+    APP.instance.executeAction(APP.instance.sID("set"), desc_set, DialogModes.DisplayNoDialogs)
 
 
 """
@@ -233,7 +231,7 @@ def apply_fx(layer: ArtLayer | LayerSet, effects: list[LayerEffects]) -> None:
     main_action.putObject(
         APP.instance.sID("to"), APP.instance.sID("layerEffects"), fx_action
     )
-    APP.instance.executeAction(APP.instance.sID("set"), main_action, NO_DIALOG)
+    APP.instance.executeAction(APP.instance.sID("set"), main_action, DialogModes.DisplayNoDialogs)
 
 
 def apply_fx_bevel(action: ActionDescriptor, fx: EffectBevel) -> None:

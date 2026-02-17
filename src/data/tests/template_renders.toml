@@ -11,8 +11,10 @@ Mountain = "Basic Land"
 "Ghost Ark" = "Vehicle"
 "Graven Lore" = "Snow"
 Terminus = "Miracle"
-"Elemental [TCMM] {37}" = "Dual Color Token"
+"Elemental [TCMM] {37}" = "Dual Color No Text Token"
 "Tuktuk the Returned [TCM2] {15}" = "Legendary Token"
+"Treasure [TSNC]" = "One Line Token"
+"Rock [TCMR]" = "Multiline Token"
 
 [transform_front]
 "Docent of Perfection [EMN]" = "Moon Eldrazi DFC"
@@ -28,6 +30,8 @@ Terminus = "Miracle"
 "Havengul Mystery [SLX]" = "Land DFC"
 "Dragon-Kami's Egg [NEO]" = "Fan DFC"
 "Optimus Prime, Autobot Leader [BOT]" = "Convert DFC"
+"Azcanta, the Sunken Ruin" = "Ixalan Legendary Land"
+"Ragnarok, Divine Deliverance [FIN]" = "Dual Color Meld DFC"
 
 [mdfc_front]
 "Plargg, Dean of Chaos" = "Legendary Creature"
@@ -36,9 +40,6 @@ Terminus = "Miracle"
 [mdfc_back]
 "Journey to the Oracle" = "Noncreature"
 "Harnfel, Horn of Bounty" = "Artifact"
-
-[ixalan]
-"Azcanta, the Sunken Ruin" = "Legendary Land"
 
 [mutate]
 Gemrazer = "Creature"
@@ -94,12 +95,6 @@ Gemrazer = "Creature"
 
 [planar]
 "Pools of Becoming" = "Planar"
-
-[token]
-"Zombie [TMBS]" = "No Text"
-"Treasure [TSNC]" = "One Line"
-"Rock [TCMR]" = "Multiline"
-"Human Cleric [TELD]" = "Multicolor"
 
 [split]
 "Fire [UMA]" = "Two Colors"

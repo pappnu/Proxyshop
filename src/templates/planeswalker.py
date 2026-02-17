@@ -2,26 +2,26 @@
 * PLANESWALKER TEMPLATES
 """
 
-# Standard Library Imports
-from functools import cached_property
 from collections.abc import Callable, Sequence
+from functools import cached_property
+from logging import getLogger
 
-# Third Party Imports
-from photoshop.api import ElementPlacement, ColorBlendMode
+from photoshop.api import ColorBlendMode, ElementPlacement
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
-from src.enums.layers import LAYERS
 import src.helpers as psd
+import src.text_layers as text_classes
+from src.enums.layers import LAYERS
 from src.helpers import scale_text_layers_to_height
 from src.layouts import NormalLayout, PlaneswalkerAbility, PlaneswalkerLayout
 from src.templates._core import StarterTemplate
 from src.templates._cosmetic import BorderlessMod, FullartMod
 from src.templates.mdfc import MDFCMod
 from src.templates.transform import TransformMod
-import src.text_layers as text_classes
 from src.utils.adobe import ReferenceLayer
+
+_logger = getLogger(__name__)
 
 """
 * Template Classes
@@ -310,7 +310,13 @@ class PlaneswalkerMod(FullartMod, StarterTemplate):
             for i, ref_layer in enumerate(self.ability_layers):
                 # Break if we encounter a length mismatch
                 if len(self.icons) < (i + 1) or len(self.colons) < (i + 1):
-                    self.raise_warning("Encountered bizarre Planeswalker data!")
+                    _logger.warning(
+                        f"Planeswalker ability, icon and colon layers don't match. There's {
+                            len(self.ability_layers)
+                        } ability layers, {len(self.icons)} icon layers and {
+                            len(self.colons)
+                        } colon layers."
+                    )
                     break
                 # Skip if this is a static ability
                 if (icon := self.icons[i]) and (colon := self.colons[i]):

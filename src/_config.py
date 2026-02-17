@@ -2,17 +2,16 @@
 * Global Settings Module
 """
 
+from enum import StrEnum
 from typing import Literal, overload
 
-from omnitils.enums import StrConstant
-from omnitils.metaclass import Singleton
-
-from src._loader import ConfigManager
-from src._state import AppEnvironment
+from src._loader import ConfigHandler, CustomConfigParser
+from src._state import PATH
 from src.enums.settings import (
     BorderColor,
     CollectorMode,
     CollectorPromo,
+    HasDefault,
     OutputFileType,
     ScryfallSorting,
     ScryfallUnique,
@@ -24,12 +23,73 @@ class AppConfig:
     """Stores the current state of app and template settings. Can be changed within a template
     class to affect rendering behavior."""
 
-    __metaclass__ = Singleton
-
-    def __init__(self, env: AppEnvironment):
+    def __init__(
+        self,
+        app_config: ConfigHandler | None = None,
+        base_config: ConfigHandler | None = None,
+        user_config: ConfigHandler | None = None,
+    ):
         """Load initial settings values."""
-        self.ENV = env
-        self.load()
+        self.app_config = app_config or ConfigHandler(
+            base_schema_path=PATH.SRC_DATA_CONFIG_APP,
+            schema_path=None,
+            ini_path=PATH.SRC_DATA_CONFIG_INI_APP,
+        )
+        self.base_config = base_config or ConfigHandler(
+            base_schema_path=PATH.SRC_DATA_CONFIG_BASE,
+            schema_path=None,
+            ini_path=PATH.SRC_DATA_CONFIG_INI_BASE,
+        )
+        self.load(user_config)
+
+    # region Pre-rendering properties
+
+    @property
+    def lang(self) -> str:
+        return self.app_config.get_str_setting(
+            "APP.DATA", "Scryfall.Language", default="en"
+        )
+
+    @property
+    def scry_sorting(self) -> ScryfallSorting:
+        return self.app_config.get_enum_setting(
+            "APP.DATA",
+            "Scryfall.Sorting",
+            ScryfallSorting,
+            default=ScryfallSorting.Released,
+        )
+
+    @property
+    def scry_ascending(self) -> bool:
+        return self.app_config.get_bool_setting(
+            "APP.DATA", "Scryfall.Ascending", default=False
+        )
+
+    @property
+    def scry_extras(self) -> bool:
+        return self.app_config.get_bool_setting(
+            "APP.DATA", "Scryfall.Extras", default=False
+        )
+
+    @property
+    def scry_unique(self) -> ScryfallUnique:
+        return self.app_config.get_enum_setting(
+            "APP.DATA", "Scryfall.Unique", ScryfallUnique, default=ScryfallUnique.Arts
+        )
+
+    @property
+    def manually_edit_card_data(self) -> bool:
+        return self.app_config.get_bool_setting(
+            "APP.DATA", "Manually.Edit.Card.Data", default=False
+        )
+
+    @property
+    def manual_text_editor(self) -> str:
+        return self.app_config.get_str_setting(
+            "APP.DATA", "Manual.Text.Editor", default='notepad "{}"'
+        )
+
+    # endregion Pre-rendering properties
 
     def update_definitions(self):
         """Updates the defined settings values using the currently loaded ConfigParser object."""
@@ -48,27 +108,8 @@ class AppConfig:
         )
 
         # APP - DATA
-        self.lang = self.file.get("APP.DATA", "Scryfall.Language", fallback="en")
         self.use_printed_texts = self.file.getboolean(
             "APP.DATA", "Scryfall.Use.Printed.Texts", fallback=False
-        )
-        self.scry_sorting = self.get_option(
-            "APP.DATA", "Scryfall.Sorting", ScryfallSorting
-        )
-        self.scry_ascending = self.file.getboolean(
-            "APP.DATA", "Scryfall.Ascending", fallback=False
-        )
-        self.scry_extras = self.file.getboolean(
-            "APP.DATA", "Scryfall.Extras", fallback=False
-        )
-        self.scry_unique = self.get_option(
-            "APP.DATA", "Scryfall.Unique", ScryfallUnique
-        )
-        self.manually_edit_card_data = self.file.getboolean(
-            "APP.DATA", "Manually.Edit.Card.Data", fallback=False
-        )
-        self.manual_text_editor = self.file.get(
-            "APP.DATA", "Manual.Text.Editor", fallback='notepad "{}"'
         )
 
         # APP - TEXT
@@ -77,13 +118,8 @@ class AppConfig:
         )
 
         # APP - RENDER
-        self.skip_failed = self.file.getboolean(
-            "APP.RENDER", "Skip.Failed", fallback=False
-        )
-        self.generative_fill = (
-            False
-            if self.ENV.TEST_MODE
-            else self.file.getboolean("APP.RENDER", "Generative.Fill", fallback=False)
+        self.generative_fill = self.file.getboolean(
+            "APP.RENDER", "Generative.Fill", fallback=False
         )
         self.select_variation = self.file.getboolean(
             "APP.RENDER", "Select.Variation", fallback=False
@@ -133,7 +169,7 @@ class AppConfig:
         self.watermark_default = self.file.get(
             "BASE.WATERMARKS", "Default.Watermark", fallback="WOTC"
         )
-        self.watermark_opacity = self.file.getint(
+        self.watermark_opacity = self.file.getfloat(
             "BASE.WATERMARKS", "Watermark.Opacity", fallback=30
         )
         self.enable_basic_watermark = self.file.getboolean(
@@ -154,10 +190,6 @@ class AppConfig:
             "BASE.TEMPLATES", "Border.Color", BorderColor
         )
 
-        self.backup_template = self.file.getboolean(
-            "BASE.TEMPLATES", "Backup.Template", fallback=False
-        )
-
     """
     * Setting Utils
     """
@@ -166,7 +198,7 @@ class AppConfig:
         self,
         section: str,
         key: str,
-        enum_class: type[StrConstant],
+        enum_class: type[StrEnum],
         default: str | None = None,
     ) -> str:
         """Returns the current value of an "options" setting if that option exists in its StrEnum class.
@@ -181,7 +213,11 @@ class AppConfig:
         Returns:
             Validated current value, or default value.
         """
-        defa = default or enum_class.Default
+        defa: str = (
+            default or str(enum_class.Default)
+            if isinstance(enum_class, HasDefault)
+            else ""
+        )
         if self.file.has_section(section):
             option = self.file[section].get(key, fallback=defa)
             if option in enum_class:
@@ -286,17 +322,22 @@ class AppConfig:
     * Load ConfigParser Object
     """
 
-    def load(self, config: ConfigManager | None = None) -> None:
+    def load(self, config: ConfigHandler | None = None) -> None:
         """Reload the config file and define new values
 
         Args:
-            config: ConfigManager to load from if provided, otherwise use app-wide configuration.
+            config: to load from if provided, otherwise use app-wide configuration.
         """
-        # Invalidate file cache
-        if hasattr(self, "file"):
-            del self.file
-
-        # Load provided or load fresh
-        config = config or ConfigManager()
-        self.file = config.get_config()
+        self.file = CustomConfigParser(default_section="", allow_no_value=True)
+        # Combine app and base/template configs
+        self.file.read_dict(self.app_config.setting_values)
+        self.file.read_dict((config if config else self.base_config).setting_values)
         self.update_definitions()
+
+    def copy(self, config: ConfigHandler | None = None) -> AppConfig:
+        """Copy the config.
+
+        Args:
+            config: to load from if provided, otherwise use app-wide configuration.
+        """
+        return AppConfig(self.app_config, self.base_config, config)

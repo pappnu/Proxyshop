@@ -2,14 +2,9 @@
 * Enums for Photoshop Actions
 """
 
-# Standard Library Imports
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Literal
 
-# Third Party Imports
-from omnitils.enums import StrConstant
-
-# Local Imports
 from src import APP
 
 """
@@ -26,7 +21,7 @@ class DescriptorEnum(Enum):
         return int(APP.instance.sID(self._value_))
 
 
-class Dimensions(StrConstant):
+class Dimensions(StrEnum):
     """Layer dimension descriptors."""
 
     Width = "width"

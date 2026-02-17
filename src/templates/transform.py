@@ -2,20 +2,16 @@
 * Templates: Transform / Ixalan
 """
 
-# Standard Library Imports
-from functools import cached_property
 from collections.abc import Callable
+from functools import cached_property
 
-# Third Party Imports
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
+import src.helpers as psd
 from src.enums.layers import LAYERS
 from src.enums.mtg import TransformIcons
-import src.helpers as psd
 from src.helpers.position import DimensionNames
-from src.layouts import NormalLayout
 from src.templates._core import BaseTemplate, NormalTemplate
 from src.templates._vector import VectorTemplate
 from src.text_layers import TextField
@@ -252,30 +248,4 @@ class TransformTemplate(TransformMod, NormalTemplate):
 
 class IxalanTemplate(IxalanMod, NormalTemplate):
     """Template for the back face lands for transforming cards from Ixalan block."""
-
-    @classmethod
-    def get_template_route(cls, layout: NormalLayout) -> BaseTemplate:
-        """Reroute for multicolor cards, front cards, and non-land and/or creature cards.
-
-        Args:
-            layout: The card layout object.
-
-        Returns:
-            Initialized template class object.
-        """
-        if any(
-            [
-                len(layout.identity) > 1,
-                not layout.is_land,
-                layout.is_front,
-                layout.is_creature,
-            ]
-        ):
-            # Redirect to regular Transform template
-            return cls.redirect_template(
-                template_class=TransformTemplate,
-                template_file="tf-front.psd" if layout.is_front else "tf-back.psd",
-                layout=layout,
-            )
-        # Route normally
-        return super().get_template_route(layout)
+    pass

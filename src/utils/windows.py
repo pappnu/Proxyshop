@@ -1,9 +1,13 @@
 from enum import IntEnum
+from logging import getLogger
+
 import pywintypes
 import win32api
 import win32con
 import win32gui
 import win32process
+
+_logger = getLogger()
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
@@ -72,4 +76,4 @@ def get_window_handle_by_process_file_path_suffix(suffix: str) -> int | None:
         except pywintypes.error:
             pass
         except Exception as exc:
-            print("An exception occurred while getting Photoshop's window handle:", exc)
+            _logger.warning("Couldn't get Photoshop's window handle:", exc_info=exc)

@@ -2,32 +2,29 @@
 * Helpers: Design
 """
 
-# Standard Library Imports
 from contextlib import suppress
+from logging import getLogger
 
-# Third Party Imports
 from photoshop.api import (
-    DialogModes,
     ActionDescriptor,
-    RasterizeType,
     ActionReference,
     BlendMode,
-    SolidColor,
+    DialogModes,
     ElementPlacement,
+    RasterizeType,
     SaveOptions,
+    SolidColor,
 )
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 
-# Local Imports
-from src import APP, CONSOLE
-from src.helpers.layers import select_layers, smart_layer, edit_smart_layer
-from src.helpers.colors import rgb_black, fill_layer_primary
+from src import APP
+from src.helpers.colors import fill_layer_primary, rgb_black
+from src.helpers.layers import edit_smart_layer, select_layers, smart_layer
 from src.helpers.selection import select_layer_pixels
 from src.utils.adobe import PS_EXCEPTIONS
 
-# QOL Definitions
-NO_DIALOG = DialogModes.DisplayNoDialogs
+_logger = getLogger(__name__)
 
 """
 * Filling Space
@@ -102,7 +99,7 @@ def content_aware_fill_edges(
         docref.activeLayer = layer
         active_layer = layer
     elif not isinstance((active_layer := docref.activeLayer), ArtLayer):
-        print("Skipping content aware fill as active layer is not an ArtLayer.")
+        _logger.warning("Skipping content aware fill as active layer is not an ArtLayer.")
         return
     active_layer.rasterize(RasterizeType.EntireLayer)
 
@@ -126,7 +123,7 @@ def content_aware_fill_edges(
         content_aware_fill()
     except PS_EXCEPTIONS:
         # Unable to fill due to invalid selection
-        CONSOLE.update("Couldn't make a valid selection!\nSkipping automated fill.")
+        _logger.warning("Couldn't make a valid selection. Skipping automated fill.")
 
     # Clear selection
     with suppress(Exception):
@@ -190,15 +187,15 @@ def generative_fill_edges(
             generative_fill()
         except PS_EXCEPTIONS:
             # Generative fill call not responding
-            CONSOLE.update(
-                "Generative fill failed!\nFalling back to Content Aware Fill."
+            _logger.warning(
+                "Generative fill failed. Falling back to Content Aware Fill."
             )
             active_layer.rasterize(RasterizeType.EntireLayer)
             content_aware_fill()
             close_doc = True
     except PS_EXCEPTIONS:
         # Unable to fill due to invalid selection
-        CONSOLE.update("Couldn't make a valid selection!\nSkipping automated fill.")
+        _logger.warning("Couldn't make a valid selection. Skipping automated fill.")
         close_doc = True
 
     # Deselect
@@ -228,7 +225,9 @@ def content_aware_fill() -> None:
         APP.instance.sID("blendMode"),
         APP.instance.sID("normal"),
     )
-    APP.instance.executeAction(APP.instance.sID("fill"), desc, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("fill"), desc, DialogModes.DisplayNoDialogs
+    )
 
 
 def generative_fill() -> None:
@@ -266,7 +265,9 @@ def generative_fill() -> None:
     desc1.putObject(
         APP.instance.sID("serviceOptionsList"), APP.instance.sID("target"), desc2
     )
-    APP.instance.executeAction(APP.instance.sID("syntheticFill"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("syntheticFill"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def repair_edges(edge: int = 6) -> None:
@@ -283,16 +284,22 @@ def repair_edges(edge: int = 6) -> None:
     desc632724.putEnumerated(
         APP.instance.sID("to"), APP.instance.sID("ordinal"), APP.instance.sID("allEnum")
     )
-    APP.instance.executeAction(APP.instance.sID("set"), desc632724, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("set"), desc632724, DialogModes.DisplayNoDialogs
+    )
 
     # Contract selection
     contract = ActionDescriptor()
     contract.putUnitDouble(APP.instance.sID("by"), APP.instance.sID("pixelsUnit"), edge)
     contract.putBoolean(APP.instance.sID("selectionModifyEffectAtCanvasBounds"), True)
-    APP.instance.executeAction(APP.instance.sID("contract"), contract, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("contract"), contract, DialogModes.DisplayNoDialogs
+    )
 
     # Inverse the selection
-    APP.instance.executeAction(APP.instance.sID("inverse"), None, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("inverse"), None, DialogModes.DisplayNoDialogs
+    )
 
     # Content aware fill
     desc_caf = ActionDescriptor()
@@ -319,7 +326,9 @@ def repair_edges(edge: int = 6) -> None:
         APP.instance.sID("cafOutput"),
         APP.instance.sID("cafOutputToNewLayer"),
     )
-    APP.instance.executeAction(APP.instance.sID("cafWorkspace"), desc_caf, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("cafWorkspace"), desc_caf, DialogModes.DisplayNoDialogs
+    )
 
     # Deselect
     APP.instance.activeDocument.selection.deselect()

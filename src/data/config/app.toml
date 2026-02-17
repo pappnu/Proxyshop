@@ -84,7 +84,7 @@ default = 0
 
 [DATA."Manual.Text.Editor"]
 title = "Manual Text Editor"
-desc = """Text editor to use for the manual card data editing step. Add curly brackets {} where you wish for the file path to be slotted in the command, e.g. Visual Studio Code can be used with [b]C:\\full\\path\\to\\Code.exe -w "{}"[/b]."""
+desc = """Text editor to use for the manual card data editing step. Add curly brackets {} where you wish for the file path to be slotted in the command, e.g. Visual Studio Code can be used with <b>C:\\full\\path\\to\\Code.exe -w "{}"</b>."""
 type = "string"
 default = 'notepad "{}"'
 
@@ -107,12 +107,6 @@ default = 0
 
 [RENDER]
 title = "Render Settings"
-
-[RENDER."Skip.Failed"]
-title = "Skip Failed Cards"
-desc = """Automatically skip failed cards without asking for confirmation."""
-type = "bool"
-default = 0
 
 [RENDER."Generative.Fill"]
 title = "Enable Generative Fill"

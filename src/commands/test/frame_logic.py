@@ -2,24 +2,24 @@
 * Tests: Frame Logic
 * Credit to Chilli: https://tinyurl.com/chilli-frame-logic-tests
 """
-# Standard Library Imports
+from concurrent.futures import Future, as_completed
+from concurrent.futures import ThreadPoolExecutor as Pool
+from logging import getLogger
 from multiprocessing import cpu_count
-from concurrent.futures import (
-    ThreadPoolExecutor as Pool,
-    as_completed,
-    Future)
 from pathlib import Path
 
-# Third Part Imports
-from tqdm import tqdm
 from colorama import Fore, Style
 from omnitils.files import load_data_file
+from tqdm import tqdm
 
-# Local Imports
-from src import CONSOLE as LOGR, PATH, CFG
+from src import CFG
+from src._state import PATH
+from src.cards import CardDetails, get_card_data, process_card_data
+from src.console import LogColors
 from src.enums.mtg import CardTextPatterns
-from src.layouts import layout_map, CardLayout
-from src.cards import get_card_data, process_card_data
+from src.layouts import CardLayout, layout_map
+
+_logger = getLogger(__name__)
 
 """
 * TYPES
@@ -75,31 +75,31 @@ def test_case(card_name: str, card_data: FrameData) -> tuple[str, FrameData, Fra
         # Check if a set code was provided
         set_code = None
         if all([n in card_name for n in ['[', ']']]):
-            set_code = CardTextPatterns.PATH_SET.search(card_name).group(1)
-            card_name = card_name.replace(f'[{set_code}]', '').strip()
+             if set_match := CardTextPatterns.PATH_SET.search(card_name):
+                set_code = set_match.group(1)
+                card_name = card_name.replace(f'[{set_code}]', '').strip()
 
         # Create a fake card details object
-        details = {
+        details: CardDetails = {
             'name': card_name,
-            'set': set_code,
+            'set': set_code or "",
             'number': '',
             'creator': '',
-            'file': '',
+            'file': Path(),
             'artist': ''
         }
 
         # Pull Scryfall data
         scryfall = get_card_data(
             card=details,
-            cfg=CFG,
-            logger=LOGR)
+            cfg=CFG)
         if not scryfall:
             raise OSError('Did not return valid data from Scryfall.')
         # Process the Scryfall data
         scryfall = process_card_data(scryfall, details)
     except Exception as e:
         # Exception occurred during Scryfall lookup
-        return LOGR.failed(f"Scryfall error occurred at card: '{card_name}'", exc_info=e)
+        return _logger.error(f"Scryfall error occurred at card: '{card_name}'", exc_info=e)
 
     # Pull layout data for the card
     try:
@@ -113,7 +113,7 @@ def test_case(card_name: str, card_data: FrameData) -> tuple[str, FrameData, Fra
                     'creator': '', 'filename': ''}))
     except Exception as e:
         # Exception occurred during layout generation
-        return LOGR.failed(f"Layout error occurred at card: '{card_name}'", exc_info=e)
+        return _logger.error(f"Layout error occurred at card: '{card_name}'", exc_info=e)
 
     # Compare the results
     if not result_data == card_data:
@@ -132,7 +132,7 @@ def test_target_case(cards: dict[str, FrameData]) -> None:
     """
     # Submit tests to a pool
     with Pool(max_workers=cpu_count()) as executor:
-        tests_submitted: list[Future] = []
+        tests_submitted: list[Future[tuple[str, FrameData, FrameData] | None]] = []
         tests_failed: list[tuple[str, FrameData, FrameData]] = []
 
         # Submit tasks to executor
@@ -143,9 +143,9 @@ def test_target_case(cards: dict[str, FrameData]) -> None:
         # Create a progress bar
         pbar = tqdm(
             total=len(tests_submitted),
-            bar_format=f'{LOGR.COLORS.BLUE}'
+            bar_format=f'{LogColors.BLUE}'
                        '{l_bar}{bar}{r_bar}'
-                       f'{LOGR.COLORS.RESET}')
+                       f'{LogColors.RESET}')
 
         # Iterate over completed tasks, update progress bar, add failed tasks
         for task in as_completed(tests_submitted):
@@ -168,17 +168,17 @@ def test_target_case(cards: dict[str, FrameData]) -> None:
 
     # Log failed results
     if tests_failed:
-        LOGR.critical("=" * 40)
+        _logger.error("=" * 40)
         for name, actual, correct in tests_failed:
-            LOGR.warning(f'NAME: {name}')
-            LOGR.warning(f'RESULT [Actual / Expected]:\n'
-                         f'{LOGR.COLORS.RESET}{LOGR.COLORS.WHITE}{actual}\n{correct}')
-            LOGR.critical("=" * 40)
-        LOGR.critical("SOME TESTS FAILED!")
+            _logger.warning(f'NAME: {name}')
+            _logger.warning(f'RESULT [Actual / Expected]:\n'
+                         f'{LogColors.RESET}{LogColors.WHITE}{actual}\n{correct}')
+            _logger.error("=" * 40)
+        _logger.error("SOME TESTS FAILED!")
         return
 
     # All tests successful
-    LOGR.info("ALL TESTS SUCCESSFUL!")
+    _logger.info("ALL TESTS SUCCESSFUL!")
 
 
 def test_all_cases() -> None:
@@ -187,5 +187,5 @@ def test_all_cases() -> None:
 
     # Submit tests to a pool
     for case, cards in cases.items():
-        LOGR.debug(f"CASE: {case}")
+        _logger.info(f"CASE: {case}")
         test_target_case(cards)
