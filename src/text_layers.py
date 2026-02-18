@@ -722,7 +722,7 @@ class FormattedTextField(TextField):
                     para_range.putInteger(idFrom, self.input.find('"\r—') + 2)
                     para_range.putInteger(idTo, self.flavor_end)
                     para_style.putBoolean(APP.instance.sID("styleSheetHasParent"), True)
-                    para_range.putEnumerated(
+                    para_style.putEnumerated(
                         APP.instance.sID("align"),
                         APP.instance.sID("alignmentType"),
                         APP.instance.sID("right"),

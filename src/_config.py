@@ -331,7 +331,11 @@ class AppConfig:
         self.file = CustomConfigParser(default_section="", allow_no_value=True)
         # Combine app and base/template configs
         self.file.read_dict(self.app_config.setting_values)
-        self.file.read_dict((config if config else self.base_config).setting_values)
+        self.file.read_dict(
+            (
+                config if config and config.has_config else self.base_config
+            ).setting_values
+        )
         self.update_definitions()
 
     def copy(self, config: ConfigHandler | None = None) -> AppConfig:
