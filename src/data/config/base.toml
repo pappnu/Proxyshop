@@ -119,9 +119,45 @@ default = 1
 [TEMPLATES]
 title = "Template Options"
 
+[TEMPLATES."Border.Fill.Mode"]
+title = "Border Fill Mode"
+desc = """Choose the method to use for filling card borders in borderless renders."""
+type = "options"
+default = "Content-Aware Fill"
+options = [
+    "No Fill",
+    "Content-Aware Fill",
+    "Generative Fill",
+    "Remove Content Fill",
+]
+
+[TEMPLATES."Border.Fill.Contract"]
+title = "Border Fill Contract"
+desc = """How much to contract the selection before filling."""
+type = "int"
+default = 10
+
+[TEMPLATES."Border.Fill.Smooth"]
+title = "Border Fill Smooth"
+desc = """How much to smooth the selection before filling."""
+type = "int"
+default = 0
+
+[TEMPLATES."Border.Fill.Feather"]
+title = "Border Fill Feather"
+desc = """How much to feather the selection before filling."""
+type = "int"
+default = 5
+
 [TEMPLATES."Manual.Edit"]
 title = "Manual Editing Mode"
 desc = """Pause the render process before saving to allow for manual edits."""
+type = "bool"
+default = 0
+
+[TEMPLATES."Manual.Art.Alignment.Pause"]
+title = "Pause for manual art alignment"
+desc = """Pause the render process after automatic art alignment to allow for manual adjustments."""
 type = "bool"
 default = 0
 

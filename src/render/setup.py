@@ -119,7 +119,7 @@ class RenderOperation:
             return True
 
         if waiting := self._waiting:
-            return await waiting
+            await waiting
 
         self._waiting = get_running_loop().create_future()
         if show_photoshop and self.template_instance:

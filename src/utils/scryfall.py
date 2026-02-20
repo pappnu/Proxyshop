@@ -89,6 +89,7 @@ FrameEffect = Literal[
     "waxingandwaningmoondfc",
     "showcase",
     "extendedart",
+    "fullart",
     "companion",
     "etched",
     "snow",
@@ -490,7 +491,8 @@ def get_card_via_url(url: str) -> ScryfallCard:
             err = ScryfallError.model_validate_json(res.content)
             raise _get_scryfall_exception(error=err, response=res)
         except ValidationError:
-            raise ScryfallException(exception=exc)
+            pass
+        raise ScryfallException(response=res) from exc
 
     if is_playable_card(card):
         return card
@@ -539,12 +541,13 @@ def get_card_unique(card_set: str, card_number: str, lang: str = "en") -> Scryfa
                 lang=lang,
             )
         except ValidationError:
-            raise ScryfallException(
-                exception=exc,
-                card_set=card_set,
-                card_number=card_number,
-                lang=lang,
-            )
+            pass
+        raise ScryfallException(
+            response=res,
+            card_set=card_set,
+            card_number=card_number,
+            lang=lang,
+        ) from exc
 
     if is_playable_card(card):
         return card
@@ -619,9 +622,10 @@ def get_card_search(
                 lang=lang,
             )
         except ValidationError:
-            raise ScryfallException(
-                exception=exc, card_name=card_name, card_set=card_set, lang=lang
-            )
+            pass
+        raise ScryfallException(
+            card_name=card_name, card_set=card_set, lang=lang
+        ) from exc
 
     for card in list_data.data:
         if is_playable_card(card):

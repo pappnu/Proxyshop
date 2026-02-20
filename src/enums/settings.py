@@ -83,6 +83,13 @@ class WatermarkMode(StrEnum):
     Default = nonmember(Disabled)
 
 
+class FillMode(StrEnum):
+    NO_FILL = "No Fill"
+    CONTENT_AWARE_FILL = "Content-Aware Fill"
+    GENERATIVE_FILL = "Generative Fill"
+    REMOVE_CONTENT_FILL = "Remove Content Fill"
+
+
 """
 * Template: Borderless
 """

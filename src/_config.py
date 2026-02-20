@@ -11,6 +11,7 @@ from src.enums.settings import (
     BorderColor,
     CollectorMode,
     CollectorPromo,
+    FillMode,
     HasDefault,
     OutputFileType,
     ScryfallSorting,
@@ -106,6 +107,9 @@ class AppConfig:
             option="Output.File.Name",
             fallback="#name (#frame<, #suffix>) [#set] {#num}",
         )
+        self.png_compression_level = self.file.getint(
+            "APP.FILES", "PNG.Compression.Level", fallback=3
+        )
 
         # APP - DATA
         self.use_printed_texts = self.file.getboolean(
@@ -118,14 +122,8 @@ class AppConfig:
         )
 
         # APP - RENDER
-        self.generative_fill = self.file.getboolean(
-            "APP.RENDER", "Generative.Fill", fallback=False
-        )
         self.select_variation = self.file.getboolean(
             "APP.RENDER", "Select.Variation", fallback=False
-        )
-        self.feathered_fill = self.file.getboolean(
-            "APP.RENDER", "Feathered.Fill", fallback=False
         )
         self.vertical_fullart = self.file.getboolean(
             "APP.RENDER", "Vertical.Fullart", fallback=False
@@ -177,8 +175,27 @@ class AppConfig:
         )
 
         # BASE - TEMPLATES
+        self.fill_mode: FillMode = FillMode(
+            self.file.get(
+                "BASE.TEMPLATES",
+                "Border.Fill.Mode",
+                fallback=FillMode.CONTENT_AWARE_FILL.value,
+            )
+        )
+        self.fill_contract = self.file.getint(
+            "BASE.TEMPLATES", "Border.Fill.Contract", fallback=10
+        )
+        self.fill_smooth = self.file.getint(
+            "BASE.TEMPLATES", "Border.Fill.Smooth", fallback=0
+        )
+        self.fill_feather = self.file.getint(
+            "BASE.TEMPLATES", "Border.Fill.Feather", fallback=5
+        )
         self.exit_early = self.file.getboolean(
             "BASE.TEMPLATES", "Manual.Edit", fallback=False
+        )
+        self.pause_for_manual_art_alignment = self.file.getboolean(
+            "BASE.TEMPLATES", "Manual.Art.Alignment.Pause", fallback=False
         )
         self.minimize_photoshop = self.file.getboolean(
             "BASE.TEMPLATES", "Minimize.Photoshop", fallback=False

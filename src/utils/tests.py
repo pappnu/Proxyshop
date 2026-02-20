@@ -3,6 +3,7 @@ from pydantic import RootModel
 from src._config import AppConfig
 from src._state import PATH
 from src.enums.mtg import LayoutType
+from src.enums.settings import FillMode
 from src.layouts import SplitLayout
 from src.render.setup import RenderOperation
 from src.utils.data_structures import parse_model
@@ -18,7 +19,7 @@ def get_template_render_test_cases() -> dict[LayoutType, dict[str, str]]:
 def prepare_test_render(render_operation: RenderOperation, config: AppConfig):
     """Modifies render operation so that the render process won't pause for manual editing.
     Call this after loading the config for a test render."""
-    config.generative_fill = False
+    config.fill_mode = FillMode.NO_FILL
 
     render_operation.do_not_pause = True
 

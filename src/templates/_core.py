@@ -12,11 +12,12 @@ from traceback import format_stack
 from typing import TYPE_CHECKING, Any, Unpack
 
 from omnitils.files import get_unique_filename
-from photoshop.api import BlendMode, ElementPlacement, SaveOptions, SolidColor
+from photoshop.api import SolidColor
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
 from photoshop.api._selection import Selection
+from photoshop.api.enumerations import BlendMode, ElementPlacement, SaveOptions
 from PIL import Image
 
 import src.helpers as psd
@@ -29,6 +30,7 @@ from src.enums.settings import (
     BorderColor,
     CollectorMode,
     CollectorPromo,
+    FillMode,
     OutputFileType,
     WatermarkMode,
 )
@@ -234,7 +236,9 @@ class BaseTemplate:
     def save_mode(self) -> Callable[[Path, Document | None], None]:
         """Callable: Function called to save the rendered image."""
         if self.config.output_file_type == OutputFileType.PNG:
-            return psd.save_document_png
+            return lambda pth, doc: psd.save_document_png(
+                pth, doc, self.config.png_compression_level
+            )
         if self.config.output_file_type == OutputFileType.PSD:
             return psd.save_document_psd
         return psd.save_document_jpeg
@@ -438,7 +442,7 @@ class BaseTemplate:
             or all([n not in self.art_reference.name for n in ["Full", "Borderless"]])
         ):
             # By default, fill when we want a fullart image but didn't receive one
-            return True
+            return self.config.fill_mode != FillMode.NO_FILL
         return False
 
     @cached_property
@@ -786,27 +790,40 @@ class BaseTemplate:
             # Frame the artwork
             psd.frame_layer(layer=art_layer, ref=art_reference)
 
+        if self.config.pause_for_manual_art_alignment:
+            if not self.pause("Adjust the art alignment manually."):
+                return
+
         # Perform content aware fill if needed
         if self.is_content_aware_enabled:
-            # Perform a generative fill
-            if self.config.generative_fill:
+            if self.config.fill_mode == FillMode.CONTENT_AWARE_FILL:
+                psd.content_aware_fill_edges(
+                    layer=art_layer,
+                    contract=self.config.fill_contract,
+                    smooth=self.config.fill_smooth,
+                    feather=self.config.fill_feather,
+                )
+            elif self.config.fill_mode == FillMode.GENERATIVE_FILL:
                 if _doc_generated := psd.generative_fill_edges(
                     layer=art_layer,
-                    feather=self.config.feathered_fill,
+                    contract=self.config.fill_contract,
+                    smooth=self.config.fill_smooth,
+                    feather=self.config.fill_feather,
                     close_doc=bool(not self.config.select_variation),
                     docref=self.docref,
                 ):
                     # Document reference was returned, await user intervention
-                    self.render_operation.pause_sync(
-                        "Select a Generative Fill variation, then click Continue ...",
-                    )
+                    if not self.pause("Select a Generative Fill variation."):
+                        return
                     _doc_generated.close(SaveOptions.SaveChanges)
                 return
-
-            # Perform a content aware fill
-            psd.content_aware_fill_edges(
-                layer=art_layer, feather=self.config.feathered_fill
-            )
+            elif self.config.fill_mode == FillMode.REMOVE_CONTENT_FILL:
+                psd.remove_content_fill_edges(
+                    layer=art_layer,
+                    contract=self.config.fill_contract,
+                    smooth=self.config.fill_smooth,
+                    feather=self.config.fill_feather,
+                )
 
     def paste_scryfall_scan(
         self, rotate: bool = False, visible: bool = True
@@ -1500,6 +1517,20 @@ class BaseTemplate:
     def cancel(self) -> None:
         self.event.set()
 
+    def pause(self, message: str | None, show_photoshop: bool = True) -> bool:
+        response = self.render_operation.pause_sync(message, show_photoshop)
+        if self.config.minimize_photoshop:
+            self.app.set_window_state(WindowState.MINIMIZE)
+        return response
+
+    async def pause_async(
+        self, message: str | None, show_photoshop: bool = True
+    ) -> bool:
+        response = await self.render_operation.pause(message, show_photoshop)
+        if self.config.minimize_photoshop:
+            self.app.set_window_state(WindowState.MINIMIZE)
+        return response
+
     async def execute(self) -> bool:
         """Perform actions to render the card using this template.
 
@@ -1515,7 +1546,7 @@ class BaseTemplate:
             return False
 
         if self.config.minimize_photoshop:
-            APP.instance.set_window_state(WindowState.MINIMIZE)
+            self.app.set_window_state(WindowState.MINIMIZE)
 
         # Pre-process layout data
         if not self.run_tasks(
@@ -1592,7 +1623,7 @@ class BaseTemplate:
 
         # Manual edit step?
         if self.config.exit_early:
-            await self.render_operation.pause("Rendering paused for manual editing.")
+            await self.pause_async("Rendering paused for manual editing.")
 
         # Save the document
         if not self.run_tasks(

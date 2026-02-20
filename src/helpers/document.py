@@ -8,18 +8,20 @@ from typing import Any
 from photoshop.api import (
     ActionDescriptor,
     ActionReference,
-    DialogModes,
-    ElementPlacement,
-    FormatOptionsType,
     JPEGSaveOptions,
     PhotoshopSaveOptions,
     PNGSaveOptions,
-    PurgeTarget,
-    SaveOptions,
 )
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
+from photoshop.api.enumerations import (
+    DialogModes,
+    ElementPlacement,
+    FormatOptionsType,
+    PurgeTarget,
+    SaveOptions,
+)
 
 from src import APP
 from src.helpers.layers import create_new_layer
@@ -355,7 +357,9 @@ def trim_transparent_pixels() -> None:
 """
 
 
-def save_document_png(path: Path, docref: Document | None = None) -> None:
+def save_document_png(
+    path: Path, docref: Document | None = None, compression: int = 3
+) -> None:
     """Save the current document as a PNG.
 
     Args:
@@ -364,7 +368,7 @@ def save_document_png(path: Path, docref: Document | None = None) -> None:
     """
     docref = docref or APP.instance.activeDocument
     png_options = PNGSaveOptions()
-    png_options.compression = 9
+    png_options.compression = compression
     png_options.interlaced = False
     docref.saveAs(
         file_path=str(path.with_suffix(".png")), options=png_options, asCopy=True

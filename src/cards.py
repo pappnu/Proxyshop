@@ -3,7 +3,6 @@
 * Handles raw card data fetching and processing
 """
 
-from contextlib import suppress
 from logging import Logger, getLogger
 from pathlib import Path
 from typing import TypedDict
@@ -129,16 +128,19 @@ def get_card_data(
             )
 
     # Query the card in English, retry with extras if failed
-    with suppress(Exception):
+    try:
         return action(*params, **kwargs)
-    if not number and not cfg.scry_extras:
-        # Retry with extras included, case: Planar cards
-        try:
-            kwargs['include_extras'] = 'True'
-            data = action(*params, **kwargs)
-            return data
-        except ScryfallException:
-            _logger.exception("Couldn't retrieve card from Scryfall even with <i>include_extras</i> enabled.")
+    except Exception as exc:
+        if not number and not cfg.scry_extras:
+            # Retry with extras included, case: Planar cards
+            try:
+                kwargs['include_extras'] = 'True'
+                data = action(*params, **kwargs)
+                return data
+            except ScryfallException:
+                _logger.exception("Couldn't retrieve card from Scryfall even with <i>include_extras</i> enabled.")
+        else:
+            _logger.exception("Couldn't retrieve card from Scryfall.")
 
 
 """
@@ -474,9 +476,4 @@ def strip_reminder_text(text: str) -> str:
     text_stripped = CardTextPatterns.TEXT_REMINDER.sub("", text)
 
     # Remove any extra whitespace
-    text_stripped = CardTextPatterns.EXTRA_SPACE.sub('', text_stripped).strip()
-
-    # Return the stripped text if it isn't empty
-    if text_stripped:
-        return text_stripped
-    return text
+    return CardTextPatterns.EXTRA_SPACE.sub('', text_stripped).strip()

@@ -5,18 +5,16 @@
 from contextlib import suppress
 from logging import getLogger
 
-from photoshop.api import (
-    ActionDescriptor,
-    ActionReference,
+from photoshop.api import ActionDescriptor, ActionReference, SolidColor
+from photoshop.api._artlayer import ArtLayer
+from photoshop.api._document import Document
+from photoshop.api.enumerations import (
     BlendMode,
     DialogModes,
     ElementPlacement,
     RasterizeType,
     SaveOptions,
-    SolidColor,
 )
-from photoshop.api._artlayer import ArtLayer
-from photoshop.api._document import Document
 
 from src import APP
 from src.helpers.colors import fill_layer_primary, rgb_black
@@ -85,7 +83,7 @@ def fill_empty_area(reference: ArtLayer, color: SolidColor | None = None) -> Art
 
 
 def content_aware_fill_edges(
-    layer: ArtLayer | None = None, feather: bool = False
+    layer: ArtLayer | None = None, contract: int = 10, smooth: int = 0, feather: int = 5
 ) -> None:
     """Fills pixels outside art layer using content-aware fill.
 
@@ -99,7 +97,9 @@ def content_aware_fill_edges(
         docref.activeLayer = layer
         active_layer = layer
     elif not isinstance((active_layer := docref.activeLayer), ArtLayer):
-        _logger.warning("Skipping content aware fill as active layer is not an ArtLayer.")
+        _logger.warning(
+            "Skipping content aware fill as active layer is not an ArtLayer."
+        )
         return
     active_layer.rasterize(RasterizeType.EntireLayer)
 
@@ -109,21 +109,20 @@ def content_aware_fill_edges(
 
     # Guard against no selection made
     try:
-        # Create a feathered or smoothed selection, then invert
+        # Adjust selection, then invert
+        if contract:
+            selection.contract(contract)
+        if smooth:
+            selection.smooth(smooth)
         if feather:
-            selection.contract(22)
-            selection.feather(8)
-        else:
-            selection.contract(6)
-            # selection.smooth(4)
-            selection.feather(2)
-            # selection.contract(10)
-            # selection.feather(3)
+            selection.feather(feather)
         selection.invert()
         content_aware_fill()
-    except PS_EXCEPTIONS:
+    except PS_EXCEPTIONS as exc:
         # Unable to fill due to invalid selection
-        _logger.warning("Couldn't make a valid selection. Skipping automated fill.")
+        _logger.warning(
+            "Couldn't make a valid selection. Skipping automated fill.", exc_info=exc
+        )
 
     # Clear selection
     with suppress(Exception):
@@ -132,7 +131,9 @@ def content_aware_fill_edges(
 
 def generative_fill_edges(
     layer: ArtLayer | None = None,
-    feather: bool = False,
+    contract: int = 10,
+    smooth: int = 0,
+    feather: int = 5,
     close_doc: bool = True,
     docref: Document | None = None,
 ) -> Document | None:
@@ -175,13 +176,13 @@ def generative_fill_edges(
 
     # Guard against no selection made
     try:
-        # Create a feathered or smoothed selection, then invert
+        # Adjust selection, then invert
+        if contract:
+            selection.contract(contract)
+        if smooth:
+            selection.smooth(smooth)
         if feather:
-            selection.contract(22)
-            selection.feather(8)
-        else:
-            selection.contract(10)
-            selection.smooth(5)
+            selection.feather(feather)
         selection.invert()
         try:
             generative_fill()
@@ -207,6 +208,54 @@ def generative_fill_edges(
         return docref
     docref.close(SaveOptions.SaveChanges)
     return
+
+
+def remove_content_fill_edges(
+    layer: ArtLayer | None = None, contract: int = 10, smooth: int = 0, feather: int = 5
+) -> None:
+    """Fills pixels outside art layer using remove content fill.
+
+    Args:
+        layer: Layer to use for the fill. Uses active if not provided.
+        feather: Whether to feather the selection before performing the fill operation.
+    """
+    # Set active layer if needed
+    docref = APP.instance.activeDocument
+    if layer:
+        docref.activeLayer = layer
+        active_layer = layer
+    elif not isinstance((active_layer := docref.activeLayer), ArtLayer):
+        _logger.warning(
+            "Skipping remove content fill as active layer is not an ArtLayer."
+        )
+        return
+
+    # Select pixels of the active layer
+    select_layer_pixels(active_layer)
+    selection = docref.selection
+
+    # Guard against no selection made
+    try:
+        # Adjust selection, then invert
+        if contract:
+            selection.contract(contract)
+        if smooth:
+            selection.smooth(smooth)
+        if feather:
+            selection.feather(feather)
+        selection.invert()
+
+        remove_content_fill()
+    except PS_EXCEPTIONS as exc:
+        # Unable to fill due to invalid selection
+        _logger.warning(
+            "Couldn't complete remove content fill. Skipping automated fill.",
+            exc_info=exc,
+        )
+
+    # Clear selection
+    with suppress(Exception):
+        selection.deselect()
 
 
 def content_aware_fill() -> None:
@@ -267,6 +316,13 @@ def generative_fill() -> None:
     )
     APP.instance.executeAction(
         APP.instance.sID("syntheticFill"), desc1, DialogModes.DisplayNoDialogs
+    )
+
+
+def remove_content_fill() -> None:
+    """Call Photoshop's "Remove" action on the current selection."""
+    APP.instance.executeAction(
+        APP.instance.sID("removeButton"), display_dialogs=DialogModes.DisplayNoDialogs
     )
 
 
