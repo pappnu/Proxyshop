@@ -230,8 +230,23 @@ def remove_content_fill_edges(
         )
         return
 
+    # Create a fill layer the size of the document in order to
+    # ensure that the smart document retains the document's size
+    fill_layer: ArtLayer = docref.artLayers.add()
+    fill_layer.move(active_layer, ElementPlacement.PlaceAfter)
+    fill_layer_primary()
+    fill_layer.opacity = 0
+
+    # Create a smart layer document and enter it in order to
+    # ensure that content is sampled only from the art layer
+    select_layers([active_layer, fill_layer])
+    smart_layer()
+    edit_smart_layer()
+
     # Select pixels of the active layer
-    select_layer_pixels(active_layer)
+    docref = APP.instance.activeDocument
+    if isinstance((layer_in_smart_doc := docref.activeLayer), ArtLayer):
+        select_layer_pixels(layer_in_smart_doc)
     selection = docref.selection
 
     # Guard against no selection made
@@ -256,6 +271,8 @@ def remove_content_fill_edges(
     # Clear selection
     with suppress(Exception):
         selection.deselect()
+
+    docref.close(SaveOptions.SaveChanges)
 
 
 def content_aware_fill() -> None:
