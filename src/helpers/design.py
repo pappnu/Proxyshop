@@ -2,12 +2,14 @@
 * Helpers: Design
 """
 
+from collections.abc import Callable
 from contextlib import suppress
 from logging import getLogger
 
 from photoshop.api import ActionDescriptor, ActionReference, SolidColor
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
+from photoshop.api._selection import Selection
 from photoshop.api.enumerations import (
     BlendMode,
     DialogModes,
@@ -83,7 +85,11 @@ def fill_empty_area(reference: ArtLayer, color: SolidColor | None = None) -> Art
 
 
 def content_aware_fill_edges(
-    layer: ArtLayer | None = None, contract: int = 10, smooth: int = 0, feather: int = 5
+    layer: ArtLayer | None = None,
+    contract: int = 10,
+    smooth: int = 0,
+    feather: int = 5,
+    art_selection_hook: Callable[[ArtLayer, Selection], None] | None = None,
 ) -> None:
     """Fills pixels outside art layer using content-aware fill.
 
@@ -106,6 +112,9 @@ def content_aware_fill_edges(
     # Select pixels of the active layer
     select_layer_pixels(active_layer)
     selection = docref.selection
+
+    if art_selection_hook:
+        art_selection_hook(active_layer, selection)
 
     # Guard against no selection made
     try:
@@ -136,6 +145,7 @@ def generative_fill_edges(
     feather: int = 5,
     close_doc: bool = True,
     docref: Document | None = None,
+    art_selection_hook: Callable[[ArtLayer, Selection], None] | None = None,
 ) -> Document | None:
     """Fills pixels outside an art layer using AI powered generative fill.
 
@@ -174,6 +184,9 @@ def generative_fill_edges(
     select_layer_pixels(active_layer)
     selection = docref.selection
 
+    if art_selection_hook and isinstance((art_layer := docref.activeLayer), ArtLayer):
+        art_selection_hook(art_layer, selection)
+
     # Guard against no selection made
     try:
         # Adjust selection, then invert
@@ -211,7 +224,11 @@ def generative_fill_edges(
 
 
 def remove_content_fill_edges(
-    layer: ArtLayer | None = None, contract: int = 10, smooth: int = 0, feather: int = 5
+    layer: ArtLayer | None = None,
+    contract: int = 10,
+    smooth: int = 0,
+    feather: int = 5,
+    art_selection_hook: Callable[[ArtLayer, Selection], None] | None = None,
 ) -> None:
     """Fills pixels outside art layer using remove content fill.
 
@@ -248,6 +265,9 @@ def remove_content_fill_edges(
     if isinstance((layer_in_smart_doc := docref.activeLayer), ArtLayer):
         select_layer_pixels(layer_in_smart_doc)
     selection = docref.selection
+
+    if art_selection_hook and isinstance((art_layer := docref.activeLayer), ArtLayer):
+        art_selection_hook(art_layer, selection)
 
     # Guard against no selection made
     try:

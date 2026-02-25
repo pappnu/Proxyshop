@@ -746,6 +746,13 @@ class BaseTemplate:
         """Function that is called to perform an action on the imported art."""
         return
 
+    @cached_property
+    def art_fill_selection_hook(self) -> Callable[[ArtLayer, Selection], None] | None:
+        """A hook for adjusting the selected art area.
+        Area outside the selected area will be filled.
+        The hook runs before contract, feather, etc."""
+        return None
+
     def load_artwork(
         self,
         art_file: str | Path | None = None,
@@ -802,6 +809,7 @@ class BaseTemplate:
                     contract=self.config.fill_contract,
                     smooth=self.config.fill_smooth,
                     feather=self.config.fill_feather,
+                    art_selection_hook=self.art_fill_selection_hook,
                 )
             elif self.config.fill_mode == FillMode.GENERATIVE_FILL:
                 if _doc_generated := psd.generative_fill_edges(
@@ -811,6 +819,7 @@ class BaseTemplate:
                     feather=self.config.fill_feather,
                     close_doc=bool(not self.config.select_variation),
                     docref=self.docref,
+                    art_selection_hook=self.art_fill_selection_hook,
                 ):
                     # Document reference was returned, await user intervention
                     if not self.pause("Select a Generative Fill variation."):
@@ -823,6 +832,7 @@ class BaseTemplate:
                     contract=self.config.fill_contract,
                     smooth=self.config.fill_smooth,
                     feather=self.config.fill_feather,
+                    art_selection_hook=self.art_fill_selection_hook,
                 )
 
     def paste_scryfall_scan(
