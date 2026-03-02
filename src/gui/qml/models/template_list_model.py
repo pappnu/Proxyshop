@@ -18,6 +18,7 @@ from src._loader import (
     TemplateLibrary,
     sort_layout_categories,
 )
+from src.cards import CardDetails
 from src.enums.mtg import LayoutCategory
 from src.gui.qml.models.file_dialog_model import FileDialogModel
 from src.gui.qml.models.message_dialog_content_model import MessageDialogContentModel
@@ -27,6 +28,7 @@ from src.render.render_queue import RenderQueue, cancel_with_render
 from src.render.setup import prepare_render_operations
 from src.utils.data_structures import first
 from src.utils.images import match_images_with_data_files
+from src.utils.scryfall import ScryfallCard
 
 _logger = getLogger(__name__)
 
@@ -135,7 +137,7 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
 
         self._sort_items()
 
-    def render_files(self, paths: list[Path]) -> None:
+    async def render_files(self, paths: list[Path]) -> None:
         if paths:
             _logger.info(
                 f"Queueing {
@@ -150,13 +152,21 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
                 ]
             else:
                 template = self.built_in_templates[selected_template_entry.name]
-            if render_operations := prepare_render_operations(
-                template,
-                match_images_with_data_files(paths),
-                file_dialog=self._file_dialog_model,
-                message_dialog=self._message_dialog_model,
-            ):
-                self._render_queue.enqueue(*render_operations)
+
+            matched_inputs = match_images_with_data_files(paths)
+
+            def add_render(
+                input: CardDetails | tuple[CardDetails, ScryfallCard],
+            ) -> None:
+                if render_operations := prepare_render_operations(
+                    template,
+                    (input,),
+                    file_dialog=self._file_dialog_model,
+                    message_dialog=self._message_dialog_model,
+                ):
+                    self._render_queue.enqueue(render_operations[0])
+
+            await gather(*[to_thread(add_render, input) for input in matched_inputs])
 
     @Slot()
     def render_selections(self) -> None:
@@ -170,7 +180,7 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
                 ],
             )
 
-            self.render_files(selections)
+            await self.render_files(selections)
 
         cancel_with_render(ensure_future(action()), self._render_queue)
 
@@ -183,7 +193,7 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
             _logger.exception("Failed to process drag & dropped files.")
         if paths:
             cancel_with_render(
-                ensure_future(to_thread(self.render_files, paths)), self._render_queue
+                ensure_future(self.render_files(paths)), self._render_queue
             )
 
     @Slot(str, bool)

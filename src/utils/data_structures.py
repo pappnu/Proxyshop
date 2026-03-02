@@ -1,5 +1,5 @@
 import tomllib
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 
 import yaml
@@ -14,6 +14,13 @@ def find_index[T](iterable: Iterable[T], condition: Callable[[T], bool]) -> int:
     for idx, item in enumerate(iterable):
         if condition(item):
             return idx
+    return -1
+
+
+def find_last_index[T](sequence: Sequence[T], condition: Callable[[T], bool]) -> int:
+    for idx, item in enumerate(reversed(sequence)):
+        if condition(item):
+            return len(sequence) - 1 - idx
     return -1
 
 

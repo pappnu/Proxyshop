@@ -39,6 +39,7 @@ class SettingsTreeModel(PydanticQItemModel[SettingSectionItem]):
     ) -> None:
         super().__init__(parent)
 
+        self._app_config = app_config
         self._template_library = template_library
         self._root = TreeItem(data=SettingSectionItem(name="root"))
         self._selected_model_index: QModelIndex = QModelIndex()
@@ -198,6 +199,8 @@ class SettingsTreeModel(PydanticQItemModel[SettingSectionItem]):
 
     @Slot()
     def save_configs(self) -> None:
+        self._app_config.app_config.save()
+        self._app_config.base_config.save()
         self._save_template_configs(
             self._template_library.built_in_templates_by_name.values()
         )

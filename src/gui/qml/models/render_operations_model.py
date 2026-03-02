@@ -5,7 +5,7 @@ from PySide6.QtCore import Property, QModelIndex, QObject, Signal, Slot
 
 from src.gui.qml.models.message_dialog_content_model import MessageDialogContentModel
 from src.gui.qml.models.pydantic_q_list_model import PydanticQListModel
-from src.render.render_queue import RenderQueue, RenderResult
+from src.render.render_queue import QueuedOperation, RenderQueue, RenderResult
 from src.render.setup import PausedEventArgs, RenderOperation
 
 
@@ -49,27 +49,22 @@ class RenderOperationsModel(PydanticQListModel[RenderOperationDetails]):
 
     # region Queue
 
-    def _on_queued(self, render_operations: tuple[RenderOperation, ...]) -> None:
-        render_opeartion_details: list[RenderOperationDetails] = []
-        for render_operation in render_operations:
-            render_op_details = RenderOperationDetails(
-                image_name=render_operation.layout.art_file.name,
-                image_path=str(render_operation.layout.art_file),
-                card_name=render_operation.layout.name,
-                card_artist=render_operation.layout.artist,
-                card_set=render_operation.layout.set,
-                card_collector_number=render_operation.layout.collector_number_raw
-                or "",
-                layout_name=render_operation.layout.category,
-                class_name=render_operation.template_class.__name__,
-            )
-            render_op_details.render_operation = render_operation
-            render_opeartion_details.append(render_op_details)
-        row_count = self.rowCount()
-        self.beginInsertRows(
-            QModelIndex(), row_count, row_count + len(render_operations) - 1
+    def _on_queued(self, queued_operation: QueuedOperation) -> None:
+        render_operation = queued_operation["operation"]
+        idx = queued_operation["index"]
+        render_op_details = RenderOperationDetails(
+            image_name=render_operation.layout.art_file.name,
+            image_path=str(render_operation.layout.art_file),
+            card_name=render_operation.layout.name,
+            card_artist=render_operation.layout.artist,
+            card_set=render_operation.layout.set,
+            card_collector_number=render_operation.layout.collector_number_raw or "",
+            layout_name=render_operation.layout.category,
+            class_name=render_operation.template_class.__name__,
         )
-        self.items.extend(render_opeartion_details)
+        render_op_details.render_operation = render_operation
+        self.beginInsertRows(QModelIndex(), idx, idx)
+        self.items.insert(idx, render_op_details)
         self.endInsertRows()
 
     def _on_dequeued(self, data: tuple[RenderOperation, int]) -> None:

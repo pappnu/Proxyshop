@@ -1,4 +1,3 @@
-from _ctypes import COMError
 from asyncio import CancelledError, Future, Task, create_task, get_running_loop
 from collections.abc import Callable, Iterable, Mapping
 from logging import getLogger
@@ -77,29 +76,21 @@ class RenderOperation:
 
             self.render_task = create_task(self.template_instance.execute())
             try:
-                try:
-                    result = await self.render_task
-                except CancelledError:
-                    result = False
+                result = await self.render_task
+            except CancelledError:
+                result = False
 
-                _logger.info(
-                    f"{'Finished' if result else 'Cancelled'} rendering {
-                        card_display_name
-                    }<br>Rendering took <i>{
-                        round(perf_counter() - start_time, 1)
-                    }</i> seconds"
-                )
-                return result
-            finally:
-                try:
-                    self.template_instance.docref.close()
-                except COMError as exc:
-                    _logger.debug(
-                        f"Couldn't close the document for {
-                            card_display_name
-                        }. It might have already been closed.",
-                        exc_info=exc,
-                    )
+            if not result:
+                self.template_instance.docref.close()
+
+            _logger.info(
+                f"{'Finished' if result else 'Cancelled'} rendering {
+                    card_display_name
+                }<br>Rendering took <i>{
+                    round(perf_counter() - start_time, 1)
+                }</i> seconds"
+            )
+            return result
         except Exception:
             _logger.exception(f"Failed rendering {card_display_name}")
             return False

@@ -1062,7 +1062,7 @@ class PlaneswalkerLayout(NormalLayout):
     @cached_property
     def pw_abilities(self) -> list[PlaneswalkerAbility]:
         """Processes Planeswalker text into listed abilities."""
-        lines = CardTextPatterns.PLANESWALKER.findall(self.oracle_text_raw)
+        lines = CardTextPatterns.PLANESWALKER.findall(self.oracle_text)
         en_lines = lines.copy()
 
         # Process alternate language lines if needed

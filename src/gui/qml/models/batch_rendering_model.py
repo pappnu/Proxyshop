@@ -15,6 +15,7 @@ from src._loader import (
     RenderableTemplate,
     TemplateLibrary,
 )
+from src.cards import CardDetails
 from src.enums.mtg import LayoutCategory
 from src.gui.qml.models.file_dialog_model import FileDialogModel
 from src.gui.qml.models.message_dialog_content_model import MessageDialogContentModel
@@ -23,6 +24,7 @@ from src.gui.qml.models.test_renders_model import TestRendersModel
 from src.render.render_queue import RenderQueue, cancel_with_render
 from src.render.setup import prepare_render_operations
 from src.utils.images import match_images_with_data_files
+from src.utils.scryfall import ScryfallCard
 
 _logger = getLogger(__name__)
 
@@ -183,20 +185,27 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
         q_idx = self.createIndex(layout_category_idx, 0)
         self.dataChanged.emit(q_idx, q_idx, [self.get_role("selected")])
 
-    def render_files(self, paths: list[Path]) -> None:
+    async def render_files(self, paths: list[Path]) -> None:
         if paths:
             _logger.info(
                 f"Queueing {
                     len(paths)
                 } batch mode entries for render. Do note that the actual amount of renders might be lower if you selected JSON files or art for split cards."
             )
-            if render_operations := prepare_render_operations(
-                self.template_choices,
-                match_images_with_data_files(paths),
-                file_dialog=self._file_dialog_model,
-                message_dialog=self._message_dialog_model,
-            ):
-                self._render_queue.enqueue(*render_operations)
+            matched_inputs = match_images_with_data_files(paths)
+
+            def add_render(
+                input: CardDetails | tuple[CardDetails, ScryfallCard],
+            ) -> None:
+                if render_operations := prepare_render_operations(
+                    self.template_choices,
+                    (input,),
+                    file_dialog=self._file_dialog_model,
+                    message_dialog=self._message_dialog_model,
+                ):
+                    self._render_queue.enqueue(render_operations[0])
+
+            await gather(*[to_thread(add_render, input) for input in matched_inputs])
 
     @Slot()
     def render_selections(self) -> None:
@@ -210,7 +219,7 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
                 ],
             )
 
-            self.render_files(selections)
+            await self.render_files(selections)
 
         cancel_with_render(ensure_future(action()), self._render_queue)
 
@@ -223,7 +232,7 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
             _logger.exception("Failed to process drag & dropped files.")
         if paths:
             cancel_with_render(
-                ensure_future(to_thread(self.render_files, paths)), self._render_queue
+                ensure_future(self.render_files(paths)), self._render_queue
             )
 
     @Slot(str, bool)
