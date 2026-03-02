@@ -567,6 +567,8 @@ class AppPlugin:
         path: Path,
         template_file_versions: dict[str, str],
     ):
+        self._module: ModuleType | None = None
+
         # Save a reference to the global application constants
         self.con: AppConstants = con
         self.env: AppEnvironment = env
