@@ -2,7 +2,7 @@
 * Helpers: Text Items
 """
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from logging import getLogger
 from typing import Literal, overload
 
@@ -10,12 +10,11 @@ from photoshop.api import (
     ActionDescriptor,
     ActionList,
     ActionReference,
-    DialogModes,
-    LayerKind,
 )
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
+from photoshop.api.enumerations import DialogModes, LayerKind
 from photoshop.api.text_item import TextItem
 
 from src import APP
@@ -122,21 +121,21 @@ def replace_text(layer: ArtLayer, find: str, replace: str) -> None:
     replaced = False
 
     # Find the range where target text exists
-    style_range = text_key.getList(idTextStyleRange)
-    for i in range(style_range.count):
-        style = style_range.getObjectValue(i)
-        idxFrom = style.getInteger(idFrom)
-        idxTo = style.getInteger(idTo)
+    style_ranges = text_key.getList(idTextStyleRange)
+    for i in range(style_ranges.count):
+        style_range = style_ranges.getObjectValue(i)
+        idxFrom = style_range.getInteger(idFrom)
+        idxTo = style_range.getInteger(idTo)
         if not replaced and find in current_text[idxFrom:idxTo]:
             # Found the text to replace
             replaced = True
-            style.putInteger(idTo, idxTo + offset)
-            style_range.putObject(idTextStyleRange, style)
+            style_range.putInteger(idTo, idxTo + offset)
+            style_ranges.putObject(idTextStyleRange, style_range)
         elif replaced:
             # Replacement already made, offset the remaining ranges
-            style.putInteger(idFrom, idxFrom + offset)
-            style.putInteger(idTo, idxTo + offset)
-            style_range.putObject(idTextStyleRange, style)
+            style_range.putInteger(idFrom, idxFrom + offset)
+            style_range.putInteger(idTo, idxTo + offset)
+            style_ranges.putObject(idTextStyleRange, style_range)
 
     # Skip applying changes if no replacement could be made
     if not replaced:
@@ -145,7 +144,7 @@ def replace_text(layer: ArtLayer, find: str, replace: str) -> None:
 
     # Apply changes
     text_key.putString(idTextKey, current_text.replace(find, replace))
-    text_key.putList(idTextStyleRange, style_range)
+    text_key.putList(idTextStyleRange, style_ranges)
     apply_text_key(layer, text_key)
 
 
@@ -304,6 +303,89 @@ def remove_leading_text(layer: ArtLayer, idx: int) -> None:
         key.putList(n, style_range)
         key.putString(idTextKey, new_text)
     apply_text_key(layer, key)
+
+
+def override_text_style_ranges(
+    layer: ArtLayer,
+    ranges: Iterable[tuple[int, int]],
+    font: str | None = None,
+    size: float | None = None,
+) -> None:
+    """Override style properties in specified character ranges of a text layer.
+
+    Existing style ranges are split and adjusted as necessary. New ranges inherit
+    the existing style from the portions they replace, then apply the overrides.
+
+    Args:
+        layer: Text layer to modify.
+        ranges: List of (start, end) tuples, where end is exclusive (0-based indices).
+        font: Font post script name.
+        size: Text size in points.
+    """
+    # Get IDs
+    text_key_id = APP.instance.sID("textKey")
+    text_style_range_id = APP.instance.sID("textStyleRange")
+    from_id = APP.instance.sID("from")
+    to_id = APP.instance.sID("to")
+    text_style_id = APP.instance.sID("textStyle")
+    points_unit_id = APP.instance.sID("pointsUnit")
+    font_post_script_id = APP.instance.sID("fontPostScriptName")
+    size_id = APP.instance.sID("size")
+
+    # Get text key and current text
+    text_key = get_text_key(layer)
+    current_text = text_key.getString(text_key_id)
+    text_len = len(current_text)
+
+    # Get existing style ranges
+    style_ranges = text_key.getList(text_style_range_id)
+
+    # Collect all split positions
+    positions = set([0, text_len])
+    for start, end in ranges:
+        positions.add(max(0, start))
+        positions.add(min(text_len, end))
+    positions = sorted(positions)
+
+    # Create new style ranges
+    new_style_ranges = ActionList()
+    for i in range(len(positions) - 1):
+        start = positions[i]
+        end = positions[i + 1]
+
+        # Find the original range containing this start
+        orig_range = None
+        for j in range(style_ranges.count):
+            r = style_ranges.getObjectValue(j)
+            if r.getInteger(from_id) <= start < r.getInteger(to_id):
+                orig_range = r
+                break
+        if not orig_range:
+            continue
+
+        # Create new range
+        new_range = ActionDescriptor()
+        new_range.putInteger(from_id, start)
+        new_range.putInteger(to_id, end)
+
+        # Copy the text style from original
+        text_style = orig_range.getObjectValue(text_style_id)
+
+        # Check if this range is overridden
+        overridden = any(ov_start <= start < ov_end for ov_start, ov_end in ranges)
+        if overridden:
+            # Apply overrides
+            if font is not None:
+                text_style.putString(font_post_script_id, font)
+            if size is not None:
+                text_style.putUnitDouble(size_id, points_unit_id, size)
+
+        new_range.putObject(text_style_id, text_style_id, text_style)
+        new_style_ranges.putObject(text_style_range_id, new_range)
+
+    # Update the text key
+    text_key.putList(text_style_range_id, new_style_ranges)
+    apply_text_key(layer, text_key)
 
 
 """

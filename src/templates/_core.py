@@ -541,6 +541,11 @@ class BaseTemplate:
     """
 
     @cached_property
+    def text_layer_artist(self) -> ArtLayer | None:
+        """Card artist text layer."""
+        return psd.getLayer(LAYERS.ARTIST, self.legal_group)
+
+    @cached_property
     def text_layer_creator(self) -> ArtLayer | None:
         """Optional[ArtLayer]: Proxy creator name text layer."""
         return psd.getLayer(LAYERS.CREATOR, self.legal_group)
@@ -903,7 +908,6 @@ class BaseTemplate:
         """Called to generate basic collector info."""
 
         # Collector layers
-        artist_layer = psd.getLayer(LAYERS.ARTIST, self.legal_group)
         set_layer = psd.getLayer(LAYERS.SET, self.legal_group)
         set_TI = set_layer.textItem if set_layer else None
 
@@ -911,8 +915,8 @@ class BaseTemplate:
         if self.border_color != BorderColor.Black:
             if set_TI:
                 set_TI.color = self.RGB_BLACK
-            if artist_layer:
-                artist_layer.textItem.color = self.RGB_BLACK
+            if self.text_layer_artist:
+                self.text_layer_artist.textItem.color = self.RGB_BLACK
 
         # Fill optional collector star
         if set_layer and self.is_collector_promo:
@@ -922,8 +926,8 @@ class BaseTemplate:
         if set_layer and self.layout.lang != "en":
             psd.replace_text(set_layer, "EN", self.layout.lang.upper())
 
-        if artist_layer:
-            psd.replace_text(artist_layer, "Artist", self.layout.artist)
+        if self.text_layer_artist:
+            psd.replace_text(self.text_layer_artist, "Artist", self.layout.artist)
 
         if set_TI:
             set_TI.contents = self.layout.set + set_TI.contents
@@ -932,8 +936,8 @@ class BaseTemplate:
         """Called to generate realistic collector info."""
 
         # Hide basic layers
-        if layer := psd.getLayer(LAYERS.ARTIST, self.legal_group):
-            layer.visible = False
+        if self.text_layer_artist:
+            self.text_layer_artist.visible = False
         if layer := psd.getLayer(LAYERS.SET, self.legal_group):
             layer.visible = False
 
@@ -970,17 +974,16 @@ class BaseTemplate:
         """Called to generate 'Artist Only' collector info."""
 
         # Collector layers
-        artist_layer = psd.getLayer(LAYERS.ARTIST, self.legal_group)
         if layer := psd.getLayer(LAYERS.SET, self.legal_group):
             layer.visible = False
 
         # Correct color for non-black border
-        if artist_layer and self.border_color != BorderColor.Black:
-            artist_layer.textItem.color = self.RGB_BLACK
+        if self.text_layer_artist and self.border_color != BorderColor.Black:
+            self.text_layer_artist.textItem.color = self.RGB_BLACK
 
         # Insert artist name
-        if artist_layer:
-            psd.replace_text(artist_layer, "Artist", self.layout.artist)
+        if self.text_layer_artist:
+            psd.replace_text(self.text_layer_artist, "Artist", self.layout.artist)
 
     """
     * Expansion Symbol
@@ -1239,7 +1242,7 @@ class BaseTemplate:
             return
 
         # Connection with Photoshop couldn't be established, try again?
-        if not self.render_operation.pause_sync(
+        if not self.pause(
             f"{get_photoshop_error_message(check)}\nPress OK to try again, or Cancel to end the render.",
         ):
             # Cancel the operation

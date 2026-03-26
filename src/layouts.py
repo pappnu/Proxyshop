@@ -32,7 +32,7 @@ from src.enums.mtg import (
     layout_map_types,
     planeswalkers_tall,
 )
-from src.enums.settings import CollectorMode, WatermarkMode
+from src.enums.settings import CollectorMode, NicknameShorten, WatermarkMode
 from src.frame_logic import (
     check_hybrid_mana_cost,
     get_frame_details,
@@ -354,9 +354,8 @@ class NormalLayout:
     @cached_property
     def nickname(self) -> str:
         """Nickname, typically set inside template logic but can be passed in filename."""
-        # Todo: Add user-provided text
         if isinstance(self.card, ScryfallCard):
-            return self.card.flavor_name or ""
+            return self.file["kwargs"].get("nick") or self.card.flavor_name or ""
         return ""
 
     @cached_property
@@ -386,7 +385,34 @@ class NormalLayout:
     @cached_property
     def oracle_text_raw(self) -> str:
         """Card rules text, enforced English representation."""
-        return self.card.oracle_text or ""
+        txt = self.card.oracle_text or ""
+
+        if (
+            self.config.nickname_allow
+            and self.config.nickname_in_oracle_text
+            and self.nickname
+        ):
+            if "," in self.name:
+                # Some cards use a shorter name and some don't,
+                # so we have to ensure that replacements work as expected.
+                name_shortener = re.compile(r"\,.*")
+                original_short_name = name_shortener.sub("", self.name).strip()
+                txt = txt.replace(self.name, original_short_name)
+
+                if self.config.nickname_shorten_in_oracle_text == NicknameShorten.NO:
+                    txt = txt.replace(original_short_name, self.nickname)
+                else:
+                    nick_short_name = name_shortener.sub("", self.nickname).strip()
+                    if (
+                        self.config.nickname_shorten_in_oracle_text
+                        == NicknameShorten.ALL_BUT_FIRST
+                    ):
+                        txt = txt.replace(original_short_name, self.nickname, 1)
+                    txt = txt.replace(original_short_name, nick_short_name)
+            else:
+                txt = txt.replace(self.name, self.nickname)
+
+        return txt
 
     @cached_property
     def flavor_text(self) -> str:

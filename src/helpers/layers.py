@@ -3,25 +3,23 @@
 """
 
 from collections.abc import Iterable, Sequence
+from logging import getLogger
 
-from photoshop.api import (
-    ActionDescriptor,
-    ActionReference,
-    BlendMode,
-    DialogModes,
-    ElementPlacement,
-)
+from photoshop.api import ActionDescriptor, ActionReference
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
+from photoshop.api.enumerations import BlendMode, DialogModes, ElementPlacement
 
-from src import APP, ENV
+from src import APP
 from src.utils.adobe import (
     PS_EXCEPTIONS,
     LayerContainer,
     LayerContainerTypes,
     ReferenceLayer,
 )
+
+_logger = getLogger(__name__)
 
 """
 * Searching Layers
@@ -68,14 +66,18 @@ def getLayer(
             return layer_set.artLayers[name]
         # ArtLayer can't be located
         raise OSError("ArtLayer invalid")
-    except PS_EXCEPTIONS:
+    except PS_EXCEPTIONS as exc:
         # Layer couldn't be found
-        if ENV.DEV_MODE:
-            print(f'Layer "{name}" could not be found!')
-            if isinstance(group, LayerSet):
-                print(f"LayerSet reference used: {group.name}")
-            elif group and isinstance(group, str):
-                print(f"LayerSet reference used: {group}")
+        _logger.debug(
+            f'Layer "{name}" could not be found.{
+                f" Used LayerSet reference: {group.name}"
+                if isinstance(group, LayerSet)
+                else f" Used LayerSet reference: {group}"
+                if group and isinstance(group, str)
+                else ""
+            }',
+            exc_info=exc
+        )
 
 
 def getLayerSet(
@@ -118,14 +120,18 @@ def getLayerSet(
             return group.layerSets[name]
         # LayerSet can't be located
         raise OSError("LayerSet invalid")
-    except PS_EXCEPTIONS:
+    except PS_EXCEPTIONS as exc:
         # LayerSet couldn't be found
-        if ENV.DEV_MODE:
-            print(f'LayerSet "{name}" could not be found!')
-            if isinstance(group, LayerSet):
-                print(f"LayerSet reference used: {group.name}")
-            elif group and isinstance(group, str):
-                print(f"LayerSet reference used: {group}")
+        _logger.debug(
+            f'LayerSet "{name}" could not be found.{
+                f" Used LayerSet reference: {group.name}"
+                if isinstance(group, LayerSet)
+                else f" Used LayerSet reference: {group}"
+                if group and isinstance(group, str)
+                else ""
+            }',
+            exc_info=exc
+        )
 
 
 def get_reference_layer(
@@ -152,13 +158,17 @@ def get_reference_layer(
 
         # Select the reference layer
         return ReferenceLayer(parent=group.artLayers.app[name], app=APP.instance)
-    except PS_EXCEPTIONS:
-        if ENV.DEV_MODE:
-            print(f'ReferenceLayer "{name}" could not be found!')
-            if isinstance(group, LayerSet):
-                print(f"LayerSet reference used: {group.name}")
-            elif group and isinstance(group, str):
-                print(f"LayerSet reference used: {group}")
+    except PS_EXCEPTIONS as exc:
+        _logger.debug(
+            f'ReferenceLayer "{name}" could not be found.{
+                f" Used LayerSet reference: {group.name}"
+                if isinstance(group, LayerSet)
+                else f" Used LayerSet reference: {group}"
+                if group and isinstance(group, str)
+                else ""
+            }',
+            exc_info=exc
+        )
 
 
 """

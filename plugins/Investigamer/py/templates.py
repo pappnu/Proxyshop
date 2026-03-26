@@ -8,7 +8,6 @@ from functools import cached_property
 from photoshop.api._artlayer import ArtLayer
 
 import src.helpers as psd
-from src import ENV
 from src.enums.layers import LAYERS
 from src.templates import ExtendedMod, NormalTemplate, TransformMod
 
@@ -33,14 +32,8 @@ class SketchTemplate(NormalTemplate):
 
     @cached_property
     def art_action(self) -> Callable[[], None] | None:
-        # Skip action if in test mode
-        if ENV.TEST_MODE:
-            return
         action = self.config.get_setting(
-            section="ACTION",
-            key="Sketch.Action",
-            default="Advanced Sketch",
-            is_bool=False,
+            section="ACTION", key="Sketch.Action", default="Advanced Sketch"
         )
         if action == "Advanced Sketch":
             return lambda: pencilsketch.run(

@@ -2,13 +2,14 @@
 * Font Utils
 """
 
-import ctypes
 import os
 import os.path as osp
 import re
 from contextlib import suppress
-from ctypes import wintypes
+from ctypes import COMError, windll, wintypes
+from functools import cached_property
 from logging import getLogger
+from pathlib import Path
 from typing import TypedDict
 
 from fontTools.ttLib import TTFont, TTLibError
@@ -23,6 +24,17 @@ _logger = getLogger(__name__)
 
 # Precompile font version pattern
 REG_FONT_VER: re.Pattern[str] = re.compile(r"\b(\d+\.\d+)\b")
+
+class FontCache:
+    @cached_property
+    def user_fonts_dir(self) -> Path:
+        return Path.home() / "AppData/Local/Microsoft/Windows/Fonts"
+
+    @cached_property
+    def user_font_files(self) -> list[Path]:
+        return [path for path in self.user_fonts_dir.iterdir() if path.is_file()]
+
+FONT_CACHE = FontCache()
 
 """
 * Types
@@ -50,14 +62,14 @@ def register_font(ps_app: PhotoshopHandler, font_path: str) -> bool:
     Returns:
         True if succeeded, False if failed.
     """
-    result = ctypes.windll.gdi32.AddFontResourceW(osp.abspath(font_path))
+    result = windll.gdi32.AddFontResourceW(osp.abspath(font_path))
     if result != 0:
         # Font Resource added successfully
         try:
             # Notify all programs
             _logger.debug(f"Font '{osp.basename(font_path)}' added to font cache.")
             hwnd_broadcast = wintypes.HWND(-1)
-            ctypes.windll.user32.SendMessageW(
+            windll.user32.SendMessageW(
                 hwnd_broadcast, wintypes.UINT(0x001D), wintypes.WPARAM(0), wintypes.LPARAM(0)
             )
             ps_app.refreshFonts()
@@ -77,14 +89,14 @@ def unregister_font(ps_app: PhotoshopHandler, font_path: str) -> bool:
     Returns:
         True if succeeded, False if failed.
     """
-    result = ctypes.windll.gdi32.RemoveFontResourceW(osp.abspath(font_path))
+    result = windll.gdi32.RemoveFontResourceW(osp.abspath(font_path))
     if result != 0:
         # Font Resource removed successfully
         try:
             # Notify all programs
             _logger.debug(f"Font {osp.basename(font_path)} removed from font cache!")
             hwnd_broadcast = wintypes.HWND(-1)
-            ctypes.windll.user32.SendMessageW(
+            windll.user32.SendMessageW(
                 hwnd_broadcast, wintypes.UINT(0x001D), wintypes.WPARAM(0), wintypes.LPARAM(0)
             )
             ps_app.refreshFonts()
@@ -97,6 +109,12 @@ def unregister_font(ps_app: PhotoshopHandler, font_path: str) -> bool:
 """
 * Photoshop Font Utils
 """
+
+def is_font_available_in_ps(ps_app: PhotoshopHandler, font_post_script_name: str) -> bool:
+    try:
+        return bool(ps_app.fonts[font_post_script_name])
+    except (COMError, KeyError):
+        return False
 
 
 def get_ps_font_dict(ps_app: PhotoshopHandler) -> dict[str, str]:
@@ -215,10 +233,9 @@ def get_installed_fonts_dict() -> dict[str, FontDetails]:
         Dictionary with postScriptName as key, and tuple of display name and version as value.
     """
     with suppress(Exception):
-        installed_fonts_dir = os.path.expandvars(r'%userprofile%\AppData\Local\Microsoft\Windows\Fonts')
         system_fonts_dir = os.path.join(os.path.join(os.environ['WINDIR']), 'Fonts')
         return {
-            **get_fonts_from_folder(installed_fonts_dir),
+            **get_fonts_from_folder(FONT_CACHE.user_fonts_dir),
             **get_fonts_from_folder(system_fonts_dir)
         }
     return {}

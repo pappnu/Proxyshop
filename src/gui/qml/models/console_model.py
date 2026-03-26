@@ -39,6 +39,7 @@ class _ColorizingFormatter(Formatter):
 class LogEntry(BaseModel):
     message: str
     severity: int
+    color: str
 
 
 class ConsoleModel(PydanticQListModel[LogEntry]):
@@ -62,7 +63,13 @@ class ConsoleModel(PydanticQListModel[LogEntry]):
     def _add_to_log(self, message: str, severity: MessageSeverity) -> None:
         row_count = self.rowCount()
         self.beginInsertRows(QModelIndex(), row_count, row_count)
-        self.items.append(LogEntry(message=message, severity=severity))
+        self.items.append(
+            LogEntry(
+                message=message,
+                severity=severity,
+                color=LOG_MESSAGE_COLORS_MAP[severity],
+            )
+        )
         self.endInsertRows()
 
     @Slot()

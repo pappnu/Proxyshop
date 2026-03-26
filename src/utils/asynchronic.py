@@ -1,7 +1,10 @@
-from asyncio import EventLoop, get_running_loop, run
+from asyncio import EventLoop, Future, InvalidStateError, get_running_loop, run
 from collections.abc import Coroutine
 from concurrent.futures import ThreadPoolExecutor
+from logging import getLogger
 from typing import Any
+
+_logger = getLogger(__name__)
 
 _thread_pool = ThreadPoolExecutor(max_workers=4)
 
@@ -20,3 +23,14 @@ async def run_in_thread[T](coro: Coroutine[Any, Any, T]) -> None:
         run(coro, loop_factory=EventLoop)
 
     get_running_loop().run_in_executor(_thread_pool, target)
+
+
+def try_threadsafe_set_result[T](task: Future[T], result: T) -> None:
+    def set_result_if_not_done():
+        if not task.done():
+            try:
+                task.set_result(result)
+            except InvalidStateError as err:
+                _logger.warning("Failed to set future result", exc_info=err)
+
+    task.get_loop().call_soon_threadsafe(set_result_if_not_done)

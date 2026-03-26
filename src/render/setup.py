@@ -11,7 +11,7 @@ from src.cards import CardDetails
 from src.enums.mtg import LayoutCategory
 from src.layouts import NormalLayout, assign_layout, join_dual_card_layouts
 from src.templates._core import BaseTemplate
-from src.utils.asynchronic import async_to_sync
+from src.utils.asynchronic import async_to_sync, try_threadsafe_set_result
 from src.utils.event import SubscribableEvent
 from src.utils.scryfall import ScryfallCard
 
@@ -101,7 +101,7 @@ class RenderOperation:
         if (task := self.render_task) and not task.done():
             task.get_loop().call_soon_threadsafe(task.cancel)
         if (waiting := self._waiting) and not waiting.done():
-            waiting.get_loop().call_soon_threadsafe(waiting.set_result, False)
+            try_threadsafe_set_result(waiting, False)
 
     async def pause(
         self, message: str | None = None, show_photoshop: bool = True
@@ -126,7 +126,7 @@ class RenderOperation:
 
     def resume(self) -> None:
         if (waiting := self._waiting) and not waiting.done():
-            waiting.get_loop().call_soon_threadsafe(waiting.set_result, True)
+            try_threadsafe_set_result(waiting, True)
 
 
 def prepare_render_operations(

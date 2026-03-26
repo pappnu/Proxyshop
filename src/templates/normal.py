@@ -4,9 +4,10 @@
 from collections.abc import Callable, Iterable, Sequence
 from functools import cached_property
 
-from photoshop.api import AnchorPosition, SolidColor
+from photoshop.api import SolidColor
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
+from photoshop.api.enumerations import AnchorPosition
 
 import src.helpers as psd
 from src import CON
@@ -23,7 +24,7 @@ from src.helpers import LayerEffects, get_line_count
 from src.helpers.layers import get_reference_layer
 from src.schema.adobe import EffectBevel, EffectColorOverlay
 from src.schema.colors import ColorObject, GradientConfig, pinlines_color_map
-from src.templates import NicknameMod
+from src.templates import NicknameVectorMod
 from src.templates._core import NormalTemplate
 from src.templates._cosmetic import (
     CompanionMod,
@@ -1291,7 +1292,7 @@ class LOTRTemplate(VectorTemplate):
 
 
 class BorderlessVectorTemplate(
-    NicknameMod, VectorBorderlessMod, VectorMDFCMod, VectorTransformMod, VectorTemplate
+    NicknameVectorMod, VectorBorderlessMod, VectorMDFCMod, VectorTransformMod, VectorTemplate
 ):
     """Borderless template first used in the Womens Day Secret Lair, redone with vector shapes."""
 
@@ -1540,13 +1541,6 @@ class BorderlessVectorTemplate(
         ):
             return True
         return self.config.get_bool_setting(section="FRAME", key="Textless", default=False)
-
-    @cached_property
-    def is_nickname(self) -> bool:
-        """Return True if this a nickname render."""
-        if self.layout.nickname:
-            return True
-        return self.config.get_bool_setting(section="TEXT", key="Nickname", default=False)
 
     @cached_property
     def is_colored_nickname(self) -> bool:

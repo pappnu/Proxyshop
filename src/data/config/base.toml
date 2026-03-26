@@ -44,6 +44,38 @@ type = "options"
 default = "automatic"
 options = ["automatic", "always", "never"]
 
+[TEXT.Nickname]
+title = "Allow Nickname"
+desc = """When enabled, if a nickname is available and the template has support for it, the card will be rendered with both a real name and a nickname. Some Scryfall cards come with a nickname by default, e.g. Gemrazer [IKO] {376}. Nickname can also be specified via the art filename with [nick=...]. E.g.
+Arcane Signet [nick=Manastone]
+Keep Out (Artist) [ECL] [nick=Access Denied] {19}"""
+type = "bool"
+default = 1
+
+[TEXT."Nickname.Prompt"]
+title = "Prompt for Nickname"
+desc = """When enabled if no nickname is available via other means the rendering is paused for
+manual nickname input."""
+type = "bool"
+default = 0
+
+[TEXT."Nickname.In.Oracle"]
+title = "Nickname in Oracle Text"
+desc = """When enabled, cards that are rendered with a nickname will replace the card name
+in their oracle text with their nickname."""
+type = "bool"
+default = 1
+
+[TEXT."Nickname.Shorten.In.Oracle"]
+title = "Shorten Nickname in Oracle Text"
+desc = """Whether to shorten nicknames that contain commas in the oracle text. Shortened name contains only the part before the first comma.
+No: Name is not shortened.
+All but first: The first mention of the name is kept as is but others are shortened.
+All: All mentions of the name are shortened."""
+type = "options"
+default = "All but first"
+options = ["No", "All but first", "All"]
+
 ###
 # * Symbol Settings
 ###

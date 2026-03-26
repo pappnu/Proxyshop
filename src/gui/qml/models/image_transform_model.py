@@ -42,7 +42,7 @@ class ImageTransformModel(QObject):
 
     _image_file_formats_changed = Signal()
 
-    @Property("QVariantList", notify=_image_file_formats_changed)
+    @Property(list, notify=_image_file_formats_changed)
     def image_file_formats(self) -> list[str]:  # pyright: ignore[reportRedeclaration]
         return self._image_file_formats
 

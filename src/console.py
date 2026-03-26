@@ -18,24 +18,31 @@ from logging import (
     getLogger,
 )
 
+from src import ENV
 from src._state import PATH
 
 DEFAULT_LOG_FORMAT = "[%(asctime)s.%(msecs)03d][%(levelname)s] %(message)s"
+DETAILED_LOG_FORMAT = (
+    "[%(asctime)s.%(msecs)03d][%(levelname)s][%(name)s][%(funcName)s] %(message)s"
+)
 DEFAULT_LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 DEFAULT_LOG_FORMATTER = Formatter(
     fmt=DEFAULT_LOG_FORMAT,
     datefmt=DEFAULT_LOG_DATE_FORMAT,
 )
+DETAILED_LOG_FORMATTER = Formatter(
+    fmt=DETAILED_LOG_FORMAT, datefmt=DEFAULT_LOG_DATE_FORMAT
+)
 
 _logger = getLogger()
-_logger.setLevel(INFO)
+_logger.setLevel(ENV.LOG_LEVEL)
 _default_console_handler = StreamHandler()
-_default_console_handler.setLevel(DEBUG)
-_default_console_handler.setFormatter(DEFAULT_LOG_FORMATTER)
+_default_console_handler.setLevel(ENV.LOG_LEVEL)
+_default_console_handler.setFormatter(DETAILED_LOG_FORMATTER)
 _logger.addHandler(_default_console_handler)
 _error_log_file_handler = FileHandler(PATH.LOGS_ERROR, "a", encoding="utf-8")
 _error_log_file_handler.setLevel(ERROR)
-_error_log_file_handler.setFormatter(DEFAULT_LOG_FORMATTER)
+_error_log_file_handler.setFormatter(DETAILED_LOG_FORMATTER)
 _logger.addHandler(_error_log_file_handler)
 
 # region Enums

@@ -246,6 +246,16 @@ ApplicationWindow {
                                 color: settingsWindow.systemPalette.text
                                 visible: Boolean(settingsListDelegate.desc)
                             }
+                            SelectableText {
+                                id: defaultText
+
+                                Layout.alignment: Qt.AlignTop
+                                Layout.fillWidth: true
+
+                                text: "Default: " + settingsListDelegate.default_value
+                                color: settingsWindow.systemPalette.placeholderText
+                                visible: !settingsListDelegate.isTitle
+                            }
                         }
                         Loader {
                             id: inputLoader
@@ -288,7 +298,20 @@ ApplicationWindow {
                                     text: settingsListDelegate.value
                                     color: settingsWindow.systemPalette.text
 
-                                    onEditingFinished: settingsWindow.settingsModel.str_value_changed(settingsListDelegate.index, settingTextInput.text)
+                                    function onSetValue() {
+                                        settingsWindow.settingsModel.str_value_changed(settingsListDelegate.index, settingTextInput.text);
+                                    }
+
+                                    onEditingFinished: onSetValue()
+
+                                    Connections {
+                                        target: settingsWindow
+
+                                        function onClosing(): void {
+                                            if (settingTextInput.activeFocus)
+                                                settingTextInput.onSetValue();
+                                        }
+                                    }
                                 }
                             }
                             Component {
@@ -300,7 +323,7 @@ ApplicationWindow {
                                     systemPalette: settingsWindow.systemPalette
                                     checked: settingsListDelegate.value
 
-                                    onClicked: settingsWindow.settingsModel.bool_value_changed(settingsListDelegate.index, !settingsListDelegate.value)
+                                    onClicked: settingsWindow.settingsModel.bool_value_changed(settingsListDelegate.index, settingCheckbox.checked)
                                 }
                             }
                             Component {
@@ -314,7 +337,23 @@ ApplicationWindow {
                                     to: 2147483647
                                     value: settingsListDelegate.value
 
-                                    onValueModified: settingsWindow.settingsModel.int_value_changed(settingsListDelegate.index, settingSpinBoxInt.value)
+                                    function onSetValue(): void {
+                                        settingsWindow.settingsModel.int_value_changed(settingsListDelegate.index, settingSpinBoxInt.value);
+                                    }
+
+                                    onValueModified: onSetValue()
+
+                                    Connections {
+                                        target: settingsWindow
+
+                                        function onClosing(): void {
+                                            if (settingSpinBoxInt.activeFocus) {
+                                                // Forcibly trigger onValueModified on window close
+                                                settingSpinBoxInt.focus = false;
+                                                settingSpinBoxInt.focus = true;
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             Component {
@@ -352,8 +391,22 @@ ApplicationWindow {
                                         return Math.round(parseFloat(text) * decimalFactor);
                                     }
 
-                                    onValueModified: {
+                                    function onSetValue(): void {
                                         settingsWindow.settingsModel.float_value_changed(settingsListDelegate.index, settingSpinBoxDouble.realValue);
+                                    }
+
+                                    onValueModified: onSetValue()
+
+                                    Connections {
+                                        target: settingsWindow
+
+                                        function onClosing(): void {
+                                            if (settingSpinBoxDouble.activeFocus) {
+                                                // Forcibly trigger onValueModified on window close
+                                                settingSpinBoxDouble.focus = false;
+                                                settingSpinBoxDouble.focus = true;
+                                            }
+                                        }
                                     }
                                 }
                             }

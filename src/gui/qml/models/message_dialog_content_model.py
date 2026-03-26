@@ -4,6 +4,8 @@ from typing import Any
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.utils.asynchronic import try_threadsafe_set_result
+
 
 class MessageDialogContentModel(QObject):
     def __init__(
@@ -122,11 +124,7 @@ class MessageDialogContentModel(QObject):
             text=text,
             informative_text=informative_text,
             detailed_text=detailed_text,
-            ok_callback=lambda: future.get_loop().call_soon_threadsafe(
-                future.set_result, True
-            ),
-            cancel_callback=lambda: future.get_loop().call_soon_threadsafe(
-                future.set_result, False
-            ),
+            ok_callback=lambda: try_threadsafe_set_result(future, True),
+            cancel_callback=lambda: try_threadsafe_set_result(future, False),
         )
         return await future

@@ -7,6 +7,7 @@ from PySide6.QtCore import Property, QObject, Qt, QUrl, Signal, Slot
 
 from src._state import PATH
 from src.gui.qml.models.base_dialog_model import BaseDialogModel
+from src.utils.asynchronic import try_threadsafe_set_result
 
 
 class FileMode(IntEnum):
@@ -62,7 +63,7 @@ class FileDialogModel(BaseDialogModel):
 
     _name_filters_changed = Signal()
 
-    @Property("QVariantList", notify=_name_filters_changed)
+    @Property(list, notify=_name_filters_changed)
     def name_filters(self) -> list[str]:  # pyright: ignore[reportRedeclaration]
         return self._name_filters
 
@@ -91,17 +92,13 @@ class FileDialogModel(BaseDialogModel):
     @Slot("QVariantList")
     def on_accepted(self, files: list[QUrl]) -> None:
         if self._response_future:
-            self._response_future.get_loop().call_soon_threadsafe(
-                self._response_future.set_result, files
-            )
+            try_threadsafe_set_result(self._response_future, files)
 
     @Slot()
     def on_rejected(self) -> None:
         if self._response_future:
             arg: list[QUrl] = []
-            self._response_future.get_loop().call_soon_threadsafe(
-                self._response_future.set_result, arg
-            )
+            try_threadsafe_set_result(self._response_future, arg)
 
     # endregion Events
 

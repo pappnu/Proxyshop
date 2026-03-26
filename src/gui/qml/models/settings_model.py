@@ -92,7 +92,7 @@ class SettingsModel(PydanticQListModel[HybridSettingItem]):
         /,
         role: int = Qt.ItemDataRole.EditRole,
     ) -> bool:
-        if index.isValid() or role in self._roles and self._roles[role] == "value":
+        if index.isValid() or self._roles.get(role) == "value":
             item = self.items[index.row()]
             if self._current_config_handler and self._current_config_handler.set_value(
                 item.section, item.key, value
@@ -203,5 +203,5 @@ class SettingsModel(PydanticQListModel[HybridSettingItem]):
     _valid_changed = Signal()
 
     @Property(bool, notify=_valid_changed)
-    def valid(self) -> bool:  # pyright: ignore[reportRedeclaration]
+    def valid(self) -> bool:
         return self._current_config_handler is not None

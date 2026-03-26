@@ -43,7 +43,7 @@ class TestRendersModel(QObject):
 
     _layout_categories_changed = Signal()
 
-    @Property("QVariantList", notify=_layout_categories_changed)
+    @Property(list, notify=_layout_categories_changed)
     def layout_categories(self) -> list[LayoutCategory]:  # pyright: ignore[reportRedeclaration]
         return self._layout_categories
 

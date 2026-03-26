@@ -249,14 +249,12 @@ class VectorCompanionMod(CompanionMod, VectorTemplate):
 """
 
 
-class NicknameMod(VectorTemplate):
-    """Modifier for adding Nickname support to a template. Nickname features were introduced after
-        VectorTemplate architecture reached maturity, so there are no plans to add Nickname support
-        to Raster-based templates, and this Mod is entirely based around VectorTemplate design practices.
+class NicknameMod(BaseTemplate):
+    """Modifier for adding Nickname support to a template.
 
     Adds:
-        - `is_nickname`: Boolean property which toggles Nickname behavior (default: True).
-        - 'nickname_group': Defines the group containing some OR all Nickname frame elements.
+        - `is_nickname`: Boolean property which toggles Nickname behavior.
+        - 'nickname_group': Defines the group containing Nickname frame elements.
         - `text_layer_nickname`: Defines the text layer the original card name gets moved to, so
             Nickname text may be added to the Card Name layer.
         - `nickname_shape`: Defines the shape layer used for the Nickname plat backing, also used
@@ -264,15 +262,17 @@ class NicknameMod(VectorTemplate):
 
     Modifies:
         - Hooks the `basic_text_layers` method to swap the Card Name text with the Nickname text, and
-            allow the user to manually enter the Nickname text before text formatting occurs, if
+            allows the user to manually enter the Nickname text before text formatting occurs, if
             nickname text wasn't provided automatically.
     """
 
     @cached_property
     def post_text_methods(self) -> list[Callable[[], None]]:
         """Add nickname text layers."""
-        funcs = [self.format_nickname_text] if self.is_nickname else []
-        return [*super().post_text_methods, *funcs]
+        funcs = super().post_text_methods
+        if self.is_nickname:
+            funcs.append(self.format_nickname_text)
+        return funcs
 
     """
     * Flags
@@ -280,9 +280,10 @@ class NicknameMod(VectorTemplate):
 
     @cached_property
     def is_nickname(self) -> bool:
-        """Toggles nickname behavior. Can be overwritten to implement
-        conditional logic."""
-        return True
+        """Toggles nickname behavior. Can be overwritten to implement conditional logic."""
+        return self.config.nickname_allow and (
+            bool(self.layout.nickname) or self.config.nickname_prompt
+        )
 
     """
     * Text Layers
@@ -319,14 +320,6 @@ class NicknameMod(VectorTemplate):
             if _layer := psd.get_reference_layer(LAYERS.LEGENDARY, _shape_group):
                 return _layer
         return psd.get_reference_layer(LAYERS.NORMAL, _shape_group)
-
-    @cached_property
-    def enabled_shapes(self) -> list[ArtLayer | LayerSet | None]:
-        """Add Nickname shape if needed."""
-        _shapes = super().enabled_shapes
-        if self.is_nickname:
-            _shapes.append(self.nickname_shape)
-        return _shapes
 
     """
     * Overwrite Methods
@@ -370,7 +363,17 @@ class NicknameMod(VectorTemplate):
             _textItem = self.text_layer_name.textItem
             _textItem.contents = "ENTER NICKNAME"
             select_layer(self.text_layer_name)
-            self.render_operation.pause_sync(
-                "Enter nickname text."
-            )
+            self.pause("Enter nickname text.")
             self.layout.nickname = _textItem.contents
+
+
+class NicknameVectorMod(NicknameMod, VectorTemplate):
+    """Modifier for adding Nickname support to a vector template."""
+
+    @cached_property
+    def enabled_shapes(self) -> list[ArtLayer | LayerSet | None]:
+        """Add Nickname shape if needed."""
+        _shapes = super().enabled_shapes
+        if self.is_nickname:
+            _shapes.append(self.nickname_shape)
+        return _shapes

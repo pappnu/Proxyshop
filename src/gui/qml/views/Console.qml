@@ -58,7 +58,7 @@ ColumnLayout {
         Layout.fillHeight: true
         Layout.fillWidth: true
 
-        leftMargin: 10
+        leftMargin: 0
         rightMargin: 10
         orientation: ListView.Vertical
         boundsBehavior: Flickable.StopAtBounds
@@ -66,23 +66,38 @@ ColumnLayout {
         clip: true
         highlightFollowsCurrentItem: false
         model: root.logModel
-        delegate: SelectableText {
+        delegate: RowLayout {
             id: logDelegate
 
             required property int index
             required property string message
             required property int severity
+            required property color color
 
             width: logList.width
-            color: root.systemPalette.text
-            text: message
-            font.family: root.monospaceFontFamily
-            onLinkActivated: Qt.openUrlExternally(hoveredLink)
+            spacing: 0
 
-            MouseArea {
-                anchors.fill: parent
-                acceptedButtons: Qt.NoButton // we don't want to eat clicks on the Text
-                cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : undefined
+            Rectangle {
+                Layout.fillHeight: true
+
+                implicitWidth: 5
+                color: logDelegate.color
+            }
+            SelectableText {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.leftMargin: 5
+
+                color: root.systemPalette.text
+                text: logDelegate.message
+                font.family: root.monospaceFontFamily
+                onLinkActivated: Qt.openUrlExternally(hoveredLink)
+
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.NoButton // we don't want to eat clicks on the Text
+                    cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : undefined
+                }
             }
         }
 

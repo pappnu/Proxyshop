@@ -5,6 +5,7 @@
 import os
 import sys
 from contextlib import suppress
+from logging import INFO
 from pathlib import Path
 from threading import Lock
 from typing import TypedDict
@@ -170,8 +171,7 @@ class AppEnvironment(BaseSettings):
     PS_ERROR_DIALOG: bool = False
     PS_VERSION: str | None = None
     HEADLESS: bool = False
-    DEV_MODE: bool = bool(not hasattr(sys, "_MEIPASS"))
-    TEST_MODE: bool = False
+    LOG_LEVEL: int = INFO
     APP_UPDATES_REPO: str = ""
     SYMBOL_UPDATES_REPO: str = ""
     FORCE_RELOAD: bool = False

@@ -44,6 +44,7 @@ class CardDetails(TypedDict):
     artist: str
     creator: str
     file: Path
+    kwargs: dict[str, str]
 
 
 class FrameDetails(TypedDict):
@@ -130,7 +131,7 @@ def get_card_data(
     # Query the card in English, retry with extras if failed
     try:
         return action(*params, **kwargs)
-    except Exception as exc:
+    except Exception:
         if not number and not cfg.scry_extras:
             # Retry with extras included, case: Planar cards
             try:
@@ -168,6 +169,7 @@ def parse_card_info(file_path: Path, name_override: str | None = None) -> CardDe
     artist = CardTextPatterns.PATH_ARTIST.search(file_name)
     number = CardTextPatterns.PATH_NUM.search(file_name)
     code = CardTextPatterns.PATH_SET.search(file_name)
+    kwargs_match: list[tuple[str,str]] = CardTextPatterns.PATH_KWARGS.findall(file_name)
 
     # Return dictionary
     return {
@@ -177,6 +179,7 @@ def parse_card_info(file_path: Path, name_override: str | None = None) -> CardDe
         'artist': artist.group(1) if artist else '',
         'number': number.group(1) if number and code else '',
         'creator': name_split[-1] if '$' in file_name else '',
+        'kwargs': {key: value for key, value in kwargs_match}
     }
 
 

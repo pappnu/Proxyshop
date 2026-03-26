@@ -370,7 +370,8 @@ class CardTextPatterns:
     # Filename - Card Art
     PATH_ARTIST: re.Pattern[str] = re.compile(r"\(+(.*?)\)")
     PATH_SPLIT: re.Pattern[str] = re.compile(r"[\[({$]")
-    PATH_SET: re.Pattern[str] = re.compile(r"\[(.*)]")
+    PATH_KWARGS: re.Pattern[str] = re.compile(r"\[([^\]=]+)=([^\]]*)]")
+    PATH_SET: re.Pattern[str] = re.compile(r"\[([^\]=]+)]")
     PATH_NUM: re.Pattern[str] = re.compile(r"\{(.*)}")
     PATH_CONDITION: re.Pattern[str] = re.compile(r'<([^>]*)>')
 

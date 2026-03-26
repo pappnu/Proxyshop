@@ -90,6 +90,12 @@ class FillMode(StrEnum):
     REMOVE_CONTENT_FILL = "Remove Content Fill"
 
 
+class NicknameShorten(StrEnum):
+    NO = "No"
+    ALL_BUT_FIRST = "All but first"
+    ALL = "All"
+
+
 """
 * Template: Borderless
 """

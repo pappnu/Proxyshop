@@ -2,22 +2,17 @@
 * Helpers: Selection
 """
 
-# Standard Library Imports
 from contextlib import suppress
 
-# Third Party Imports
+from photoshop.api import ActionDescriptor, ActionReference
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
 from photoshop.api._selection import Selection
-from photoshop.api import ActionDescriptor, ActionReference, DialogModes, LayerKind
+from photoshop.api.enumerations import DialogModes, LayerKind
 
-# Local Imports
 from src import APP
 from src.utils.adobe import PS_EXCEPTIONS
-
-# Photoshop infrastructure
-NO_DIALOG = DialogModes.DisplayNoDialogs
 
 """
 * Making Selections
@@ -67,7 +62,9 @@ def select_overlapping(layer: ArtLayer) -> None:
         ref2.putProperty(idChannel, APP.instance.sID("selection"))
         desc1.putReference(APP.instance.sID("with"), ref2)
         APP.instance.executeAction(
-            APP.instance.sID("interfaceIconFrameDimmed"), desc1, NO_DIALOG
+            APP.instance.sID("interfaceIconFrameDimmed"),
+            desc1,
+            DialogModes.DisplayNoDialogs,
         )
 
 
@@ -94,7 +91,9 @@ def select_canvas(docref: Document | None = None, bleed: int = 0):
 """
 
 
-def select_layer_pixels(layer: ArtLayer | None = None) -> None:
+def select_layer_pixels(
+    layer: ArtLayer | None = None, add_to_selection: bool = False
+) -> None:
     """Select pixels of the active layer, or a target layer.
 
     Args:
@@ -115,10 +114,16 @@ def select_layer_pixels(layer: ArtLayer | None = None) -> None:
     if layer:
         ref2.putIdentifier(APP.instance.sID("layer"), layer.id)
     des1.putReference(APP.instance.sID("to"), ref2)
-    APP.instance.executeAction(APP.instance.sID("set"), des1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("add" if add_to_selection else "set"),
+        des1,
+        DialogModes.DisplayNoDialogs,
+    )
 
 
-def select_vector_layer_pixels(layer: ArtLayer | None = None) -> None:
+def select_vector_layer_pixels(
+    layer: ArtLayer | None = None, add_to_selection: bool = False
+) -> None:
     """Select pixels of the active vector layer, or a target layer.
 
     Args:
@@ -139,7 +144,11 @@ def select_vector_layer_pixels(layer: ArtLayer | None = None) -> None:
     desc1.putReference(APP.instance.sID("to"), ref2)
     desc1.putInteger(APP.instance.sID("version"), 1)
     desc1.putBoolean(APP.instance.sID("vectorMaskParams"), True)
-    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("add" if add_to_selection else "set"),
+        desc1,
+        DialogModes.DisplayNoDialogs,
+    )
 
 
 """

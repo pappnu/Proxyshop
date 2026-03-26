@@ -13,6 +13,7 @@ from src.enums.settings import (
     CollectorPromo,
     FillMode,
     HasDefault,
+    NicknameShorten,
     OutputFileType,
     ScryfallSorting,
     ScryfallUnique,
@@ -144,6 +145,18 @@ class AppConfig:
         )
         self.collector_promo = self.get_option(
             "BASE.TEXT", "Collector.Promo", CollectorPromo
+        )
+        self.nickname_allow = self.file.getboolean(
+            "BASE.TEXT", "Nickname", fallback=True
+        )
+        self.nickname_prompt = self.file.getboolean(
+            "BASE.TEXT", "Nickname.Prompt", fallback=False
+        )
+        self.nickname_in_oracle_text = self.file.getboolean(
+            "BASE.TEXT", "Nickname.In.Oracle", fallback=True
+        )
+        self.nickname_shorten_in_oracle_text = self.get_option(
+            "BASE.TEXT", "Nickname.Shorten.In.Oracle", NicknameShorten
         )
 
         # BASE - SYMBOLS
