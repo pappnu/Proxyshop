@@ -1,6 +1,7 @@
 """
 * Normal Templates
 """
+
 from collections.abc import Callable, Iterable, Sequence
 from functools import cached_property
 
@@ -114,7 +115,11 @@ class FullartTemplate(FullartMod, M15Template):
             self.text_layer_rules.textItem.color = psd.rgb_white()
 
         # Make the divider white
-        if self.layout.flavor_text and self.layout.oracle_text and self.config.flavor_divider:
+        if (
+            self.layout.flavor_text
+            and self.layout.oracle_text
+            and self.config.flavor_divider
+        ):
             psd.enable_layer_fx(self.divider_layer)
 
 
@@ -387,12 +392,16 @@ class ClassicTemplate(NormalTemplate):
     @cached_property
     def is_promo_star(self) -> bool:
         """bool: Whether to enable the Promo Star overlay."""
-        return self.config.get_bool_setting(section="FRAME", key="Promo.Star", default=False)
+        return self.config.get_bool_setting(
+            section="FRAME", key="Promo.Star", default=False
+        )
 
     @cached_property
     def is_extended(self) -> bool:
         """bool: Whether to render using Extended Art framing."""
-        return self.config.get_bool_setting(section="FRAME", key="Extended.Art", default=False)
+        return self.config.get_bool_setting(
+            section="FRAME", key="Extended.Art", default=False
+        )
 
     @cached_property
     def is_align_collector_left(self) -> bool:
@@ -1292,7 +1301,11 @@ class LOTRTemplate(VectorTemplate):
 
 
 class BorderlessVectorTemplate(
-    NicknameVectorMod, VectorBorderlessMod, VectorMDFCMod, VectorTransformMod, VectorTemplate
+    NicknameVectorMod,
+    VectorBorderlessMod,
+    VectorMDFCMod,
+    VectorTransformMod,
+    VectorTemplate,
 ):
     """Borderless template first used in the Womens Day Secret Lair, redone with vector shapes."""
 
@@ -1415,20 +1428,29 @@ class BorderlessVectorTemplate(
     @cached_property
     def color_limit(self) -> int:
         # Built in setting, dual and triple color split
-        return int(self.config.get_setting(section="COLORS", key="Max.Colors", default="2")) + 1
+        return (
+            int(
+                self.config.get_setting(section="COLORS", key="Max.Colors", default="2")
+            )
+            + 1
+        )
 
     @cached_property
     def drop_shadow_enabled(self) -> bool:
         """Returns True if Drop Shadow text setting is enabled."""
         return bool(
-            self.config.get_bool_setting(section="TEXT", key="Drop.Shadow", default=True)
+            self.config.get_bool_setting(
+                section="TEXT", key="Drop.Shadow", default=True
+            )
         )
 
     @cached_property
     def crown_texture_enabled(self) -> bool:
         """Returns True if Legendary crown clipping texture should be enabled."""
         return bool(
-            self.config.get_bool_setting(section="FRAME", key="Crown.Texture", default=True)
+            self.config.get_bool_setting(
+                section="FRAME", key="Crown.Texture", default=True
+            )
         )
 
     @cached_property
@@ -1462,14 +1484,18 @@ class BorderlessVectorTemplate(
     def multicolor_pt(self) -> bool:
         """Returns True if PT Box for multicolored cards should use the last color."""
         return bool(
-            self.config.get_bool_setting(section="COLORS", key="Multicolor.PT", default=False)
+            self.config.get_bool_setting(
+                section="COLORS", key="Multicolor.PT", default=False
+            )
         )
 
     @cached_property
     def hybrid_colored(self) -> bool:
         """Returns True if Twins and PT should be colored on Hybrid cards."""
         return bool(
-            self.config.get_bool_setting(section="COLORS", key="Hybrid.Colored", default=True)
+            self.config.get_bool_setting(
+                section="COLORS", key="Hybrid.Colored", default=True
+            )
         )
 
     @cached_property
@@ -1485,7 +1511,9 @@ class BorderlessVectorTemplate(
     def land_colorshift(self) -> bool:
         """Returns True if Land cards should use the darker brown color."""
         return bool(
-            self.config.get_bool_setting(section="COLORS", key="Land.Colorshift", default=False)
+            self.config.get_bool_setting(
+                section="COLORS", key="Land.Colorshift", default=False
+            )
         )
 
     @cached_property
@@ -1529,7 +1557,9 @@ class BorderlessVectorTemplate(
     @cached_property
     def is_basic_land(self) -> bool:
         """Disable basic land watermark if Textless is enabled."""
-        if bool(self.config.get_bool_setting(section="FRAME", key="Textless", default=False)):
+        if bool(
+            self.config.get_bool_setting(section="FRAME", key="Textless", default=False)
+        ):
             return False
         return super().is_basic_land
 
@@ -1540,12 +1570,16 @@ class BorderlessVectorTemplate(
             [self.layout.oracle_text, self.layout.flavor_text, self.is_basic_land]
         ):
             return True
-        return self.config.get_bool_setting(section="FRAME", key="Textless", default=False)
+        return self.config.get_bool_setting(
+            section="FRAME", key="Textless", default=False
+        )
 
     @cached_property
     def is_colored_nickname(self) -> bool:
         """Return True if nickname plate should be colored."""
-        return self.config.get_bool_setting(section="COLORS", key="Nickname", default=False)
+        return self.config.get_bool_setting(
+            section="COLORS", key="Nickname", default=False
+        )
 
     @cached_property
     def is_multicolor(self) -> bool:
@@ -1575,7 +1609,9 @@ class BorderlessVectorTemplate(
     @cached_property
     def is_pt_enabled(self) -> bool:
         """Return True if a separate Power/Toughness text layer is used for this render."""
-        return self.is_creature and (not self.is_textless or not self.config.symbol_enabled)
+        return self.is_creature and (
+            not self.is_textless or not self.config.symbol_enabled
+        )
 
     @cached_property
     def is_drop_shadow(self) -> bool:

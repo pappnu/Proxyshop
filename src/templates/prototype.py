@@ -1,6 +1,7 @@
 """
 * Templates: Prototype
 """
+
 from collections.abc import Callable
 from functools import cached_property
 

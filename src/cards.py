@@ -38,6 +38,7 @@ CardSymbolString = tuple[int, list[ColorObject]]
 
 class CardDetails(TypedDict):
     """Card details obtained from processing a card's art file name."""
+
     name: str
     set: str
     number: str
@@ -49,6 +50,7 @@ class CardDetails(TypedDict):
 
 class FrameDetails(TypedDict):
     """Frame details obtained from processing frame logic."""
+
     background: str
     pinlines: str
     twins: str
@@ -57,7 +59,7 @@ class FrameDetails(TypedDict):
     is_hybrid: bool
 
 
-_filename_character_replacements: dict[str,str] = {
+_filename_character_replacements: dict[str, str] = {
     "＜": "<",
     "＞": ">",
     "：": ":",
@@ -66,7 +68,7 @@ _filename_character_replacements: dict[str,str] = {
     "＼": "\\",
     "￨": "|",
     "？": "?",
-    "＊": "*"
+    "＊": "*",
 }
 """
 Windows filenames disallow many characters which might be needed in some
@@ -76,7 +78,7 @@ filenames and then replace them with the disallowed characters after reading the
 names into Proxyshop.
 """
 
-_reverse_filename_character_replacements: dict[str,str] = {
+_reverse_filename_character_replacements: dict[str, str] = {
     value: key for key, value in _filename_character_replacements.items()
 }
 
@@ -101,16 +103,20 @@ def get_card_data(
     """
 
     # Format our query data
-    name, code = card.get('name', ''), card.get('set', '')
-    number = card.get('number', '').lstrip('0 ') if card.get('number') != '0' else '0'
+    name, code = card.get("name", ""), card.get("set", "")
+    number = card.get("number", "").lstrip("0 ") if card.get("number") != "0" else "0"
 
     # Establish kwarg search terms
-    kwargs = {
-        'unique': cfg.scry_unique,
-        'order': cfg.scry_sorting,
-        'dir': 'asc' if cfg.scry_ascending else 'desc',
-        'include_extras': str(cfg.scry_extras),
-    } if not number else {}
+    kwargs = (
+        {
+            "unique": cfg.scry_unique,
+            "order": cfg.scry_sorting,
+            "dir": "asc" if cfg.scry_ascending else "desc",
+            "include_extras": str(cfg.scry_extras),
+        }
+        if not number
+        else {}
+    )
 
     # Establish Scryfall fetch action
     action = get_card_unique if number else get_card_search
@@ -118,14 +124,13 @@ def get_card_data(
 
     # Is this an alternate language request?
     if cfg.lang != "en":
-
         # Pull the alternate language card
         try:
             return action(*params, lang=cfg.lang, **kwargs)
         except ScryfallException as exc:
             _logger.warning(
                 f"Couldn't find language <i>{cfg.lang}</i> for <i>{name}</i>. Reverting to English.",
-                exc_info=exc
+                exc_info=exc,
             )
 
     # Query the card in English, retry with extras if failed
@@ -135,11 +140,13 @@ def get_card_data(
         if not number and not cfg.scry_extras:
             # Retry with extras included, case: Planar cards
             try:
-                kwargs['include_extras'] = 'True'
+                kwargs["include_extras"] = "True"
                 data = action(*params, **kwargs)
                 return data
             except ScryfallException:
-                _logger.exception("Couldn't retrieve card from Scryfall even with <i>include_extras</i> enabled.")
+                _logger.exception(
+                    "Couldn't retrieve card from Scryfall even with <i>include_extras</i> enabled."
+                )
         else:
             _logger.exception("Couldn't retrieve card from Scryfall.")
 
@@ -169,17 +176,19 @@ def parse_card_info(file_path: Path, name_override: str | None = None) -> CardDe
     artist = CardTextPatterns.PATH_ARTIST.search(file_name)
     number = CardTextPatterns.PATH_NUM.search(file_name)
     code = CardTextPatterns.PATH_SET.search(file_name)
-    kwargs_match: list[tuple[str,str]] = CardTextPatterns.PATH_KWARGS.findall(file_name)
+    kwargs_match: list[tuple[str, str]] = CardTextPatterns.PATH_KWARGS.findall(
+        file_name
+    )
 
     # Return dictionary
     return {
-        'file': file_path,
-        'name': name_split[0].strip(),
-        'set': code.group(1) if code else '',
-        'artist': artist.group(1) if artist else '',
-        'number': number.group(1) if number and code else '',
-        'creator': name_split[-1] if '$' in file_name else '',
-        'kwargs': {key: value for key, value in kwargs_match}
+        "file": file_path,
+        "name": name_split[0].strip(),
+        "set": code.group(1) if code else "",
+        "artist": artist.group(1) if artist else "",
+        "number": number.group(1) if number and code else "",
+        "creator": name_split[-1] if "$" in file_name else "",
+        "kwargs": {key: value for key, value in kwargs_match},
     }
 
 
@@ -199,26 +208,30 @@ def process_card_data(data: ScryfallCard, card: CardDetails) -> ScryfallCard:
         Processed scryfall data.
     """
     # Define a normalized name
-    name_normalized = normalize_str(card['name'], no_space=True)
+    name_normalized = normalize_str(card["name"], no_space=True)
 
     # Modify meld card data to fit transform layout
-    if data.layout == 'meld':
+    if data.layout == "meld":
         # Ignore tokens and other objects
         front: list[ScryfallRelatedCard] = []
-        back: ScryfallRelatedCard | None =  None
+        back: ScryfallRelatedCard | None = None
         for part in data.all_parts if data.all_parts else []:
-            if part.component == 'meld_part':
+            if part.component == "meld_part":
                 front.append(part)
-            if part.component == 'meld_result':
+            if part.component == "meld_result":
                 back = part
 
         # Figure out if card is a front or a back
         is_back = back and name_normalized == normalize_str(back.name, no_space=True)
 
-        faces: list[ScryfallRelatedCard | None] = [front[0], back] if (
-            is_back or
-            name_normalized == normalize_str(front[0].name, no_space=True)
-        ) else [front[1], back]
+        faces: list[ScryfallRelatedCard | None] = (
+            [front[0], back]
+            if (
+                is_back
+                or name_normalized == normalize_str(front[0].name, no_space=True)
+            )
+            else [front[1], back]
+        )
 
         try:
             if is_back and back:
@@ -233,13 +246,17 @@ def process_card_data(data: ScryfallCard, card: CardDetails) -> ScryfallCard:
                         face_data_dict = face_data.model_dump()
                         face_data_dict["object"] = "card_face"
                         data.card_faces.append(ScryfallCardFace(**face_data_dict))
-    
+
                 # Add meld transform icon if none provided
-                if not data.frame_effects or not any([bool(n in TransformIcons) for n in data.frame_effects]):
+                if not data.frame_effects or not any(
+                    [bool(n in TransformIcons) for n in data.frame_effects]
+                ):
                     data.frame_effects = ["meld"]
                 data.layout = "transform"
         except ScryfallException:
-            _logger.exception("Couldn't retrieve additional card details for a meld card.")
+            _logger.exception(
+                "Couldn't retrieve additional card details for a meld card."
+            )
             raise
 
     # Check for alternate MDFC / Transform layouts
@@ -258,56 +275,41 @@ def process_card_data(data: ScryfallCard, card: CardDetails) -> ScryfallCard:
         data.front = i == 0
         # Transform / MDFC Planeswalker layout
         if card_face.type_line:
-            if 'Planeswalker' in card_face.type_line:
-                data.layout = 'planeswalker_tf' if data.layout == 'transform' else 'planeswalker_mdfc'
-            # Transform Saga layout
-            elif 'Saga' in card_face.type_line:
-                data.layout = 'saga'
-            # Battle layout
-            elif 'Battle' in card_face.type_line:
-                data.layout = 'battle'
-
-        # Fix Adventure Land mana costs locally, as Scryfall seems unwilling to
-        # fix the issue on their end even after reporting it and waiting for months.
-        # Once Scryfall corrects their data this fix can be removed.
-        if data.layout == "adventure":
-            card_faces = data.card_faces
-            main_face = card_faces[0]
-            adventure_face = card_faces[1]
-            if (
-                main_face.type_line and
-                main_face.type_line.startswith("Land ")
-                and main_face.mana_cost
-                and not adventure_face.mana_cost
-            ):
-                # Swap the Land and Adventure faces' mana costs
-                main_face.mana_cost, adventure_face.mana_cost = (
-                    adventure_face.mana_cost,
-                    main_face.mana_cost,
+            if "Planeswalker" in card_face.type_line:
+                data.layout = (
+                    "planeswalker_tf"
+                    if data.layout == "transform"
+                    else "planeswalker_mdfc"
                 )
+            # Transform Saga layout
+            elif "Saga" in card_face.type_line:
+                data.layout = "saga"
+            # Battle layout
+            elif "Battle" in card_face.type_line:
+                data.layout = "battle"
 
         return data
 
     # Add Mutate layout
-    if 'Mutate' in data.keywords:
-        data.layout = 'mutate'
+    if "Mutate" in data.keywords:
+        data.layout = "mutate"
         return data
-    
+
     type_line = data.type_line
 
     # Add Planeswalker layout
-    if 'Planeswalker' in type_line:
-        data.layout = 'planeswalker'
+    if "Planeswalker" in type_line:
+        data.layout = "planeswalker"
         return data
-    
+
     # Check for Saga Creature layout
-    if 'Saga' in type_line and 'Creature' in type_line:
-        data.layout = 'saga'
+    if "Saga" in type_line and "Creature" in type_line:
+        data.layout = "saga"
         return data
 
     # Check for Station layout
     if data.keywords and "Station" in data.keywords:
-        data.layout = 'station'
+        data.layout = "station"
         return data
 
     # Return updated data
@@ -328,7 +330,7 @@ def sanitize_card_filename(name: str) -> str:
 def locate_symbols(
     text: str,
     symbol_map: dict[str, tuple[str, list[ColorObject]]],
-    logger: Logger | None = None
+    logger: Logger | None = None,
 ) -> tuple[str, list[CardSymbolString]]:
     """Locate symbols in the input string, replace them with the proper characters from the mana font,
     and determine the colors those characters need to be.
@@ -343,27 +345,27 @@ def locate_symbols(
             of each symbol to format.
     """
     # Is there a symbol in this text?
-    if '{' not in text:
+    if "{" not in text:
         return text, []
 
     # Starting values
     symbol_indices: list[CardSymbolString] = []
-    start, end = text.find('{'), text.find('}')
+    start, end = text.find("{"), text.find("}")
 
     # Look for symbols in the text
     while 0 <= start <= end:
-        symbol = text[start:end + 1]
+        symbol = text[start : end + 1]
         try:
             # Replace the symbol, add its location and color
             symbol_string, symbol_color = symbol_map[symbol]
             text = text.replace(symbol, symbol_string, 1)
             symbol_indices.append((start, symbol_color))
-        except (KeyError, IndexError):
+        except KeyError, IndexError:
             if logger:
-                logger.warning(f'Symbol not recognized: {symbol}')
-            text = text.replace(symbol, symbol.strip('{}'))
+                logger.warning(f"Symbol not recognized: {symbol}")
+            text = text.replace(symbol, symbol.strip("{}"))
         # Move to the next symbols
-        start, end = text.find('{'), text.find('}')
+        start, end = text.find("{"), text.find("}")
     return text, symbol_indices
 
 
@@ -371,7 +373,7 @@ def locate_italics(
     st: str,
     italics_strings: list[str],
     symbol_map: dict[str, tuple[str, list[ColorObject]]],
-    logger: Logger | None = None
+    logger: Logger | None = None,
 ) -> list[CardItalicString]:
     """Locate all instances of italic strings in the input string and record their start and end indices.
 
@@ -384,24 +386,23 @@ def locate_italics(
     Returns:
         List of italic string indices (start and end).
     """
-    indexes: list[tuple[int,int]] = []
+    indexes: list[tuple[int, int]] = []
     for italic in italics_strings:
-
         # Look for symbols present in italicized text
-        if '{' in italic:
-            start = italic.find('{')
-            end = italic.find('}')
+        if "{" in italic:
+            start = italic.find("{")
+            end = italic.find("}")
             while 0 <= start < end:
                 # Replace the symbol
-                symbol = italic[start:end + 1]
+                symbol = italic[start : end + 1]
                 try:
                     italic = italic.replace(symbol, symbol_map[symbol][0])
-                except (KeyError, IndexError):
+                except KeyError, IndexError:
                     if logger:
-                        logger.warning(f'Symbol not recognized: {symbol}')
-                    st = st.replace(symbol, symbol.strip('{}'))
+                        logger.warning(f"Symbol not recognized: {symbol}")
+                    st = st.replace(symbol, symbol.strip("{}"))
                 # Move to the next symbol
-                start, end = italic.find('{'), italic.find('}')
+                start, end = italic.find("{"), italic.find("}")
 
         # Locate Italicized text
         end_index = 0
@@ -430,7 +431,6 @@ def generate_italics(card_text: str) -> list[str]:
     # Find each reminder text block
     end_index = 0
     while True:
-
         # Find parenthesis enclosed string, otherwise break
         start_index = card_text.find("(", end_index)
         if start_index < 0:
@@ -441,13 +441,13 @@ def generate_italics(card_text: str) -> list[str]:
         italic_text.append(card_text[start_index:end_index])
 
     # Determine whether to look for ability words
-    if ' — ' not in card_text:
+    if " — " not in card_text:
         return italic_text
 
     # Find and add ability words
     for match in CardTextPatterns.TEXT_ABILITY.findall(card_text):
         # Cover "villainous choice" case
-        if 'villainous' in match:
+        if "villainous" in match:
             continue
         # Cover "Mirrodin Besieged" case
         if f"• {match}" in card_text and "choose one" not in card_text.lower():
@@ -472,11 +472,11 @@ def strip_reminder_text(text: str) -> str:
         Oracle text with no reminder text.
     """
     # Skip if there's no reminder text present
-    if '(' not in text:
+    if "(" not in text:
         return text
 
     # Remove reminder text
     text_stripped = CardTextPatterns.TEXT_REMINDER.sub("", text)
 
     # Remove any extra whitespace
-    return CardTextPatterns.EXTRA_SPACE.sub('', text_stripped).strip()
+    return CardTextPatterns.EXTRA_SPACE.sub("", text_stripped).strip()

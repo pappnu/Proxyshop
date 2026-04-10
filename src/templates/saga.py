@@ -255,7 +255,9 @@ class SagaMod(NormalTemplate):
                     for _ in range(len(self.saga_ability_layers) - 1)
                 ]
                 psd.position_dividers(
-                    dividers=dividers, layers=self.saga_ability_layers, docref=self.docref
+                    dividers=dividers,
+                    layers=self.saga_ability_layers,
+                    docref=self.docref,
                 )
 
 
@@ -560,7 +562,13 @@ class SagaVectorTemplate(
     @cached_property
     def pinlines_mask(
         self,
-    ) -> MaskAction | tuple[ArtLayer | LayerSet, ArtLayer | LayerSet] | ArtLayer | LayerSet | None:
+    ) -> (
+        MaskAction
+        | tuple[ArtLayer | LayerSet, ArtLayer | LayerSet]
+        | ArtLayer
+        | LayerSet
+        | None
+    ):
         """Mask hiding pinlines effects inside textbox and art frame."""
         if self.pinlines_group and (
             layer := psd.getLayer(
@@ -576,7 +584,11 @@ class SagaVectorTemplate(
     def enabled_masks(
         self,
     ) -> list[
-        MaskAction | tuple[ArtLayer | LayerSet, ArtLayer | LayerSet] | ArtLayer | LayerSet | None
+        MaskAction
+        | tuple[ArtLayer | LayerSet, ArtLayer | LayerSet]
+        | ArtLayer
+        | LayerSet
+        | None
     ]:
         """Support a pinlines mask."""
         return [self.pinlines_mask]

@@ -87,7 +87,9 @@ def set_layer_fx_visibility(
     action_list.putReference(ref)
     desc.putList(APP.instance.sID("target"), action_list)
     APP.instance.executeAction(
-        APP.instance.sID("show" if visible else "hide"), desc, DialogModes.DisplayNoDialogs
+        APP.instance.sID("show" if visible else "hide"),
+        desc,
+        DialogModes.DisplayNoDialogs,
     )
 
 
@@ -127,7 +129,9 @@ def clear_layer_fx(layer: ArtLayer | LayerSet | None) -> None:
         )
         desc1600.putReference(APP.instance.sID("target"), ref126)
         APP.instance.executeAction(
-            APP.instance.sID("disableLayerStyle"), desc1600, DialogModes.DisplayNoDialogs
+            APP.instance.sID("disableLayerStyle"),
+            desc1600,
+            DialogModes.DisplayNoDialogs,
         )
     except COMError:
         _logger.exception(
@@ -150,7 +154,9 @@ def rasterize_layer_fx(layer: ArtLayer) -> None:
         APP.instance.sID("rasterizeItem"),
         APP.instance.sID("layerStyle"),
     )
-    APP.instance.executeAction(APP.instance.sID("rasterizeLayer"), desc1, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("rasterizeLayer"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def copy_layer_fx(
@@ -186,7 +192,9 @@ def copy_layer_fx(
         APP.instance.sID("layerEffects"),
         result_desc.getObjectValue(APP.instance.sID("layerEffects")),
     )
-    APP.instance.executeAction(APP.instance.sID("set"), desc_set, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("set"), desc_set, DialogModes.DisplayNoDialogs
+    )
 
 
 """
@@ -231,7 +239,9 @@ def apply_fx(layer: ArtLayer | LayerSet, effects: list[LayerEffects]) -> None:
     main_action.putObject(
         APP.instance.sID("to"), APP.instance.sID("layerEffects"), fx_action
     )
-    APP.instance.executeAction(APP.instance.sID("set"), main_action, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("set"), main_action, DialogModes.DisplayNoDialogs
+    )
 
 
 def apply_fx_bevel(action: ActionDescriptor, fx: EffectBevel) -> None:

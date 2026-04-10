@@ -181,6 +181,16 @@ def join_dual_card_layouts[T: NormalLayout | None](
     return normal + add
 
 
+def _get_other_side_color_identity(colors: list[str], mana_cost: str) -> str:
+    if check_hybrid_mana_cost(colors, mana_cost):
+        return LAYERS.LAND
+    if len(colors) > 1:
+        return LAYERS.GOLD
+    if not colors:
+        return LAYERS.COLORLESS
+    return colors[0]
+
+
 """
 * Layout Classes
 """
@@ -1276,13 +1286,9 @@ class AdventureLayout(NormalLayout):
     @cached_property
     def adventure_colors(self) -> str:
         """Color identity of adventure side frame elements."""
-        if check_hybrid_mana_cost(self.color_identity_adventure, self.mana_adventure):
-            return LAYERS.LAND
-        if len(self.color_identity_adventure) > 1:
-            return LAYERS.GOLD
-        if not self.color_identity_adventure:
-            return LAYERS.COLORLESS
-        return self.color_identity_adventure[0]
+        return _get_other_side_color_identity(
+            self.color_identity_adventure, self.mana_adventure
+        )
 
 
 class LevelerLayout(NormalLayout):
@@ -1898,6 +1904,8 @@ class StationDetails(TypedDict):
 
 
 class StationLayout(NormalLayout):
+    """Station card layout, introduced in Edge of Eternities."""
+
     _pt_pattern = re.compile(r"([0-9]+)/([0-9]+)")
     _station_level_pattern = re.compile(r"\n([0-9]+\+) \| ")
 
@@ -1953,33 +1961,60 @@ class StationLayout(NormalLayout):
         return out
 
 
+class PrepareLayout(NormalLayout):
+    """Prepare card layout, introduced in Secrets of Strixhaven."""
+
+    @cached_property
+    def type(self) -> LayoutType:
+        return LayoutType.Prepare
+
+    @cached_property
+    def spell_side(self) -> ScryfallCardFace:
+        if self.scryfall.card_faces:
+            return self.scryfall.card_faces[1]
+        raise ValueError(
+            f"Scryfall data doesn't have a card face for spell side: {pprint(self.scryfall)}"
+        )
+
+    @cached_property
+    def mana_prepare(self) -> str:
+        return self.spell_side.mana_cost or ""
+
+    @cached_property
+    def name_prepare(self) -> str:
+        return self._get_card_name(self.spell_side)
+
+    @cached_property
+    def type_line_prepare(self) -> str:
+        return self.spell_side.type_line or ""
+
+    @cached_property
+    def oracle_text_prepare(self) -> str:
+        if self.is_alt_lang and self.spell_side.printed_text:
+            return self.spell_side.printed_text
+        return self.spell_side.oracle_text or ""
+
+    @cached_property
+    def flavor_text_prepare(self) -> str:
+        return self.spell_side.flavor_text or ""
+
+    @cached_property
+    def colors_prepare(self) -> list[str]:
+        """Colors present in the spell side mana cost."""
+        return [n for n in get_ordered_colors(get_mana_cost_colors(self.mana_prepare))]
+
+    @cached_property
+    def color_identity_prepare(self) -> str:
+        """Color identity of spell side frame elements."""
+        return _get_other_side_color_identity(self.colors_prepare, self.mana_prepare)
+
+
 """
 * Types & Enums
 """
 
-"""All card layout classes."""
-CardLayout = (
-    NormalLayout
-    | TransformLayout
-    | ModalDoubleFacedLayout
-    | AdventureLayout
-    | LevelerLayout
-    | SagaLayout
-    | MutateLayout
-    | PrototypeLayout
-    | ClassLayout
-    | SplitLayout
-    | PlanarLayout
-    | TokenLayout
-)
-
-"""Planeswalker card layout classes."""
-PlaneswalkerLayouts = (
-    PlaneswalkerLayout | PlaneswalkerTransformLayout | PlaneswalkerMDFCLayout
-)
-
 """Maps Scryfall layout names to their respective layout class."""
-layout_map: dict[str, type[CardLayout]] = {
+layout_map: dict[str, type[NormalLayout]] = {
     # Definitions supported by Scryfall natively
     LayoutScryfall.Normal: NormalLayout,
     LayoutScryfall.Split: SplitLayout,
@@ -1991,6 +2026,7 @@ layout_map: dict[str, type[CardLayout]] = {
     LayoutScryfall.Class: ClassLayout,
     LayoutScryfall.Saga: SagaLayout,
     LayoutScryfall.Adventure: AdventureLayout,
+    LayoutScryfall.Prepare: PrepareLayout,
     LayoutScryfall.Mutate: MutateLayout,
     LayoutScryfall.Prototype: PrototypeLayout,
     LayoutScryfall.Battle: BattleLayout,

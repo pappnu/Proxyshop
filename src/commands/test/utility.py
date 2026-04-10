@@ -3,38 +3,27 @@
 * For contributors and plugin development.
 """
 
-# Standard Library Imports
-from contextlib import suppress
-from _ctypes import COMError
-from xml.dom import minidom
-import warnings
-import logging
-import json
 import csv
+import json
+import logging
+import warnings
+import xml.etree.ElementTree as ET
+from _ctypes import COMError
+from contextlib import suppress
+from xml.dom import minidom
 
-# Third Party Imports
+from photoshop.api import ActionDescriptor, ActionReference
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
-from photoshop.api import (
-    ActionDescriptor,
-    ActionReference,
-    ElementPlacement,
-    DialogModes,
-    LayerKind,
-)
-from psd_tools.constants import Resource
+from photoshop.api.enumerations import DialogModes, ElementPlacement, LayerKind
 from psd_tools import PSDImage
+from psd_tools.constants import Resource
 from psd_tools.psd.image_resources import ImageResource
-import xml.etree.ElementTree as ET
 
-# Local Imports
-from src import APP, TEMPLATES
 import src.helpers as psd
+from src import APP, TEMPLATES
 from src.schema.colors import ColorObject
 from src.utils.adobe import LayerContainer
-
-# Photoshop infrastructure
-NO_DIALOG = DialogModes.DisplayNoDialogs
 
 # Reference Box colors
 ORANGE = [255, 172, 64]
@@ -207,7 +196,7 @@ def try_all_getters(desc: ActionDescriptor, type_id) -> dict:
                 # Getter may have returned an ActionList, grab the first object
                 result = get_action_items(result.getObjectValue(0))
             values[k] = result
-        except (COMError, NameError, KeyError):
+        except COMError, NameError, KeyError:
             # Skip this getter
             pass
     return values
@@ -313,7 +302,9 @@ def apply_single_line_composer(layer: ArtLayer) -> None:
     desc2.putInteger(APP.instance.sID("textOverrideFeatureName"), 808464691)
     desc2.putBoolean(APP.instance.sID("textEveryLineComposer"), False)
     desc1.putObject(APP.instance.sID("to"), APP.instance.sID("paragraphStyle"), desc2)
-    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("set"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def combine_text_items(from_layer: ArtLayer, to_layer: ArtLayer, sep: str | None = " "):
@@ -447,7 +438,9 @@ def create_color_shape(layer: ArtLayer, color: ColorObject) -> ArtLayer:
     desc1.putUnitDouble(
         APP.instance.sID("tolerance"), APP.instance.sID("pixelsUnit"), 2.000000
     )
-    APP.instance.executeAction(APP.instance.sID("make"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("make"), desc1, DialogModes.DisplayNoDialogs
+    )
 
     ref1 = ActionReference()
     desc1 = ActionDescriptor()
@@ -464,7 +457,9 @@ def create_color_shape(layer: ArtLayer, color: ColorObject) -> ArtLayer:
         APP.instance.sID("type"), APP.instance.sID("solidColorLayer"), desc3
     )
     desc1.putObject(APP.instance.sID("using"), APP.instance.sID("contentLayer"), desc2)
-    APP.instance.executeAction(APP.instance.sID("make"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("make"), desc1, DialogModes.DisplayNoDialogs
+    )
     APP.instance.activeDocument.activeLayer.name = layer_name
 
     # Check dims
@@ -732,7 +727,9 @@ def import_data_set(path: str) -> None:
     )
     desc.putBoolean(APP.instance.sID("eraseAll"), True)
     desc.putBoolean(APP.instance.sID("useFirstColumn"), True)
-    APP.instance.executeAction(APP.instance.sID("importDataSets"), desc, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("importDataSets"), desc, DialogModes.DisplayNoDialogs
+    )
 
 
 def apply_data_set(data_set_name: str) -> None:
@@ -745,7 +742,9 @@ def apply_data_set(data_set_name: str) -> None:
     setRef = ActionReference()
     setRef.putName(APP.instance.sID("dataSetClass"), data_set_name)
     desc.putReference(APP.instance.sID("null"), setRef)
-    APP.instance.executeAction(APP.instance.sID("apply"), desc, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("apply"), desc, DialogModes.DisplayNoDialogs
+    )
 
 
 """

@@ -2,20 +2,15 @@
 * Helpers: Masks
 """
 
-# Standard Library Imports
 from _ctypes import COMError
 
-# Third Party Imports
-from photoshop.api import ActionDescriptor, ActionReference, DialogModes
+from photoshop.api import ActionDescriptor, ActionReference
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
+from photoshop.api.enumerations import DialogModes
 
-# Local Imports
 from src import APP
 from src.helpers.selection import select_canvas
-
-# QOL Definitions
-NO_DIALOG = DialogModes.DisplayNoDialogs
 
 """
 * Copying Masks
@@ -49,7 +44,9 @@ def copy_layer_mask(
     )
     ref18.putIdentifier(APP.instance.sID("layer"), layer_from.id)
     desc1.putReference(APP.instance.sID("using"), ref18)
-    APP.instance.executeAction(APP.instance.sID("make"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("make"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def copy_vector_mask(
@@ -81,7 +78,9 @@ def copy_vector_mask(
     )
     ref3.putIdentifier(APP.instance.sID("layer"), layer_from.id)
     desc1.putReference(APP.instance.sID("using"), ref3)
-    APP.instance.executeAction(APP.instance.sID("make"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("make"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 """
@@ -90,7 +89,7 @@ def copy_vector_mask(
 
 
 def apply_mask_to_layer_fx(layer: ArtLayer | LayerSet | None = None) -> None:
-    """Sets the layer mask to apply only to layer effects in blending options.
+    """Sets the layer mask to apply to layer effects in blending options.
 
     Args:
         layer: ArtLayer or LayerSet object.
@@ -105,7 +104,9 @@ def apply_mask_to_layer_fx(layer: ArtLayer | LayerSet | None = None) -> None:
     desc = ActionDescriptor()
     desc.putReference(APP.instance.sID("target"), ref)
     desc.putObject(APP.instance.sID("to"), APP.instance.sID("layer"), layer_fx)
-    APP.instance.executeAction(APP.instance.sID("set"), desc, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("set"), desc, DialogModes.DisplayNoDialogs
+    )
 
 
 def set_layer_mask(
@@ -126,7 +127,9 @@ def set_layer_mask(
     desc1.putReference(APP.instance.sID("target"), ref1)
     desc2.putBoolean(APP.instance.cID("UsrM"), visible)
     desc1.putObject(APP.instance.cID("T   "), APP.instance.cID("Lyr "), desc2)
-    APP.instance.executeAction(APP.instance.cID("setd"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.cID("setd"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def enable_mask(layer: ArtLayer | LayerSet | None = None) -> None:
@@ -164,7 +167,9 @@ def apply_mask(layer: ArtLayer | LayerSet | None = None) -> None:
     )
     desc1.putReference(APP.instance.sID("target"), ref1)
     desc1.putBoolean(APP.instance.sID("apply"), True)
-    APP.instance.executeAction(APP.instance.sID("delete"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("delete"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def set_layer_vector_mask(
@@ -185,7 +190,9 @@ def set_layer_vector_mask(
     desc1.putReference(APP.instance.sID("target"), ref1)
     desc2.putBoolean(APP.instance.sID("vectorMaskEnabled"), visible)
     desc1.putObject(APP.instance.sID("to"), APP.instance.sID("layer"), desc2)
-    APP.instance.executeAction(APP.instance.sID("set"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("set"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def enable_vector_mask(layer: ArtLayer | LayerSet | None = None) -> None:
@@ -228,7 +235,9 @@ def enter_mask_channel(layer: ArtLayer | LayerSet | None = None):
     )
     d1.putReference(APP.instance.sID("target"), r1)
     d1.putBoolean(APP.instance.sID("makeVisible"), True)
-    APP.instance.executeAction(APP.instance.sID("select"), d1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("select"), d1, DialogModes.DisplayNoDialogs
+    )
 
 
 def enter_rgb_channel(layer: ArtLayer | LayerSet | None = None):
@@ -248,7 +257,9 @@ def enter_rgb_channel(layer: ArtLayer | LayerSet | None = None):
     )
     d1.putReference(APP.instance.sID("target"), r1)
     d1.putBoolean(APP.instance.sID("makeVisible"), True)
-    APP.instance.executeAction(APP.instance.sID("select"), d1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("select"), d1, DialogModes.DisplayNoDialogs
+    )
 
 
 def create_mask(layer: ArtLayer | LayerSet | None = None):
@@ -273,7 +284,9 @@ def create_mask(layer: ArtLayer | LayerSet | None = None):
         APP.instance.sID("userMaskEnabled"),
         APP.instance.sID("revealAll"),
     )
-    APP.instance.executeAction(APP.instance.sID("make"), d1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("make"), d1, DialogModes.DisplayNoDialogs
+    )
 
 
 def copy_to_mask(
@@ -330,4 +343,6 @@ def delete_mask(layer: ArtLayer | LayerSet | None = None) -> None:
         APP.instance.sID("targetEnum"),
     )
     desc1.putReference(APP.instance.sID("target"), ref1)
-    APP.instance.executeAction(APP.instance.sID("delete"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("delete"), desc1, DialogModes.DisplayNoDialogs
+    )

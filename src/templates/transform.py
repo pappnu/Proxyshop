@@ -248,4 +248,5 @@ class TransformTemplate(TransformMod, NormalTemplate):
 
 class IxalanTemplate(IxalanMod, NormalTemplate):
     """Template for the back face lands for transforming cards from Ixalan block."""
+
     pass

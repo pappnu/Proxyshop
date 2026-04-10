@@ -2,14 +2,10 @@
 * Helpers: Actions
 """
 
-# Third Party Imports
-from photoshop.api import DialogModes, ActionDescriptor, ActionReference
+from photoshop.api import ActionDescriptor, ActionReference
+from photoshop.api.enumerations import DialogModes
 
-# Local Imports
 from src import APP
-
-# QOL Definitions
-NO_DIALOG = DialogModes.DisplayNoDialogs
 
 """
 * Working With Actions
@@ -30,4 +26,6 @@ def run_action(action_set: str, action: str) -> None:
     ref7.putName(APP.instance.sID("action"), action)
     ref7.putName(APP.instance.sID("actionSet"), action_set)
     desc310.putReference(APP.instance.sID("target"), ref7)
-    APP.instance.executeAction(APP.instance.sID("play"), desc310, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("play"), desc310, DialogModes.DisplayNoDialogs
+    )

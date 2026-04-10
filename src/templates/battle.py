@@ -2,21 +2,17 @@
 * BATTLE TEMPLATES
 """
 
-# Standard Library
-from functools import cached_property
 from collections.abc import Callable, Sequence
+from functools import cached_property
 
-# Third Party Imports
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
-from src.enums.layers import LAYERS
 import src.helpers as psd
-from src.schema.colors import GradientConfig
+from src.enums.layers import LAYERS
 from src.helpers.layers import get_reference_layer
 from src.layouts import BattleLayout, NormalLayout
-from src.schema.colors import ColorObject, pinlines_color_map
+from src.schema.colors import ColorObject, GradientConfig, pinlines_color_map
 from src.templates._core import BaseTemplate
 from src.templates._vector import VectorTemplate
 from src.text_layers import FormattedTextArea, TextField

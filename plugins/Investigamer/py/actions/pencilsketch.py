@@ -5,11 +5,12 @@ Pencil Sketchify Action Module
 from collections.abc import Iterable
 
 import photoshop.api as ps
+from photoshop.api.enumerations import DialogModes
 
 from src import APP
 from src.render.setup import RenderOperation
 
-dialog_mode = ps.DialogModes.DisplayNoDialogs
+dialog_mode = DialogModes.DisplayNoDialogs
 
 """
 * Action Funcs
@@ -1388,7 +1389,5 @@ def run(
 
     # Flatten
     if manual_editing:
-        render_operation.pause_sync(
-            "Sketch Action complete."
-        )
+        render_operation.pause_sync("Sketch Action complete.")
     APP.instance.executeAction(APP.instance.cID("FltI"), None, dialog_mode)

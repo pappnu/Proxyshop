@@ -1,19 +1,17 @@
 """
 * MDFC TEMPLATES
 """
-# Standard Library
-from functools import cached_property
-from collections.abc import Callable
 
-# Third Party Imports
+from collections.abc import Callable
+from functools import cached_property
+
 from photoshop.api._artlayer import ArtLayer
 
-# Local Imports
-from src.enums.layers import LAYERS
 import src.helpers as psd
+from src.enums.layers import LAYERS
 from src.templates._core import BaseTemplate, NormalTemplate
 from src.templates._vector import VectorTemplate
-from src.text_layers import ScaledTextField, FormattedTextField
+from src.text_layers import FormattedTextField, ScaledTextField
 
 """
 * Modifier Classes
@@ -35,13 +33,15 @@ class MDFCMod(BaseTemplate):
     """
 
     @cached_property
-    def frame_layer_methods(self) -> list[Callable[[],None]]:
+    def frame_layer_methods(self) -> list[Callable[[], None]]:
         """Add MDFC frame layers step."""
         parent_funcs = super().frame_layer_methods
-        return [*parent_funcs, self.enable_mdfc_layers] if self.is_mdfc else parent_funcs
+        return (
+            [*parent_funcs, self.enable_mdfc_layers] if self.is_mdfc else parent_funcs
+        )
 
     @cached_property
-    def text_layer_methods(self) -> list[Callable[[],None]]:
+    def text_layer_methods(self) -> list[Callable[[], None]]:
         """Add MDFC text layers step."""
         parent_funcs = super().text_layer_methods
         return [*parent_funcs, self.text_layers_mdfc] if self.is_mdfc else parent_funcs
@@ -113,15 +113,20 @@ class MDFCMod(BaseTemplate):
 
         # Add mdfc text layers
         if self.text_layer_mdfc_right:
-            self.text.append(FormattedTextField(
-                layer=self.text_layer_mdfc_right,
-                contents=self.layout.other_face_right))
+            self.text.append(
+                FormattedTextField(
+                    layer=self.text_layer_mdfc_right,
+                    contents=self.layout.other_face_right,
+                )
+            )
         if self.text_layer_mdfc_left:
             self.text.append(
                 ScaledTextField(
                     layer=self.text_layer_mdfc_left,
                     contents=self.layout.other_face_left,
-                    reference=self.text_layer_mdfc_right))
+                    reference=self.text_layer_mdfc_right,
+                )
+            )
 
         # Front and back side layers
         if self.is_front:

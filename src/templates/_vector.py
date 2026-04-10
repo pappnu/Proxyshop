@@ -8,21 +8,18 @@
 * Vector templates can be challenging for beginners, but have huge benefits.
 """
 
-# Standard Library Imports
+from collections.abc import Callable, Sequence
 from functools import cached_property
 from typing import NotRequired, TypedDict
-from collections.abc import Callable, Sequence
 
-# Third Party Imports
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
-from src.enums.layers import LAYERS
 import src.helpers as psd
-from src.schema.colors import GradientConfig
+from src.enums.layers import LAYERS
 from src.schema.colors import (
     ColorObject,
+    GradientConfig,
     crown_color_map,
     indicator_color_map,
     pinlines_color_map,

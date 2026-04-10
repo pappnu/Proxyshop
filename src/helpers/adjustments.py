@@ -2,28 +2,17 @@
 * Helpers: Adjustment Layers
 """
 
-# Standard Library
 from typing import NotRequired, TypedDict, Unpack
 
-# Third Party
-from photoshop.api import (
-    BlendMode,
-    DialogModes,
-    ActionList,
-    ActionDescriptor,
-    ActionReference,
-)
+from photoshop.api import ActionDescriptor, ActionList, ActionReference
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
+from photoshop.api.enumerations import BlendMode, DialogModes
 
-# Local Imports
 from src import APP
-from src.helpers.colors import get_color, apply_color, add_color_to_gradient, rgb_black
+from src.helpers.colors import add_color_to_gradient, apply_color, get_color, rgb_black
 from src.schema.colors import ColorObject, GradientConfig
-
-# QOL Definitions
-NO_DIALOG = DialogModes.DisplayNoDialogs
 
 """
 * Creating Adjustment Layers
@@ -41,7 +30,9 @@ def create_vibrant_saturation(vibrancy: int, saturation: int) -> None:
     desc232 = ActionDescriptor()
     desc232.putInteger(APP.instance.sID("vibrance"), vibrancy)
     desc232.putInteger(APP.instance.sID("saturation"), saturation)
-    APP.instance.executeAction(APP.instance.sID("vibrance"), desc232, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("vibrance"), desc232, DialogModes.DisplayNoDialogs
+    )
 
 
 class CreateColorLayerKwargs(TypedDict):
@@ -87,7 +78,9 @@ def create_color_layer(
         APP.instance.sID("type"), APP.instance.sID("solidColorLayer"), desc3
     )
     desc1.putObject(APP.instance.sID("using"), APP.instance.sID("contentLayer"), desc2)
-    APP.instance.executeAction(APP.instance.sID("make"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("make"), desc1, DialogModes.DisplayNoDialogs
+    )
     layer = docref.activeLayer
     if not isinstance(layer, ArtLayer):
         raise ValueError(
@@ -197,7 +190,9 @@ def create_gradient_layer(
     )
     desc2.putObject(APP.instance.sID("type"), APP.instance.sID("gradientLayer"), desc3)
     desc1.putObject(APP.instance.sID("using"), APP.instance.sID("contentLayer"), desc2)
-    APP.instance.executeAction(APP.instance.sID("make"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("make"), desc1, DialogModes.DisplayNoDialogs
+    )
     layer = docref.activeLayer
     if not isinstance(layer, ArtLayer):
         raise ValueError("Failed to create a gradient color layer")

@@ -2,24 +2,17 @@
 * Helpers: Bounds and Dimensions
 """
 
-# Standard Library Imports
 from contextlib import suppress
 from typing import TypedDict
 
-# Third Party Imports
-from photoshop.api import DialogModes
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
 from src import APP
 from src.helpers.descriptors import get_layer_action_descriptor
 from src.helpers.document import undo_action
 from src.helpers.layers import duplicate_group
 from src.utils.adobe import PS_EXCEPTIONS, LayerBounds
-
-# QOL Definitions
-NO_DIALOG = DialogModes.DisplayNoDialogs
 
 """
 * Types

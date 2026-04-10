@@ -2,20 +2,17 @@
 * LEVELER TEMPLATES
 """
 
-# Standard Library
-from functools import cached_property
 from collections.abc import Callable
+from functools import cached_property
 
-# Third Party Imports
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
-from src.enums.layers import LAYERS
 import src.helpers as psd
+import src.text_layers as text_classes
+from src.enums.layers import LAYERS
 from src.layouts import LevelerLayout
 from src.templates._core import NormalTemplate
-import src.text_layers as text_classes
 from src.utils.adobe import ReferenceLayer
 
 """

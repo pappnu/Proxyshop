@@ -66,7 +66,10 @@ class SplitMod(BaseTemplate):
     @cached_property
     def color_limit(self) -> int:
         """One more than the max number of colors this card can split by."""
-        return self.config.get_int_setting(section="COLORS", key="Max.Colors", default=2) + 1
+        return (
+            self.config.get_int_setting(section="COLORS", key="Max.Colors", default=2)
+            + 1
+        )
 
     # endregion Settings
 
@@ -481,7 +484,9 @@ class SplitMod(BaseTemplate):
                     )
 
                     # Apply opacity, blending, and effects
-                    wm.opacity = wm_details.get("opacity", self.config.watermark_opacity)
+                    wm.opacity = wm_details.get(
+                        "opacity", self.config.watermark_opacity
+                    )
                     wm.blendMode = BlendMode.ColorBurn
                     psd.apply_fx(wm, self.watermark_fxs[i])
         else:

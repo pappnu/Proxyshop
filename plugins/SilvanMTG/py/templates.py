@@ -2,17 +2,14 @@
 * SilvanMTG Templates
 """
 
-# Standard Library Imports
 from functools import cached_property
 
-# Third Party Imports
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
-from src.enums.layers import LAYERS
 import src.helpers as psd
-from src.templates import MDFCMod, ExtendedMod, M15Template
+from src.enums.layers import LAYERS
+from src.templates import ExtendedMod, M15Template, MDFCMod
 
 """
 * Template Classes

@@ -1,14 +1,11 @@
 import subprocess
 from os import unlink
 from tempfile import NamedTemporaryFile
-from typing import TypeVar
 
 from pydantic import BaseModel
 
-T = TypeVar("T", bound=BaseModel)
 
-
-def manually_modify_model(model: T, text_editing_program: str) -> T:
+def manually_modify_model[T: BaseModel](model: T, text_editing_program: str) -> T:
     """Opens model as JSON in a text editing program, e.g. notepad, for manual editing,
     waits for editing to be done and then converts the edited JSON back to model form.
 

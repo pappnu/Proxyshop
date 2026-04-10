@@ -2,28 +2,15 @@
 * Helpers: Colors
 """
 
-# Standard Library Imports
 from collections.abc import Mapping
 
-# Third Party Imports
-from photoshop.api import (
-    SolidColor,
-    DialogModes,
-    ActionList,
-    ActionDescriptor,
-    ColorModel,
-    LayerKind,
-)
+from photoshop.api import ActionDescriptor, ActionList, SolidColor
 from photoshop.api._artlayer import ArtLayer
+from photoshop.api.enumerations import ColorModel, DialogModes, LayerKind
 
-# Local Imports
 from src import APP, CON
 from src.enums.layers import LAYERS
-from src.schema.colors import pinlines_color_map, ColorObject
-from src.schema.colors import GradientConfig
-
-# QOL Definitions
-NO_DIALOG = DialogModes.DisplayNoDialogs
+from src.schema.colors import ColorObject, GradientConfig, pinlines_color_map
 
 """
 * Color Conversions
@@ -162,9 +149,8 @@ def get_color(color: ColorObject) -> SolidColor:
                 return get_color(CON.colors[color])
             # Hexadecimal
             return get_rgb_from_hex(color)
-    except (ValueError, TypeError):
-        raise ValueError(f"Invalid color notation given: {color}")
-    raise ValueError(f"Unrecognized color notation given: {color}")
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"Invalid color notation given: {color}") from exc
 
 
 def get_text_layer_color(layer: ArtLayer) -> SolidColor:
@@ -367,4 +353,6 @@ def fill_layer_primary():
         APP.instance.sID("fillContents"),
         APP.instance.sID("foregroundColor"),
     )
-    APP.instance.executeAction(APP.instance.sID("fill"), desc1, NO_DIALOG)
+    APP.instance.executeAction(
+        APP.instance.sID("fill"), desc1, DialogModes.DisplayNoDialogs
+    )

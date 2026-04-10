@@ -76,7 +76,7 @@ def getLayer(
                 if group and isinstance(group, str)
                 else ""
             }',
-            exc_info=exc
+            exc_info=exc,
         )
 
 
@@ -130,7 +130,7 @@ def getLayerSet(
                 if group and isinstance(group, str)
                 else ""
             }',
-            exc_info=exc
+            exc_info=exc,
         )
 
 
@@ -167,7 +167,7 @@ def get_reference_layer(
                 if group and isinstance(group, str)
                 else ""
             }',
-            exc_info=exc
+            exc_info=exc,
         )
 
 
@@ -221,7 +221,9 @@ def merge_layers(
         select_layers(layers)
 
     # Merge layers and return result
-    APP.instance.executeAction(APP.instance.sID("mergeLayersNew"), None, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("mergeLayersNew"), None, DialogModes.DisplayNoDialogs
+    )
 
     active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, ArtLayer):
@@ -272,7 +274,9 @@ def group_layers(
     desc1.putInteger(APP.instance.sID("layerSectionStart"), 0)
     desc1.putInteger(APP.instance.sID("layerSectionEnd"), 1)
     desc1.putString(APP.instance.cID("Nm  "), name)
-    APP.instance.executeAction(APP.instance.cID("Mk  "), desc1, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.cID("Mk  "), desc1, DialogModes.DisplayNoDialogs
+    )
 
     active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, LayerSet):
@@ -304,7 +308,9 @@ def duplicate_group(group: LayerSet, name: str) -> LayerSet:
     desc241.putReference(APP.instance.sID("target"), ref4)
     desc241.putString(APP.instance.sID("name"), name)
     desc241.putInteger(APP.instance.sID("version"), 5)
-    APP.instance.executeAction(APP.instance.sID("duplicate"), desc241, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("duplicate"), desc241, DialogModes.DisplayNoDialogs
+    )
 
     active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, LayerSet):
@@ -323,7 +329,9 @@ def merge_group(group: LayerSet | None = None) -> None:
     """
     if group:
         APP.instance.activeDocument.activeLayer = group
-    APP.instance.executeAction(APP.instance.sID("mergeLayersNew"), None, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("mergeLayersNew"), None, DialogModes.DisplayNoDialogs
+    )
 
 
 """
@@ -343,7 +351,9 @@ def smart_layer(
     docref = docref or APP.instance.activeDocument
     if layer:
         docref.activeLayer = layer
-    APP.instance.executeAction(APP.instance.sID("newPlacedLayer"), None, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("newPlacedLayer"), None, DialogModes.DisplayNoDialogs
+    )
 
     active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, ArtLayer):
@@ -384,7 +394,9 @@ def unpack_smart_layer(
         docref = docref or APP.instance.activeDocument
         docref.activeLayer = layer
     APP.instance.executeAction(
-        APP.instance.sID("placedLayerConvertToLayers"), None, DialogModes.DisplayNoDialogs
+        APP.instance.sID("placedLayerConvertToLayers"),
+        None,
+        DialogModes.DisplayNoDialogs,
     )
 
 
@@ -408,7 +420,9 @@ def lock_layer(layer: ArtLayer | LayerSet, protection: str = "protectAll") -> No
     d2.putBoolean(APP.instance.sID(protection), True)
     idlayerLocking = APP.instance.sID("layerLocking")
     d1.putObject(idlayerLocking, idlayerLocking, d2)
-    APP.instance.executeAction(APP.instance.sID("applyLocking"), d1, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("applyLocking"), d1, DialogModes.DisplayNoDialogs
+    )
 
 
 def unlock_layer(layer: ArtLayer | LayerSet) -> None:
@@ -437,7 +451,9 @@ def select_layer(layer: ArtLayer | LayerSet, make_visible: bool = False) -> None
     r1.putIdentifier(APP.instance.sID("layer"), layer.id)
     d1.putReference(APP.instance.sID("target"), r1)
     d1.putBoolean(APP.instance.sID("makeVisible"), make_visible)
-    APP.instance.executeAction(APP.instance.sID("select"), d1, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("select"), d1, DialogModes.DisplayNoDialogs
+    )
 
 
 def select_layer_add(layer: ArtLayer | LayerSet, make_visible: bool = False) -> None:
@@ -457,7 +473,9 @@ def select_layer_add(layer: ArtLayer | LayerSet, make_visible: bool = False) -> 
         APP.instance.sID("addToSelection"),
     )
     desc1.putBoolean(APP.instance.sID("makeVisible"), make_visible)
-    APP.instance.executeAction(APP.instance.sID("select"), desc1, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("select"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def select_layers(layers: Sequence[ArtLayer | LayerSet]) -> None:
@@ -505,4 +523,6 @@ def select_no_layers() -> None:
         APP.instance.sID("targetEnum"),
     )
     d1.putReference(APP.instance.sID("target"), r1)
-    APP.instance.executeAction(APP.instance.sID("selectNoLayers"), d1, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("selectNoLayers"), d1, DialogModes.DisplayNoDialogs
+    )

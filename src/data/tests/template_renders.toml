@@ -77,6 +77,10 @@ Gemrazer = "Creature"
 "Kasmina, Enigma Sage" = "Dual"
 "Karn Liberated" = "Colorless"
 
+[prepare]
+"Emeritus of Truce [SOS] {13}" = "Mono Color with Instant"
+"Lluwen, Exchange Student [SOS] {199}" = "Legendary Dual Color with Sorcery"
+
 [prototype]
 "Rust Goliath" = "Flavor text"
 "Phyrexian Fleshgorger" = "Normal"

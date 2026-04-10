@@ -2,6 +2,7 @@
 * Tests: Frame Logic
 * Credit to Chilli: https://tinyurl.com/chilli-frame-logic-tests
 """
+
 from concurrent.futures import Future, as_completed
 from concurrent.futures import ThreadPoolExecutor as Pool
 from logging import getLogger
@@ -17,7 +18,7 @@ from src._state import PATH
 from src.cards import CardDetails, get_card_data, process_card_data
 from src.console import LogColors
 from src.enums.mtg import CardTextPatterns
-from src.layouts import CardLayout, layout_map
+from src.layouts import NormalLayout, layout_map
 
 _logger = getLogger(__name__)
 
@@ -34,10 +35,10 @@ FrameData = list[str]
 
 def get_frame_logic_cases() -> dict[str, dict[str, FrameData]]:
     """Return frame logic test cases from TOML data file."""
-    return load_data_file(Path(PATH.SRC_DATA_TESTS, 'frame_data.toml'))
+    return load_data_file(Path(PATH.SRC_DATA_TESTS, "frame_data.toml"))
 
 
-def format_result(layout: CardLayout) -> FrameData:
+def format_result(layout: NormalLayout) -> FrameData:
     """Format frame logic test result for comparison.
 
     Args:
@@ -52,7 +53,7 @@ def format_result(layout: CardLayout) -> FrameData:
         str(layout.pinlines),
         str(layout.twins),
         str(layout.is_nyx),
-        str(layout.is_colorless)
+        str(layout.is_colorless),
     ]
 
 
@@ -61,7 +62,9 @@ def format_result(layout: CardLayout) -> FrameData:
 """
 
 
-def test_case(card_name: str, card_data: FrameData) -> tuple[str, FrameData, FrameData] | None:
+def test_case(
+    card_name: str, card_data: FrameData
+) -> tuple[str, FrameData, FrameData] | None:
     """Test frame logic for a target test case.
 
     Args:
@@ -74,46 +77,56 @@ def test_case(card_name: str, card_data: FrameData) -> tuple[str, FrameData, Fra
     try:
         # Check if a set code was provided
         set_code = None
-        if all([n in card_name for n in ['[', ']']]):
-             if set_match := CardTextPatterns.PATH_SET.search(card_name):
+        if all([n in card_name for n in ["[", "]"]]):
+            if set_match := CardTextPatterns.PATH_SET.search(card_name):
                 set_code = set_match.group(1)
-                card_name = card_name.replace(f'[{set_code}]', '').strip()
+                card_name = card_name.replace(f"[{set_code}]", "").strip()
 
         # Create a fake card details object
         details: CardDetails = {
-            'name': card_name,
-            'set': set_code or "",
-            'number': '',
-            'creator': '',
-            'file': Path(),
-            'artist': ''
+            "name": card_name,
+            "set": set_code or "",
+            "number": "",
+            "creator": "",
+            "file": Path(),
+            "artist": "",
+            "kwargs": {},
         }
 
         # Pull Scryfall data
-        scryfall = get_card_data(
-            card=details,
-            cfg=CFG)
+        scryfall = get_card_data(card=details, cfg=CFG)
         if not scryfall:
-            raise OSError('Did not return valid data from Scryfall.')
+            raise OSError("Did not return valid data from Scryfall.")
         # Process the Scryfall data
         scryfall = process_card_data(scryfall, details)
     except Exception as e:
         # Exception occurred during Scryfall lookup
-        return _logger.error(f"Scryfall error occurred at card: '{card_name}'", exc_info=e)
+        return _logger.error(
+            f"Scryfall error occurred at card: '{card_name}'", exc_info=e
+        )
 
     # Pull layout data for the card
     try:
         result_data: FrameData = format_result(
-            layout_map[scryfall['layout']](
+            layout_map[scryfall.layout](
                 scryfall=scryfall,
                 file={
-                    'name': card_name,
-                    'artist': scryfall['artist'],
-                    'set_code': scryfall['set'],
-                    'creator': '', 'filename': ''}))
+                    "name": card_name,
+                    "artist": scryfall.artist or "",
+                    "set": scryfall.set,
+                    "number": scryfall.collector_number,
+                    "creator": "",
+                    "file": Path(),
+                    "kwargs": {},
+                },
+                config=CFG,
+            )
+        )
     except Exception as e:
         # Exception occurred during layout generation
-        return _logger.error(f"Layout error occurred at card: '{card_name}'", exc_info=e)
+        return _logger.error(
+            f"Layout error occurred at card: '{card_name}'", exc_info=e
+        )
 
     # Compare the results
     if not result_data == card_data:
@@ -137,15 +150,13 @@ def test_target_case(cards: dict[str, FrameData]) -> None:
 
         # Submit tasks to executor
         for card_name, data in cards.items():
-            tests_submitted.append(
-                executor.submit(test_case, card_name, data))
+            tests_submitted.append(executor.submit(test_case, card_name, data))
 
         # Create a progress bar
         pbar = tqdm(
             total=len(tests_submitted),
-            bar_format=f'{LogColors.BLUE}'
-                       '{l_bar}{bar}{r_bar}'
-                       f'{LogColors.RESET}')
+            bar_format=f"{LogColors.BLUE}{{l_bar}}{{bar}}{{r_bar}}{LogColors.RESET}",
+        )
 
         # Iterate over completed tasks, update progress bar, add failed tasks
         for task in as_completed(tests_submitted):
@@ -155,13 +166,13 @@ def test_target_case(cards: dict[str, FrameData]) -> None:
 
     # Set the progress bar result
     if tests_failed:
-        pbar.set_postfix({
-            "Status": (
-                Fore.RED + "FAILED" + Style.RESET_ALL
-            ) if tests_failed else (
-                Fore.GREEN + "SUCCESS" + Style.RESET_ALL
-            )
-        })
+        pbar.set_postfix(
+            {
+                "Status": (Fore.RED + "FAILED" + Style.RESET_ALL)
+                if tests_failed
+                else (Fore.GREEN + "SUCCESS" + Style.RESET_ALL)
+            }
+        )
 
     # Close progress bar and return failures
     pbar.close()
@@ -170,9 +181,11 @@ def test_target_case(cards: dict[str, FrameData]) -> None:
     if tests_failed:
         _logger.error("=" * 40)
         for name, actual, correct in tests_failed:
-            _logger.warning(f'NAME: {name}')
-            _logger.warning(f'RESULT [Actual / Expected]:\n'
-                         f'{LogColors.RESET}{LogColors.WHITE}{actual}\n{correct}')
+            _logger.warning(f"NAME: {name}")
+            _logger.warning(
+                f"RESULT [Actual / Expected]:\n"
+                f"{LogColors.RESET}{LogColors.WHITE}{actual}\n{correct}"
+            )
             _logger.error("=" * 40)
         _logger.error("SOME TESTS FAILED!")
         return

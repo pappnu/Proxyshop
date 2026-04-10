@@ -1,6 +1,7 @@
 """
 * Tests: Card Text Logic
 """
+
 from logging import getLogger
 from pathlib import Path
 from typing import TypedDict
@@ -17,8 +18,9 @@ _logger = getLogger(__name__)
 """
 
 
-class TestCaseTextItalic (TypedDict):
+class TestCaseTextItalic(TypedDict):
     """Test cases for validating the generate italics function."""
+
     result: list[str]
     scenario: str
     text: str
@@ -34,19 +36,25 @@ def test_all_cases() -> bool:
 
     # Load our test cases
     success = True
-    test_file: Path = Path(PATH.SRC_DATA_TESTS, 'text_italic.toml')
+    test_file: Path = Path(PATH.SRC_DATA_TESTS, "text_italic.toml")
     test_cases: dict[str, TestCaseTextItalic] = load_data_file(test_file)
     _logger.info(f"Testing > Card Text Logic (<b>{test_file.name}</b>)")
 
     # Check each test case for success
     for name, case in test_cases.items():
-
         # Compare actual test results VS expected test results
-        result_actual, result_expected = generate_italics(case.get('text', '')), case.get('result', [])
+        result_actual, result_expected = (
+            generate_italics(case.get("text", "")),
+            case.get("result", []),
+        )
         if not sorted(result_actual) == sorted(result_expected):
             success = False
-            msg_actual = ''.join(f'\n {i}. <i>{n}</i>' for i, n in enumerate(result_actual, start=1))
-            msg_expected = ''.join(f'\n {i}. <i>{n}</i>' for i, n in enumerate(result_expected, start=1))
+            msg_actual = "".join(
+                f"\n {i}. <i>{n}</i>" for i, n in enumerate(result_actual, start=1)
+            )
+            msg_expected = "".join(
+                f"\n {i}. <i>{n}</i>" for i, n in enumerate(result_expected, start=1)
+            )
             _logger.error(f"Case: {name} ({case.get('scenario', '')})")
 
             # Log what we expect
@@ -63,5 +71,5 @@ def test_all_cases() -> bool:
 
     # Did any tests fail?
     if success:
-        _logger.info('All tests successful!')
+        _logger.info("All tests successful!")
     return success

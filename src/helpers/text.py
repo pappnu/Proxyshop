@@ -6,11 +6,7 @@ from collections.abc import Iterable, Sequence
 from logging import getLogger
 from typing import Literal, overload
 
-from photoshop.api import (
-    ActionDescriptor,
-    ActionList,
-    ActionReference,
-)
+from photoshop.api import ActionDescriptor, ActionList, ActionReference
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet

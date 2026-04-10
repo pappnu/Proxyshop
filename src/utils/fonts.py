@@ -25,6 +25,7 @@ _logger = getLogger(__name__)
 # Precompile font version pattern
 REG_FONT_VER: re.Pattern[str] = re.compile(r"\b(\d+\.\d+)\b")
 
+
 class FontCache:
     @cached_property
     def user_fonts_dir(self) -> Path:
@@ -33,6 +34,7 @@ class FontCache:
     @cached_property
     def user_font_files(self) -> list[Path]:
         return [path for path in self.user_fonts_dir.iterdir() if path.is_file()]
+
 
 FONT_CACHE = FontCache()
 
@@ -43,6 +45,7 @@ FONT_CACHE = FontCache()
 
 class FontDetails(TypedDict):
     """Font name and current version."""
+
     name: str | None
     version: str | None
 
@@ -70,7 +73,10 @@ def register_font(ps_app: PhotoshopHandler, font_path: str) -> bool:
             _logger.debug(f"Font '{osp.basename(font_path)}' added to font cache.")
             hwnd_broadcast = wintypes.HWND(-1)
             windll.user32.SendMessageW(
-                hwnd_broadcast, wintypes.UINT(0x001D), wintypes.WPARAM(0), wintypes.LPARAM(0)
+                hwnd_broadcast,
+                wintypes.UINT(0x001D),
+                wintypes.WPARAM(0),
+                wintypes.LPARAM(0),
             )
             ps_app.refreshFonts()
         except Exception:
@@ -97,7 +103,10 @@ def unregister_font(ps_app: PhotoshopHandler, font_path: str) -> bool:
             _logger.debug(f"Font {osp.basename(font_path)} removed from font cache!")
             hwnd_broadcast = wintypes.HWND(-1)
             windll.user32.SendMessageW(
-                hwnd_broadcast, wintypes.UINT(0x001D), wintypes.WPARAM(0), wintypes.LPARAM(0)
+                hwnd_broadcast,
+                wintypes.UINT(0x001D),
+                wintypes.WPARAM(0),
+                wintypes.LPARAM(0),
             )
             ps_app.refreshFonts()
         except Exception:
@@ -110,10 +119,13 @@ def unregister_font(ps_app: PhotoshopHandler, font_path: str) -> bool:
 * Photoshop Font Utils
 """
 
-def is_font_available_in_ps(ps_app: PhotoshopHandler, font_post_script_name: str) -> bool:
+
+def is_font_available_in_ps(
+    ps_app: PhotoshopHandler, font_post_script_name: str
+) -> bool:
     try:
         return bool(ps_app.fonts[font_post_script_name])
-    except (COMError, KeyError):
+    except COMError, KeyError:
         return False
 
 
@@ -126,22 +138,24 @@ def get_ps_font_dict(ps_app: PhotoshopHandler) -> dict[str, str]:
     Returns:
         Dictionary with postScriptName as key, display name as value.
     """
-    fonts: dict[str,str] = {}
+    fonts: dict[str, str] = {}
     for f in ps_app.fonts:
         with suppress(*PS_EXCEPTIONS):
             fonts[f.name] = f.postScriptName
     return fonts
 
+
 class FontInfo(TypedDict):
     name: str | None
     count: int
+
 
 def get_document_fonts(
     ps_app: PhotoshopHandler,
     container: LayerSet | Document | None = None,
     fonts: dict[str, FontInfo] | None = None,
-    ps_fonts: dict[str, str] | None = None
-) -> dict[str,FontInfo]:
+    ps_fonts: dict[str, str] | None = None,
+) -> dict[str, FontInfo]:
     """Get a list of all fonts used in a given Photoshop Document or LayerSet.
 
     Args:
@@ -164,14 +178,13 @@ def get_document_fonts(
             # Log a new font or update an existing one
             font = str(layer.textItem.font)
             if font in fonts:
-                fonts[font]['count'] += 1
+                fonts[font]["count"] += 1
             else:
-                fonts[font] = {
-                    'name': ps_fonts.get(font, None),
-                    'count': 1
-                }
+                fonts[font] = {"name": ps_fonts.get(font, None), "count": 1}
         except PS_EXCEPTIONS as exc:
-            _logger.warning(f"Couldn't read font from layer: {layer.name}", exc_info=exc)
+            _logger.warning(
+                f"Couldn't read font from layer: {layer.name}", exc_info=exc
+            )
 
     # Make additional calls for nested groups
     for group in container.layerSets:
@@ -221,7 +234,9 @@ def get_fonts_from_folder(folder: str | os.PathLike[str]) -> dict[str, FontDetai
     # Get a list of the font names in your `fonts` folder
     with suppress(Exception):
         ext = (".otf", ".ttf", ".OTF", ".TTF")
-        local_fonts = [osp.join(folder, f) for f in os.listdir(folder) if f.endswith(ext)]
+        local_fonts = [
+            osp.join(folder, f) for f in os.listdir(folder) if f.endswith(ext)
+        ]
         return {n[0]: n[1] for n in [get_font_details(f) for f in local_fonts] if n}
     return {}
 
@@ -233,10 +248,10 @@ def get_installed_fonts_dict() -> dict[str, FontDetails]:
         Dictionary with postScriptName as key, and tuple of display name and version as value.
     """
     with suppress(Exception):
-        system_fonts_dir = os.path.join(os.path.join(os.environ['WINDIR']), 'Fonts')
+        system_fonts_dir = os.path.join(os.path.join(os.environ["WINDIR"]), "Fonts")
         return {
             **get_fonts_from_folder(FONT_CACHE.user_fonts_dir),
-            **get_fonts_from_folder(system_fonts_dir)
+            **get_fonts_from_folder(system_fonts_dir),
         }
     return {}
 
@@ -247,8 +262,7 @@ def get_installed_fonts_dict() -> dict[str, FontDetails]:
 
 
 def get_outdated_fonts(
-    fonts: dict[str, FontDetails],
-    missing: dict[str, FontDetails] | None = None
+    fonts: dict[str, FontDetails], missing: dict[str, FontDetails] | None = None
 ) -> dict[str, FontDetails]:
     """Compares the version of each font given against installed fonts.
 
@@ -267,17 +281,21 @@ def get_outdated_fonts(
 
     # Check fonts for any outdated
     for name, data in fonts.items():
-        if name in installed and installed[name].get('version'):
-            version = data['version']
-            installed_version = installed[name]['version']
-            if version and installed_version and parse(installed_version) < parse(version):
+        if name in installed and installed[name].get("version"):
+            version = data["version"]
+            installed_version = installed[name]["version"]
+            if (
+                version
+                and installed_version
+                and parse(installed_version) < parse(version)
+            ):
                 outdated[name] = data
 
     # Check missing fonts to see if found in installed dict, if so check for version change
     for k in list(missing.keys()):
-        if k in installed and installed[k].get('version'):
-            installed_version = installed[k]['version']
-            missing_version = missing[k]['version']
+        if k in installed and installed[k].get("version"):
+            installed_version = installed[k]["version"]
+            missing_version = missing[k]["version"]
             if (
                 installed_version
                 and missing_version
@@ -290,8 +308,7 @@ def get_outdated_fonts(
 
 
 def get_missing_fonts(
-    ps_app: PhotoshopHandler,
-    fonts: dict[str, FontDetails]
+    ps_app: PhotoshopHandler, fonts: dict[str, FontDetails]
 ) -> tuple[dict[str, FontDetails], dict[str, FontDetails]]:
     """Checks each font to see if it's present in the Photoshop font list.
 
@@ -317,8 +334,7 @@ def get_missing_fonts(
 
 
 def check_app_fonts(
-    ps_app: PhotoshopHandler,
-    folders: list[str | os.PathLike[str]]
+    ps_app: PhotoshopHandler, folders: list[str | os.PathLike[str]]
 ) -> tuple[dict[str, FontDetails], dict[str, FontDetails]]:
     """Checks each font in a folder to see if it is installed or outdated.
 

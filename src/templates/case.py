@@ -1,5 +1,5 @@
-from functools import cached_property
 from collections.abc import Callable
+from functools import cached_property
 
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
@@ -156,7 +156,9 @@ class CaseMod(NormalTemplate):
             )
 
             # Get the exact gap between each layer left over
-            layer_heights = sum([get_layer_height(lyr) for lyr in self.case_line_layers])
+            layer_heights = sum(
+                [get_layer_height(lyr) for lyr in self.case_line_layers]
+            )
             gap = (ref_height - layer_heights) * (spacing / spacing_total)
             inside_gap = (ref_height - layer_heights) * (
                 (spacing + divider_height) / spacing_total

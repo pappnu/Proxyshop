@@ -1,13 +1,12 @@
 """
 * Utils: Downloads and Updates
 """
-# Standard Library Imports
+
 import shutil
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from collections.abc import Callable
 
-# Third Party Imports
 import requests
 import yarl
 from omnitils.fetch import download_file
@@ -21,8 +20,9 @@ class HEADERS:
 
     Default = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) "
-                      "AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/39.0.2171.95 Safari/537.36"}
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/39.0.2171.95 Safari/537.36"
+    }
 
 
 """
@@ -30,7 +30,9 @@ class HEADERS:
 """
 
 
-def download_cloudfront(url: yarl.URL, path: Path, callback: Callable[[int, int], None] | None = None) -> bool:
+def download_cloudfront(
+    url: yarl.URL, path: Path, callback: Callable[[int, int], None] | None = None
+) -> bool:
     """Download a template from cloudfront cached Amazon S3 bucket.
 
     Args:
@@ -42,16 +44,13 @@ def download_cloudfront(url: yarl.URL, path: Path, callback: Callable[[int, int]
         True if download is successful, otherwise False.
     """
     # Get a temp file
-    temp_path = get_temporary_file(path=path, ext='.amzn')
+    temp_path = get_temporary_file(path=path, ext=".amzn")
 
     # Start the download
     try:
-        download_file(
-            url=url,
-            path=temp_path,
-            callback=callback)
+        download_file(url=url, path=temp_path, callback=callback)
         shutil.move(temp_path, path)
         unpack_archive(path)
-    except (requests.RequestException, FileExistsError, FileNotFoundError):
+    except requests.RequestException, FileExistsError, FileNotFoundError:
         return False
     return True

@@ -1,6 +1,7 @@
 """
 * Frame Logic Module
 """
+
 from collections.abc import Iterable, Iterator
 from functools import cache, cached_property
 
@@ -16,6 +17,7 @@ from src.utils.scryfall import MagicColor, ScryfallCard, ScryfallCardFace
 
 class RulesTextLine:
     """Data structure representing one line of the rules text in a Magic the Gathering card."""
+
     def __init__(self, line: str):
         self._line = line
 
@@ -32,7 +34,7 @@ class RulesText:
 
     def __init__(self, text: str):
         self._text = text
-        self._lines = [RulesTextLine(n) for n in text.split('\n')]
+        self._lines = [RulesTextLine(n) for n in text.split("\n")]
 
     def __iter__(self) -> Iterator[RulesTextLine]:
         yield from self._lines
@@ -44,65 +46,62 @@ REUSABLE VARS
 
 
 # Single Letter Colors
-colors = [
-    LAYERS.WHITE,
-    LAYERS.BLUE,
-    LAYERS.BLACK,
-    LAYERS.RED,
-    LAYERS.GREEN
-]
+colors = [LAYERS.WHITE, LAYERS.BLUE, LAYERS.BLACK, LAYERS.RED, LAYERS.GREEN]
 
 # Color Lookup Table
 color_lookup = {
     # Two Colors
-    2: {''.join(sorted(color)): color for color in [
-        LAYERS.WU,
-        LAYERS.UB,
-        LAYERS.BR,
-        LAYERS.RG,
-        LAYERS.GW,
-        LAYERS.WB,
-        LAYERS.BG,
-        LAYERS.GU,
-        LAYERS.UR,
-        LAYERS.RW
-    ]},
+    2: {
+        "".join(sorted(color)): color
+        for color in [
+            LAYERS.WU,
+            LAYERS.UB,
+            LAYERS.BR,
+            LAYERS.RG,
+            LAYERS.GW,
+            LAYERS.WB,
+            LAYERS.BG,
+            LAYERS.GU,
+            LAYERS.UR,
+            LAYERS.RW,
+        ]
+    },
     # Three Colors
-    3: {''.join(sorted(color)): color for color in [
-        LAYERS.GWU,
-        LAYERS.WUB,
-        LAYERS.UBR,
-        LAYERS.BRG,
-        LAYERS.RGW,
-        LAYERS.WBG,
-        LAYERS.URW,
-        LAYERS.BGU,
-        LAYERS.RWB,
-        LAYERS.GUR
-    ]},
+    3: {
+        "".join(sorted(color)): color
+        for color in [
+            LAYERS.GWU,
+            LAYERS.WUB,
+            LAYERS.UBR,
+            LAYERS.BRG,
+            LAYERS.RGW,
+            LAYERS.WBG,
+            LAYERS.URW,
+            LAYERS.BGU,
+            LAYERS.RWB,
+            LAYERS.GUR,
+        ]
+    },
     # Four Colors
-    4: {''.join(sorted(color)): color for color in [
-        LAYERS.WUBR,
-        LAYERS.UBRG,
-        LAYERS.BRGW,
-        LAYERS.RGWU,
-        LAYERS.GWUB
-    ]},
-    5: {'BGRUW': LAYERS.WUBRG}
+    4: {
+        "".join(sorted(color)): color
+        for color in [LAYERS.WUBR, LAYERS.UBRG, LAYERS.BRGW, LAYERS.RGWU, LAYERS.GWUB]
+    },
+    5: {"BGRUW": LAYERS.WUBRG},
 }
 
 # Basic Land Types
 land_types = {
-    'Plains': LAYERS.WHITE,
-    'Island': LAYERS.BLUE,
-    'Swamp': LAYERS.BLACK,
-    'Mountain': LAYERS.RED,
-    'Forest': LAYERS.GREEN
+    "Plains": LAYERS.WHITE,
+    "Island": LAYERS.BLUE,
+    "Swamp": LAYERS.BLACK,
+    "Mountain": LAYERS.RED,
+    "Forest": LAYERS.GREEN,
 }
 
 # Mana Symbol Matching
-mono_symbols = ['{W}', '{U}', '{B}', '{R}', '{G}']
-hybrid_symbols = ['W/U', 'U/B', 'B/R', 'R/G', 'G/W', 'W/B', 'B/G', 'G/U', 'U/R', 'R/W']
+mono_symbols = ["{W}", "{U}", "{B}", "{R}", "{G}"]
+hybrid_symbols = ["W/U", "U/B", "B/R", "R/G", "G/W", "W/B", "B/G", "G/U", "U/R", "R/W"]
 
 
 """
@@ -123,7 +122,7 @@ def is_multicolor_string(text: str) -> bool:
     if not text:
         return False
     if 1 < len(text) < 6:
-        return bool(''.join(sorted(text)) in color_lookup.get(len(text), []))
+        return bool("".join(sorted(text)) in color_lookup.get(len(text), []))
     return False
 
 
@@ -142,7 +141,7 @@ def contains_frame_colors(text: str) -> bool:
     if text in colors or text in LAYERS.WUBRG:
         return True
     if 1 > len(text) < 5:
-        return bool(''.join(sorted(text)) in color_lookup.get(len(text), []))
+        return bool("".join(sorted(text)) in color_lookup.get(len(text), []))
     return False
 
 
@@ -158,9 +157,9 @@ def get_ordered_colors(text: str | Iterable[str]) -> str:
     """
     # Validate the input
     if not text:
-        return ''
+        return ""
     if not isinstance(text, str):
-        text = ''.join(text)
+        text = "".join(text)
 
     # Match an ordered color
     if len(text) == 1:
@@ -168,7 +167,7 @@ def get_ordered_colors(text: str | Iterable[str]) -> str:
         return text
     if 1 < len(text) < 5:
         # Use a lookup table
-        return color_lookup[len(text)].get(''.join(sorted(text)), '')
+        return color_lookup[len(text)].get("".join(sorted(text)), "")
     # All 5 colors
     return LAYERS.WUBRG
 
@@ -184,9 +183,9 @@ def get_mana_cost_colors(mana_cost: str) -> str:
     """
     # No valid mana cost
     if not mana_cost:
-        return ''
+        return ""
     color_list = [color for color in colors if color in mana_cost]
-    return ''.join(color_list)
+    return "".join(color_list)
 
 
 def get_color_identity_nonland(
@@ -194,7 +193,7 @@ def get_color_identity_nonland(
     type_line: str,
     oracle_text: str,
     color_indicator: list[MagicColor],
-    color_list: list[MagicColor]
+    color_list: list[MagicColor],
 ) -> str:
     """Get the assumed color identity of Non-Land card based on a priority list of factors.
 
@@ -208,24 +207,26 @@ def get_color_identity_nonland(
     Returns:
         Our best guess for this card's color identity.
     """
-    if ' is all colors.' in oracle_text:
+    if " is all colors." in oracle_text:
         # Transguild Courier case
         return LAYERS.WUBRG
-    if mana_cost == '' or (mana_cost == '{0}' and LAYERS.ARTIFACT not in type_line):
+    if mana_cost == "" or (mana_cost == "{0}" and LAYERS.ARTIFACT not in type_line):
         # Card with no mana cost
         if color_indicator:
             # Use Color Indicator if provided
-            return get_ordered_colors(''.join(color_indicator))
+            return get_ordered_colors("".join(color_indicator))
         elif color_list:
             # Use Color Identity/Colors if provided
-            return get_ordered_colors(''.join(color_list))
+            return get_ordered_colors("".join(color_list))
         # No Color Identity
         return ""
     # Use colors from Mana Cost as assumed color identity
     return get_ordered_colors(get_mana_cost_colors(mana_cost))
 
 
-def check_hybrid_color_card(color_identity: str | list[str], mana_cost: str, is_dfc: bool) -> bool:
+def check_hybrid_color_card(
+    color_identity: str | list[str], mana_cost: str, is_dfc: bool
+) -> bool:
     """Check a number of inputs to see if this card is:
         - A card with only hybrid Mana symbols
         - Only 2 colors represented
@@ -242,9 +243,11 @@ def check_hybrid_color_card(color_identity: str | list[str], mana_cost: str, is_
         True if hybrid, otherwise False.
     """
     # Identify if the card is a two-color hybrid card with only hybrid mana
-    if len(color_identity) == 2 and not any([symbol in mana_cost for symbol in mono_symbols]):
+    if len(color_identity) == 2 and not any(
+        [symbol in mana_cost for symbol in mono_symbols]
+    ):
         # Hybrid empty mana case - Asmoranomardi[...]
-        if mana_cost == '' and not is_dfc:
+        if mana_cost == "" and not is_dfc:
             return True
         for hybrid_symbol in hybrid_symbols:
             if hybrid_symbol in mana_cost:
@@ -264,7 +267,9 @@ def check_hybrid_mana_cost(color_identity: str | list[str], mana_cost: str) -> b
         True if hybrid mana cost, otherwise False.
     """
     # Identify if the card is a two-color hybrid card with only hybrid mana
-    if len(color_identity) == 2 and not any([symbol in mana_cost for symbol in mono_symbols]):
+    if len(color_identity) == 2 and not any(
+        [symbol in mana_cost for symbol in mono_symbols]
+    ):
         if any([bool(sym in mana_cost) for sym in hybrid_symbols]):
             return True
     return False
@@ -285,7 +290,7 @@ def get_frame_details(card: ScryfallCard | ScryfallCardFace) -> FrameDetails:
     Returns:
         Dict containing FrameDetails representing the card's frame makeup.
     """
-    if card.type_line and 'Land' in card.type_line:
+    if card.type_line and "Land" in card.type_line:
         return get_frame_details_land(card)
     return get_frame_details_nonland(card)
 
@@ -301,14 +306,14 @@ def get_frame_details_land(card: ScryfallCard | ScryfallCardFace) -> FrameDetail
     """
     # Grab the attributes we need
     type_line, oracle_text = card.type_line or "", card.oracle_text or ""
-    twins = colors_tapped = basic_identity = ''
+    twins = colors_tapped = basic_identity = ""
     result: FrameDetails = {
         "background": LAYERS.LAND,
         "pinlines": LAYERS.LAND,
         "twins": LAYERS.LAND,
-        "identity": '',
+        "identity": "",
         "is_colorless": False,
-        "is_hybrid": False
+        "is_hybrid": False,
     }
 
     # Check if it has a basic land type
@@ -323,18 +328,15 @@ def get_frame_details_land(card: ScryfallCard | ScryfallCardFace) -> FrameDetail
     elif len(basic_identity) == 2:
         # Dual land type identity
         identity = get_ordered_colors(basic_identity)
-        result.update({
-            "pinlines": identity,
-            "identity": identity
-        })
+        result.update({"pinlines": identity, "identity": identity})
         return result
 
     # Iterate over rules text lines
-    basic_identity = ''
-    for line in oracle_text.split('\n'):
+    basic_identity = ""
+    for line in oracle_text.split("\n"):
         # Identify if the card is a fetch land
-        if 'search your library' in line.lower():
-            if 'cycling' not in line.lower():
+        if "search your library" in line.lower():
+            if "cycling" not in line.lower():
                 # Fetch land of some kind, find basic land types
                 for key, basic in land_types.items():
                     if key in line:
@@ -344,81 +346,93 @@ def get_frame_details_land(card: ScryfallCard | ScryfallCardFace) -> FrameDetail
             # Set the name box & pinlines based on how many basics the ability mentions
             if len(basic_identity) == 1:
                 # One basic mentioned - Single color identity
-                result.update({
-                    'pinlines': basic_identity,
-                    'twins': basic_identity,
-                    'identity': basic_identity,
-                })
+                result.update(
+                    {
+                        "pinlines": basic_identity,
+                        "twins": basic_identity,
+                        "identity": basic_identity,
+                    }
+                )
                 return result
             elif len(basic_identity) == 2:
                 # Two basics mentioned - Dual color identity
                 identity = get_ordered_colors(basic_identity)
-                result.update({
-                    'pinlines': identity,
-                    'identity': identity
-                })
+                result.update({"pinlines": identity, "identity": identity})
                 return result
             elif len(basic_identity) == 3:
                 # Three basics mentioned - Panorama case
                 return result
             elif LAYERS.LAND.lower() in line:
                 # Land probably fetches any basic, exclude "Ash Barrens" case
-                if (('tapped' not in line or 'untap' in line) and
-                        # "Ash Barrens" case
-                        'into your hand' not in line and
-                        # "Demolition Field" case
-                        'Destroy' not in line):
+                if (
+                    ("tapped" not in line or "untap" in line)
+                    and
+                    # "Ash Barrens" case
+                    "into your hand" not in line
+                    and
+                    # "Demolition Field" case
+                    "Destroy" not in line
+                ):
                     # Gold fetch land
-                    result.update({
-                        'pinlines': LAYERS.GOLD,
-                        'twins': LAYERS.GOLD,
-                        'identity': LAYERS.WUBRG
-                    })
+                    result.update(
+                        {
+                            "pinlines": LAYERS.GOLD,
+                            "twins": LAYERS.GOLD,
+                            "identity": LAYERS.WUBRG,
+                        }
+                    )
                     return result
 
                 # Colorless fetch land
                 return result
 
         # Check if the line adds one mana of any color
-        if ('add' in line.lower() and 'mana' in line) and any(
-            [t in line for t in ['color ', 'colors ', 'color.', 'colors.', 'any type']]
+        if ("add" in line.lower() and "mana" in line) and any(
+            [t in line for t in ["color ", "colors ", "color.", "colors.", "any type"]]
         ):
             # Probably Gold Land if it excludes the following cases
-            cases = ['enters the battlefield', 'Remove a charge counter', 'Sacrifice', 'luck counter']
+            cases = [
+                "enters the battlefield",
+                "Remove a charge counter",
+                "Sacrifice",
+                "luck counter",
+            ]
             if all(case not in line for case in cases):
                 # Gold Identity Land
-                result.update({
-                    'pinlines': LAYERS.GOLD,
-                    'twins': LAYERS.GOLD,
-                    'identity': LAYERS.WUBRG
-                })
+                result.update(
+                    {
+                        "pinlines": LAYERS.GOLD,
+                        "twins": LAYERS.GOLD,
+                        "identity": LAYERS.WUBRG,
+                    }
+                )
                 return result
 
         # Check if the line chooses a basic land type, e.g. Thran Portal
-        if 'choose a basic land type' in line:
+        if "choose a basic land type" in line:
             # Gold Identity Land
-            result.update({
-                'pinlines': LAYERS.GOLD,
-                'twins': LAYERS.GOLD,
-                'identity': LAYERS.WUBRG
-            })
+            result.update(
+                {
+                    "pinlines": LAYERS.GOLD,
+                    "twins": LAYERS.GOLD,
+                    "identity": LAYERS.WUBRG,
+                }
+            )
             return result
 
         # Check if the line makes all lands X type, ex: Urborg, Tomb of Yawgmoth
-        if 'Each land is a ' in line:
+        if "Each land is a " in line:
             for k, v in land_types.items():
-                if f'Each land is a {k}' in line:
-                    result.update({
-                        'pinlines': v,
-                        'twins': v,
-                        'identity': v
-                    })
+                if f"Each land is a {k}" in line:
+                    result.update({"pinlines": v, "twins": v, "identity": v})
                     return result
 
         # Count how many colors of mana the card can tap to add
-        if line.find('{T}') < line.find(':') and 'add ' in line.lower():
+        if line.find("{T}") < line.find(":") and "add " in line.lower():
             # This line taps to add one or more colors, add those colors
-            for color in [c for c in colors if f"{{{c}}}" in line and c not in colors_tapped]:
+            for color in [
+                c for c in colors if f"{{{c}}}" in line and c not in colors_tapped
+            ]:
                 # Add this color to colors_tapped
                 colors_tapped += color
 
@@ -426,25 +440,27 @@ def get_frame_details_land(card: ScryfallCard | ScryfallCardFace) -> FrameDetail
     identity = get_ordered_colors(colors_tapped)
     if len(identity) == 1:
         # Mono Color
-        result.update({
-            'pinlines': identity,
-            'identity': identity,
-            'twins': twins or colors_tapped
-        })
+        result.update(
+            {
+                "pinlines": identity,
+                "identity": identity,
+                "twins": twins or colors_tapped,
+            }
+        )
     elif len(identity) == 2:
         # Dual Color
-        result.update({
-            'pinlines': identity,
-            'identity': identity,
-            'twins': twins or LAYERS.LAND
-        })
+        result.update(
+            {"pinlines": identity, "identity": identity, "twins": twins or LAYERS.LAND}
+        )
     elif len(colors_tapped) > 2:
         # Three to Five Colors
-        result.update({
-            'pinlines': LAYERS.GOLD,
-            'identity': identity,
-            'twins': twins or LAYERS.GOLD
-        })
+        result.update(
+            {
+                "pinlines": LAYERS.GOLD,
+                "identity": identity,
+                "twins": twins or LAYERS.GOLD,
+            }
+        )
     return result
 
 
@@ -466,7 +482,9 @@ def get_frame_details_nonland(card: ScryfallCard | ScryfallCardFace) -> FrameDet
         type_line=type_line,
         oracle_text=oracle_text,
         color_indicator=card.color_indicator or [],
-        color_list=card.color_identity if isinstance(card, ScryfallCard) else card.colors or []
+        color_list=card.color_identity
+        if isinstance(card, ScryfallCard)
+        else card.colors or [],
     )
 
     # Default results
@@ -476,78 +494,81 @@ def get_frame_details_nonland(card: ScryfallCard | ScryfallCardFace) -> FrameDet
         "twins": color_identity,
         "identity": color_identity,
         "is_colorless": False,
-        "is_hybrid": False
+        "is_hybrid": False,
     }
 
     # Handle full art colorless cards and devoid frame cards
     if (
-        # Devoid card check
-        devoid := bool('Devoid' in oracle_text and len(color_identity) > 0)
-    ) or (
-        # Zero color non-artifact card check
-        len(color_identity) <= 0 and LAYERS.ARTIFACT not in type_line
-    ) or (
-        # Zero mana cost eldrazi card check
-        not mana_cost and 'Eldrazi' in type_line
+        (
+            # Devoid card check
+            devoid := bool("Devoid" in oracle_text and len(color_identity) > 0)
+        )
+        or (
+            # Zero color non-artifact card check
+            len(color_identity) <= 0 and LAYERS.ARTIFACT not in type_line
+        )
+        or (
+            # Zero mana cost eldrazi card check
+            not mana_cost and "Eldrazi" in type_line
+        )
     ):
         # Devoid dual color frame or Colorless frame?
         if devoid and len(color_identity) > 1:
             # Use gold name plates and devoid-style background
-            result.update({
-                'twins': LAYERS.GOLD,
-                'background': LAYERS.GOLD
-            })
+            result.update({"twins": LAYERS.GOLD, "background": LAYERS.GOLD})
         elif not devoid:
             # Completely Colorless card
-            result.update({
-                'twins': LAYERS.COLORLESS,
-                'background': LAYERS.COLORLESS,
-                'pinlines': LAYERS.COLORLESS
-            })
+            result.update(
+                {
+                    "twins": LAYERS.COLORLESS,
+                    "background": LAYERS.COLORLESS,
+                    "pinlines": LAYERS.COLORLESS,
+                }
+            )
         # Return formatted Colorless card
-        result['is_colorless'] = True
+        result["is_colorless"] = True
         return result
 
     # Identify Hybrid frame cards
     hybrid = check_hybrid_color_card(
         color_identity=color_identity,
         mana_cost=mana_cost,
-        is_dfc=card.object == 'card_face'
+        is_dfc=card.object == "card_face",
     )
 
     # Is this card hybrid?
     if hybrid:
-        result['is_hybrid'] = True
+        result["is_hybrid"] = True
 
     # Switch Background
     if LAYERS.VEHICLE in type_line:
         # Vehicle card
-        result['background'] = LAYERS.VEHICLE
+        result["background"] = LAYERS.VEHICLE
     elif LAYERS.ARTIFACT in type_line:
         # Artifact card
-        result['background'] = LAYERS.ARTIFACT
+        result["background"] = LAYERS.ARTIFACT
     elif len(color_identity) >= 2 and not hybrid:
         # 2+ color card not Hybrid
-        result['background'] = LAYERS.GOLD
+        result["background"] = LAYERS.GOLD
 
     # Switch Pinlines
     if len(color_identity) == 0:
         # No colors
-        result['pinlines'] = LAYERS.ARTIFACT
+        result["pinlines"] = LAYERS.ARTIFACT
     elif len(color_identity) > 2:
         # 1-2 colors
-        result['pinlines'] = LAYERS.GOLD
+        result["pinlines"] = LAYERS.GOLD
 
     # Switch Name Plates
     if len(color_identity) == 0:
         # No colors
-        result['twins'] = LAYERS.ARTIFACT
+        result["twins"] = LAYERS.ARTIFACT
     elif hybrid:
         # Hybrid card
-        result['twins'] = LAYERS.LAND
+        result["twins"] = LAYERS.LAND
     elif len(color_identity) >= 2:
         # 2+ colors
-        result['twins'] = LAYERS.GOLD
+        result["twins"] = LAYERS.GOLD
 
     # Return the processed details
     return result
@@ -570,13 +591,13 @@ def get_special_rarity(rarity: str, card: ScryfallCard) -> str:
     """
     if rarity == Rarity.S:
         # Timeshifted cards
-        if card.frame == '1997':
+        if card.frame == "1997":
             return Rarity.T
         # Championship cards
-        if 'Champion' in card.set_name:
+        if "Champion" in card.set_name:
             return Rarity.M
         # Masterpiece
-        if card.set_type == 'masterpiece':
+        if card.set_type == "masterpiece":
             return Rarity.M
         # Case like Prismatic Piper
         return Rarity.C

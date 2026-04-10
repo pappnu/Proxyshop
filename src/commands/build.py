@@ -2,24 +2,40 @@
 * CLI Commands: Build
 """
 
-# Third party imports
 import click
 
-# Local Imports
 from src.utils.build import build_release
-
 
 """
 * Commands
 """
 
 
-@click.command(help='Build executable app release and distributable zip.')
-@click.argument('version', required=False)
-@click.option('-B', '--beta', is_flag=True, default=False, help="Build app as a Beta release.")
-@click.option('-C', '--console', is_flag=True, default=False, help="Build app with console enabled.")
-@click.option('-R', '--raw', is_flag=True, default=False, help="Build app without creating zip release archive.")
-def build_app(version: str | None = None, beta: bool = False, console: bool = False, raw: bool = False) -> None:
+@click.command(help="Build executable app release and distributable zip.")
+@click.argument("version", required=False)
+@click.option(
+    "-B", "--beta", is_flag=True, default=False, help="Build app as a Beta release."
+)
+@click.option(
+    "-C",
+    "--console",
+    is_flag=True,
+    default=False,
+    help="Build app with console enabled.",
+)
+@click.option(
+    "-R",
+    "--raw",
+    is_flag=True,
+    default=False,
+    help="Build app without creating zip release archive.",
+)
+def build_app(
+    version: str | None = None,
+    beta: bool = False,
+    console: bool = False,
+    raw: bool = False,
+) -> None:
     """Build Proxyshop as an executable release.
 
     Args:
@@ -37,8 +53,8 @@ def build_app(version: str | None = None, beta: bool = False, console: bool = Fa
 
 
 @click.group(
-    name='build',
-    help='Command utilities for building and managing release files.',
+    name="build",
+    help="Command utilities for building and managing release files.",
     commands={"app": build_app},
 )
 def build_cli() -> None:
@@ -47,4 +63,4 @@ def build_cli() -> None:
 
 
 # Export CLI
-__all__ = ['build_cli']
+__all__ = ["build_cli"]

@@ -3,13 +3,7 @@ from logging import getLogger
 from typing import override
 
 from pydantic import BaseModel
-from PySide6.QtCore import (
-    Property,
-    QModelIndex,
-    QObject,
-    Signal,
-    Slot,
-)
+from PySide6.QtCore import Property, QModelIndex, QObject, Signal, Slot
 
 from src._config import AppConfig
 from src._loader import AssembledTemplate, ConfigHandler, TemplateLibrary

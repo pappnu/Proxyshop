@@ -122,49 +122,49 @@ class RenderOperationsModel(PydanticQListModel[RenderOperationDetails]):
             self._active_operation_changed.emit()
 
     @Property(str, notify=_active_operation_changed)
-    def rendering_image_name(self) -> str:  # pyright: ignore[reportRedeclaration]
+    def rendering_image_name(self) -> str:
         if self._active_operation:
             return self._active_operation.image_name
         return ""
 
     @Property(str, notify=_active_operation_changed)
-    def rendering_image_path(self) -> str:  # pyright: ignore[reportRedeclaration]
+    def rendering_image_path(self) -> str:
         if self._active_operation:
             return self._active_operation.image_path
         return ""
 
     @Property(str, notify=_active_operation_changed)
-    def rendering_card_name(self) -> str:  # pyright: ignore[reportRedeclaration]
+    def rendering_card_name(self) -> str:
         if self._active_operation:
             return self._active_operation.card_name
         return ""
 
     @Property(str, notify=_active_operation_changed)
-    def rendering_card_artist(self) -> str:  # pyright: ignore[reportRedeclaration]
+    def rendering_card_artist(self) -> str:
         if self._active_operation:
             return self._active_operation.card_artist
         return ""
 
     @Property(str, notify=_active_operation_changed)
-    def rendering_card_set(self) -> str:  # pyright: ignore[reportRedeclaration]
+    def rendering_card_set(self) -> str:
         if self._active_operation:
             return self._active_operation.card_set
         return ""
 
     @Property(str, notify=_active_operation_changed)
-    def rendering_card_collector_number(self) -> str:  # pyright: ignore[reportRedeclaration]
+    def rendering_card_collector_number(self) -> str:
         if self._active_operation:
             return self._active_operation.card_collector_number
         return ""
 
     @Property(str, notify=_active_operation_changed)
-    def rendering_layout_name(self) -> str:  # pyright: ignore[reportRedeclaration]
+    def rendering_layout_name(self) -> str:
         if self._active_operation:
             return self._active_operation.layout_name
         return ""
 
     @Property(str, notify=_active_operation_changed)
-    def rendering_class_name(self) -> str:  # pyright: ignore[reportRedeclaration]
+    def rendering_class_name(self) -> str:
         if self._active_operation:
             return self._active_operation.class_name
         return ""

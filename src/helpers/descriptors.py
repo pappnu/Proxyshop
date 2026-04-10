@@ -1,18 +1,12 @@
 """
 * Helpers: PS Object Descriptors
 """
-# Standard Library Imports
 
-# Third Party Imports
-from photoshop.api import ActionDescriptor, DialogModes, ActionReference
+from photoshop.api import ActionDescriptor, ActionReference
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
 from src import APP
-
-# QOL Definitions
-NO_DIALOG = DialogModes.DisplayNoDialogs
 
 """
 * Layer Action Descriptors

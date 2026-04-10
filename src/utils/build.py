@@ -19,8 +19,8 @@ from src._state import PATH
 
 # Directory definitions
 SRC: Path = PATH.CWD
-DST: Path = SRC / 'dist'
-DIST_CONFIG: Path = PATH.SRC_DATA / 'build' / 'dist.yml'
+DST: Path = SRC / "dist"
+DIST_CONFIG: Path = PATH.SRC_DATA / "build" / "dist.yml"
 
 
 """
@@ -30,22 +30,26 @@ DIST_CONFIG: Path = PATH.SRC_DATA / 'build' / 'dist.yml'
 
 class DistConfigNames(TypedDict):
     """Maps the recognized names table in 'dist.yml' configuration."""
+
     zip: str
 
 
 class DistConfigSpec(TypedDict):
     """Maps the named spec file paths table in 'dist.yml' configuration."""
+
     release: list[str]
     console: list[str]
 
 
 class DistConfigMakeDir(TypedDict):
     """Maps the generated dirs table in 'dist.yml' configuration."""
+
     paths: list[list[str]]
 
 
 class DistConfigCopyDir(TypedDict):
     """Maps the settings for a dir which need to be copied to the release dir."""
+
     paths: list[list[str]]
     files: NotRequired[list[list[str]]]
     exclude_ext: NotRequired[list[str]]
@@ -56,6 +60,7 @@ class DistConfigCopyDir(TypedDict):
 
 class DistConfig(TypedDict):
     """Maps the 'dist.yml' configuration which governs build behavior."""
+
     names: DistConfigNames
     spec: DistConfigSpec
     make: DistConfigMakeDir
@@ -73,7 +78,7 @@ def generate_version_file(version: str):
     Args:
         version: Version string to use in the version file.
     """
-    with open(Path(SRC, '__VERSION__.py'), 'w') as f:
+    with open(Path(SRC, "__VERSION__.py"), "w") as f:
         f.write(f"version='{version}'")
 
 
@@ -84,7 +89,7 @@ def make_directories(config: DistConfig) -> None:
         config: Config data from 'dist.yml'.
     """
     DST.mkdir(mode=777, parents=True, exist_ok=True)
-    for path in config['make']['paths']:
+    for path in config["make"]["paths"]:
         Path(DST, *path).mkdir(mode=777, parents=True, exist_ok=True)
 
 
@@ -94,7 +99,7 @@ def copy_directory(
     x_files: list[str],
     x_dirs: list[str],
     x_ext: list[str] | None = None,
-    recursive: bool = True
+    recursive: bool = True,
 ) -> None:
     """Copy a directory from src to dst.
 
@@ -139,21 +144,20 @@ def copy_app_files(config: DistConfig) -> None:
     Args:
         config: Config data from 'dist.yml'.
     """
-    for _, DIR in config.get('copy', {}).items():
+    for _, DIR in config.get("copy", {}).items():
         # Copy directories
-        for path in DIR.get('paths', []):
+        for path in DIR.get("paths", []):
             copy_directory(
                 src=Path(SRC, *path),
                 dst=Path(DST, *path),
-                x_files=DIR.get('exclude_files', []),
-                x_dirs=DIR.get('exclude_dirs', []),
-                x_ext=DIR.get('exclude_ext', []),
-                recursive=bool(DIR.get('recursive', True)))
+                x_files=DIR.get("exclude_files", []),
+                x_dirs=DIR.get("exclude_dirs", []),
+                x_ext=DIR.get("exclude_ext", []),
+                recursive=bool(DIR.get("recursive", True)),
+            )
         # Copy files
-        for file in DIR.get('files', []):
-            copy2(
-                src=Path(SRC, *file),
-                dst=Path(DST, *file))
+        for file in DIR.get("files", []):
+            copy2(src=Path(SRC, *file), dst=Path(DST, *file))
 
 
 """
@@ -169,17 +173,17 @@ def clear_build_files(clear_dist: bool = True) -> None:
     """
     # Run pyclean on main directory and venv
     run(("pyclean", "-v", "."), check=True)
-    if (SRC / '.venv').is_dir():
+    if (SRC / ".venv").is_dir():
         run(("pyclean", "-v", ".venv"))
 
     # Remove build directory
     with suppress(Exception):
-        rmtree(os.path.join(SRC, 'build'))
+        rmtree(os.path.join(SRC, "build"))
 
     # Optionally remove dist directory
     if clear_dist:
         with suppress(Exception):
-            rmtree(os.path.join(SRC, 'dist'))
+            rmtree(os.path.join(SRC, "dist"))
 
 
 """
@@ -196,8 +200,7 @@ def build_zip(filename: str) -> None:
     ZIP_SRC = os.path.join(SRC, filename)
     with zipfile.ZipFile(ZIP_SRC, "w", zipfile.ZIP_DEFLATED) as zipf:
         for fp in glob(os.path.join(DST, "**/*"), recursive=True):
-            zipf.write(fp, arcname=fp.replace(
-                os.path.commonpath([DST, fp]), ""))
+            zipf.write(fp, arcname=fp.replace(os.path.commonpath([DST, fp]), ""))
     move(ZIP_SRC, os.path.join(DST, filename))
 
 
@@ -205,7 +208,7 @@ def build_release(
     version: str | None = None,
     console: bool = False,
     beta: bool = False,
-    zipped: bool = True
+    zipped: bool = True,
 ) -> None:
     """Build the app to executable release.
 
@@ -223,12 +226,14 @@ def build_release(
     make_directories(dist_config)
 
     # Use provided version or fallback to project defined
-    version = version or get_project_version((SRC / 'pyproject').with_suffix('.toml'))
+    version = version or get_project_version((SRC / "pyproject").with_suffix(".toml"))
     generate_version_file(version)
 
     # Run Pyinstaller
-    spec_path: list[str] = dist_config['spec']['console'] if console else dist_config['spec']['release']
-    PyInstaller.__main__.run([str(Path(SRC, *spec_path)), '--clean'])
+    spec_path: list[str] = (
+        dist_config["spec"]["console"] if console else dist_config["spec"]["release"]
+    )
+    PyInstaller.__main__.run([str(Path(SRC, *spec_path)), "--clean"])
 
     # Copy our essential app files
     copy_app_files(dist_config)
@@ -236,15 +241,16 @@ def build_release(
     # Build zip release if requested
     if zipped:
         build_zip(
-            filename=dist_config['names']['zip'].format(
+            filename=dist_config["names"]["zip"].format(
                 version=version,
-                console='-console' if console else '',
-                beta='-beta' if beta else ''
-            ))
+                console="-console" if console else "",
+                beta="-beta" if beta else "",
+            )
+        )
 
     # Clear build files, except dist
     clear_build_files(clear_dist=False)
-    os.remove(Path(SRC, '__VERSION__.py'))
+    os.remove(Path(SRC, "__VERSION__.py"))
 
 
 """
@@ -262,8 +268,7 @@ def get_python_modules(path: Path) -> list[str]:
         List of module names.
     """
     return [
-        f[:-3] for f in os.listdir(path) if
-        f.endswith('.py') and f != "__init__.py"
+        f[:-3] for f in os.listdir(path) if f.endswith(".py") and f != "__init__.py"
     ]
 
 
@@ -273,14 +278,14 @@ def generate_mkdocs(path: str) -> None:
     Args:
         path: Path to a python module directory.
     """
-    directory = SRC / 'src' / path
-    parent = 'temps' if path == 'templates' else path
+    directory = SRC / "src" / path
+    parent = "temps" if path == "templates" else path
     for module in get_python_modules(directory):
         functions: list[str] = []
         classes: list[str] = []
 
         # Scan for functions and classes to document
-        with open(Path(directory, module).with_suffix('.py')) as file:
+        with open(Path(directory, module).with_suffix(".py")) as file:
             for node in ast.parse(file.read()).body:
                 if isinstance(node, ast.FunctionDef):
                     functions.append(f"src.{path}.{module}.{node.name}")
@@ -289,31 +294,36 @@ def generate_mkdocs(path: str) -> None:
 
         # Write MD file
         with open(
-            Path(SRC, 'docs', parent, module).with_suffix('.md'),
-            "w", encoding='utf-8'
+            Path(SRC, "docs", parent, module).with_suffix(".md"), "w", encoding="utf-8"
         ) as f:
-            if module[0] == '_':
+            if module[0] == "_":
                 module = module[1:]
-            module = module.title().replace('_', ' ')
+            module = module.title().replace("_", " ")
             f.write(f"# {module}\n")
             if classes:
-                [f.write(
-                    f"\n::: {cls}\n"
-                    f"    options:\n"
-                    f"        show_root_members_full_path: false\n"
-                    f"        show_category_heading: true\n"
-                    f"        show_root_full_path: false\n"
-                    f"        show_root_heading: true\n"
-                ) for cls in classes]
+                [
+                    f.write(
+                        f"\n::: {cls}\n"
+                        f"    options:\n"
+                        f"        show_root_members_full_path: false\n"
+                        f"        show_category_heading: true\n"
+                        f"        show_root_full_path: false\n"
+                        f"        show_root_heading: true\n"
+                    )
+                    for cls in classes
+                ]
             if functions:
-                [f.write(
-                    f"\n::: {func}\n"
-                    f"    options:\n"
-                    f"        show_root_members_full_path: false\n"
-                    f"        show_category_heading: true\n"
-                    f"        show_root_full_path: false\n"
-                    f"        show_root_heading: true\n"
-                ) for func in functions]
+                [
+                    f.write(
+                        f"\n::: {func}\n"
+                        f"    options:\n"
+                        f"        show_root_members_full_path: false\n"
+                        f"        show_category_heading: true\n"
+                        f"        show_root_full_path: false\n"
+                        f"        show_root_heading: true\n"
+                    )
+                    for func in functions
+                ]
 
 
 def generate_nav(headers: list[str], paths: list[str]) -> list[dict[str, list[str]]]:
@@ -328,9 +338,11 @@ def generate_nav(headers: list[str], paths: list[str]) -> list[dict[str, list[st
     """
     nav: list[dict[str, list[str]]] = []
     for i, path in enumerate(paths):
-        parent = 'temps' if path == 'templates' else path
-        md_files = sorted([f for f in os.listdir(Path(SRC, 'docs', parent)) if f.endswith('.md')])
-        nav_items = [f'{parent}/{f}' for f in md_files]  # remove .md extension
+        parent = "temps" if path == "templates" else path
+        md_files = sorted(
+            [f for f in os.listdir(Path(SRC, "docs", parent)) if f.endswith(".md")]
+        )
+        nav_items = [f"{parent}/{f}" for f in md_files]  # remove .md extension
         nav.append({headers[i]: nav_items})
     return nav
 
@@ -341,15 +353,17 @@ def update_mkdocs_yml(nav: list[dict[str, list[str]]]) -> None:
     Args:
         nav: List of nav objects to insert into nav data in mkdocs.yml.
     """
-    mkdocs_yml = load_data_file(Path(SRC, 'mkdocs.yml'))
-    mkdocs_yml['nav'] = [
-        {'Home': 'index.md'},
-        {'Changelog': 'changelog.md'},
-        {'Reference': [
-            *nav,
-            {'Text Layer Classes': 'text_layers.md'},
-            {'Card Layouts': 'layouts.md'}
-        ]},
-        {'License': 'license.md'}
+    mkdocs_yml = load_data_file(Path(SRC, "mkdocs.yml"))
+    mkdocs_yml["nav"] = [
+        {"Home": "index.md"},
+        {"Changelog": "changelog.md"},
+        {
+            "Reference": [
+                *nav,
+                {"Text Layer Classes": "text_layers.md"},
+                {"Card Layouts": "layouts.md"},
+            ]
+        },
+        {"License": "license.md"},
     ]
-    dump_data_file(mkdocs_yml, Path(SRC, 'mkdocs.yml'), config={'sort_keys': False})
+    dump_data_file(mkdocs_yml, Path(SRC, "mkdocs.yml"), config={"sort_keys": False})

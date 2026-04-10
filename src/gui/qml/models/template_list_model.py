@@ -5,11 +5,7 @@ from pathlib import Path
 from urllib.request import url2pathname
 
 from pydantic import BaseModel
-from PySide6.QtCore import (
-    QObject,
-    QUrl,
-    Slot,
-)
+from PySide6.QtCore import QObject, QUrl, Slot
 
 from src._loader import (
     AssembledTemplate,

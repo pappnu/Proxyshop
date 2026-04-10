@@ -2,10 +2,9 @@
 * Sketchify Action Module
 """
 
-# Third Party Imports
-from photoshop.api import ActionDescriptor, ActionList, ActionReference, DialogModes
+from photoshop.api import ActionDescriptor, ActionList, ActionReference
+from photoshop.api.enumerations import DialogModes
 
-# Local Imports
 from src import APP
 
 

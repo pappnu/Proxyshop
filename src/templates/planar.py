@@ -1,6 +1,7 @@
 """
 * PLANAR TEMPLATES
 """
+
 from functools import cached_property
 
 from photoshop.api._artlayer import ArtLayer

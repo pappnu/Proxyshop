@@ -36,7 +36,7 @@ def test_7z_compression(path: Path) -> dict:
         WordSize.WS48,
         WordSize.WS64,
         WordSize.WS96,
-        WordSize.WS128
+        WordSize.WS128,
     ]
     dict_sizes = [
         DictionarySize.DS32,
@@ -62,14 +62,14 @@ def test_7z_compression(path: Path) -> dict:
             s = perf_counter()
             path_out = compress_7z(path, word_size=ws, dict_size=ds)
             size = path_out.stat().st_size
-            time = round(perf_counter()-s, 3)
+            time = round(perf_counter() - s, 3)
             x.append(time)
             y.append(size)
             z.append(f"{ws}/{ds}")
             print(f"Word: {ws}, Dict: {ds}, T({time})—MB({size}) [{current}/{total}]")
 
     # Format a 600 DPI plot at 12" x 8"
-    plt.rcParams['lines.markersize'] = 5
+    plt.rcParams["lines.markersize"] = 5
     fig, ax = plt.subplots()
     fig.set_dpi(600)
     fig.set_size_inches(12, 8)
@@ -89,15 +89,15 @@ def test_7z_compression(path: Path) -> dict:
 
     # Show the plot and return raw data
     plt.show()
-    return {name: {'time': x[i], 'size': y[i]} for i, name in enumerate(z)}
+    return {name: {"time": x[i], "size": y[i]} for i, name in enumerate(z)}
 
 
 def test_jpeg_compression(
-        path: Path,
-        test_dpi: bool =True,
-        test_resample: bool =True,
-        test_optimize: bool =True,
-        test_quality: list[int] | None = None
+    path: Path,
+    test_dpi: bool = True,
+    test_resample: bool = True,
+    test_optimize: bool = True,
+    test_quality: list[int] | None = None,
 ) -> None:
     """
     Test a battery of JPEG compression settings.
@@ -109,7 +109,11 @@ def test_jpeg_compression(
     """
 
     # Settings to test
-    RESAMPLE = [Resampling.LANCZOS, Resampling.BICUBIC] if test_resample else [Resampling.LANCZOS]
+    RESAMPLE = (
+        [Resampling.LANCZOS, Resampling.BICUBIC]
+        if test_resample
+        else [Resampling.LANCZOS]
+    )
     OPTIMIZE = [True, False] if test_optimize else [True]
     WIDTH = [3264, 2176] if test_dpi else [3264]
     QUALITY, i = test_quality or [95, 90, 85, 80], 0
@@ -120,21 +124,22 @@ def test_jpeg_compression(
         for _R in RESAMPLE:
             for _Q in QUALITY:
                 for _O in OPTIMIZE:
-
                     # Downscale the image
                     s = perf_counter()
-                    CURRENT = (f"{i}. {'800' if _W < 3264 else '1200'} "
-                               f"{'lanczos' if _R == Resampling.LANCZOS else 'bicubic'} "
-                               f"{_Q} {'optimize_YES' if _O else 'optimize_NO'}")
+                    CURRENT = (
+                        f"{i}. {'800' if _W < 3264 else '1200'} "
+                        f"{'lanczos' if _R == Resampling.LANCZOS else 'bicubic'} "
+                        f"{_Q} {'optimize_YES' if _O else 'optimize_NO'}"
+                    )
                     _logger.info(f"TESTING: {CURRENT}")
-                    SAVE_TO = path.parent / 'compressed' / f'{CURRENT}.jpg'
+                    SAVE_TO = path.parent / "compressed" / f"{CURRENT}.jpg"
                     downscale_image_by_width(
                         path_img=path,
                         path_save=SAVE_TO,
                         max_width=_W,
                         optimize=_O,
                         quality=_Q,
-                        resample=_R
+                        resample=_R,
                     )
 
                     # Print the time of execution

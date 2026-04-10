@@ -2,19 +2,16 @@
 * Helpers: Positioning
 """
 
-# Standard Library Imports
 import math
 from collections.abc import Sequence
 from typing import Literal
 
-# Third Party Imports
-from photoshop.api import AnchorPosition, DialogModes
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
 from photoshop.api._selection import Selection
+from photoshop.api.enumerations import AnchorPosition
 
-# Local Imports
 from src import APP
 from src.enums.adobe import Dimensions
 from src.helpers.bounds import (
@@ -31,9 +28,6 @@ from src.helpers.selection import (
 )
 from src.helpers.text import get_font_size, set_text_size_and_leading
 from src.utils.adobe import ReferenceLayer
-
-# QOL Definitions
-NO_DIALOG = DialogModes.DisplayNoDialogs
 
 # Positioning
 positions_horizontal = [Dimensions.Left, Dimensions.Right, Dimensions.CenterX]

@@ -27,7 +27,6 @@ def launch_cli():
     if "cli" in sys.argv:
         sys.argv.remove("cli")
 
-    # Local Imports
     from src.commands import ProxyshopCLI
 
     # Run the CLI application
@@ -119,7 +118,7 @@ def launch_gui(template_library: TemplateLibrary, plugins: dict[str, AppPlugin])
         "github_url", f"https://github.com/{ENV.APP_UPDATES_REPO}"
     )
 
-    # This points to the extracted bundle directory in a PyInstaller build
+    # This points to the extracted bundle directory in a distributable build
     engine.addImportPath(Path(__file__).parent / "src" / "gui")
     QQuickStyle.setStyle("Fusion")
     QQuickStyle.setFallbackStyle("Basic")

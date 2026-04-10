@@ -2,23 +2,19 @@
 * Adventure Templates
 """
 
-# Standard Library
-from functools import cached_property
 from collections.abc import Callable
+from functools import cached_property
 
-# Third Party Imports
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
-# Local Imports
-from src.enums.layers import LAYERS
 import src.helpers as psd
-from src.schema.colors import GradientConfig
-from src.layouts import AdventureLayout, NormalLayout
-from src.schema.colors import ColorObject
-from src.templates._vector import VectorTemplate
-from src.templates._core import NormalTemplate
 import src.text_layers as text_classes
+from src.enums.layers import LAYERS
+from src.layouts import AdventureLayout
+from src.schema.colors import ColorObject, GradientConfig
+from src.templates._core import NormalTemplate
+from src.templates._vector import VectorTemplate
 
 """
 * Modifier Classes
@@ -31,9 +27,6 @@ class AdventureMod(NormalTemplate):
     Adds:
         * Adventure side text layers (Mana cost, name, typeline, and oracle text) and textbox reference.
     """
-
-    def __init__(self, layout: NormalLayout):
-        super().__init__(layout)
 
     """
     * Mixin Methods

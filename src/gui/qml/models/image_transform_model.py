@@ -43,7 +43,7 @@ class ImageTransformModel(QObject):
     _image_file_formats_changed = Signal()
 
     @Property(list, notify=_image_file_formats_changed)
-    def image_file_formats(self) -> list[str]:  # pyright: ignore[reportRedeclaration]
+    def image_file_formats(self) -> list[str]:
         return self._image_file_formats
 
     _downscale_changed = Signal()
@@ -97,7 +97,9 @@ class ImageTransformModel(QObject):
     @Slot()
     def transform_images(self) -> None:
         async def action():
-            images = await self._file_dialog_model.select_images(dialog_id="image_transform")
+            images = await self._file_dialog_model.select_images(
+                dialog_id="image_transform"
+            )
             await gather(*[self.transform_image(image) for image in images])
 
         ensure_future(action())
@@ -119,6 +121,8 @@ class ImageTransformModel(QObject):
                 self._downscale_width if self._downscale else None,
                 self._encoding_quality,
             )
-            _logger.info(f"Saved transformed version of <i>{image}</i> to <i>{out_path}</i>")
+            _logger.info(
+                f"Saved transformed version of <i>{image}</i> to <i>{out_path}</i>"
+            )
         except Exception:
             _logger.exception(f"Failed to transform <i>{image}</i>")

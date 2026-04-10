@@ -1,6 +1,7 @@
 """
 * Mutate Templates
 """
+
 from collections.abc import Callable
 from functools import cached_property
 
@@ -32,9 +33,11 @@ class MutateMod(NormalTemplate):
     """
 
     @cached_property
-    def text_layer_methods(self) -> list[Callable[[],None]]:
+    def text_layer_methods(self) -> list[Callable[[], None]]:
         """Add Mutate text layers."""
-        funcs = [self.text_layers_mutate] if isinstance(self.layout, MutateLayout) else []
+        funcs = (
+            [self.text_layers_mutate] if isinstance(self.layout, MutateLayout) else []
+        )
         return [*super().text_layer_methods, *funcs]
 
     """
@@ -62,8 +65,7 @@ class MutateMod(NormalTemplate):
     def process_layout_data(self) -> None:
         """Remove reminder text for mutate text if required."""
         if self.config.remove_reminder and isinstance(self.layout, MutateLayout):
-            self.layout.mutate_text = strip_reminder_text(
-                self.layout.mutate_text)
+            self.layout.mutate_text = strip_reminder_text(self.layout.mutate_text)
         super().process_layout_data()
 
     """
@@ -79,7 +81,9 @@ class MutateMod(NormalTemplate):
                 text_classes.FormattedTextArea(
                     layer=self.text_layer_mutate,
                     contents=self.layout.mutate_text,
-                    reference=self.mutate_reference))
+                    reference=self.mutate_reference,
+                )
+            )
 
 
 """

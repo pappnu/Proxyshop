@@ -56,7 +56,7 @@ PS_EXCEPTIONS = (
     KeyError,
     ValueError,
     TypeError,
-    OSError
+    OSError,
 )
 
 PS_ERROR_CODES: dict[int, str] = {
@@ -67,10 +67,9 @@ PS_ERROR_CODES: dict[int, str] = {
     -2147023170: "Unable to make connection with Photoshop, please check the FAQ for solutions.",
     # Response: "Invalid index."
     -2147352565: "Failed to load a PSD template or other file, ensure template file isn't corrupted "
-                 "and that you have allocated enough scratch disk space and RAM to Photoshop.",
+    "and that you have allocated enough scratch disk space and RAM to Photoshop.",
     # Response: "Exception occurred."
     -2147352567: "Photoshop does not appear to be installed. If Photoshop is installed, check the FAQ for solutions.",
-
     # --> COMError Messages that don't contain a message string, but have been investigated
     # Reference: https://docs.google.com/document/d/1j5xkWCWeHEFUZUaVtF59ccvAm9zTFsZ1qJcmFsXvkCM
     -2147220261: "Invalid data type passed to action descriptor function.",
@@ -80,7 +79,6 @@ PS_ERROR_CODES: dict[int, str] = {
     -2147212704: "Action descriptor or layer object key/property is missing.",
     # Reference: https://docs.google.com/document/d/1Oz69nNO0jR9qBbhjv3SVlMmk8iRnZY1LG7VaX7pqB-U
     -2147220262: "Photoshop tried to load a PSD template or file that doesn't exist.",
-
     # --> COMError Messages that don't contain a message string, but have been identified with testing
     # Test case: Pass a value to layer.textItem.color that isn't a SolidColor object
     -2147220279: "Wrong type of value passed to a Photoshop object property.",
@@ -88,7 +86,7 @@ PS_ERROR_CODES: dict[int, str] = {
     # Also: Observed when accessing the textItem property of a layer that contains an uninstalled font
     -2147213327: "Tried to interact with a text layer that is rasterized or has an uninstalled font.",
     # Test case: Delete a layer object, then try to delete it again.
-    -2147213404: "Tried to delete a layer that doesn't exist."
+    -2147213404: "Tried to delete a layer that doesn't exist.",
 }
 
 
@@ -98,6 +96,7 @@ LayerBounds = tuple[float, float, float, float]
 
 class LayerDimensions(TypedDict):
     """Calculated layer dimension info for a layer."""
+
     width: float
     height: float
     center_x: float
@@ -106,6 +105,7 @@ class LayerDimensions(TypedDict):
     right: float
     top: float
     bottom: float
+
 
 """
 * Util Classes
@@ -122,9 +122,11 @@ class ApplicationHandler(Application):
 
         # Set error dialog state
         with suppress(Exception):
-            self.displayDialogs = DialogModes.DisplayErrorDialogs if (
-                env and env.PS_ERROR_DIALOG
-            ) else DialogModes.DisplayNoDialogs
+            self.displayDialogs = (
+                DialogModes.DisplayErrorDialogs
+                if (env and env.PS_ERROR_DIALOG)
+                else DialogModes.DisplayNoDialogs
+            )
 
     """
     * Handler Properties
@@ -145,6 +147,7 @@ class ApplicationHandler(Application):
 class PhotoshopHandler(ApplicationHandler):
     """Wrapper for a single global Photoshop Application object equipped with soft loading,
     caching mechanisms, environment settings, and more."""
+
     _instance = None
     _window_handle: int | None = None
 
@@ -190,7 +193,7 @@ class PhotoshopHandler(ApplicationHandler):
             except Exception as e:
                 # Photoshop is either busy or unresponsive
                 return OSError(get_photoshop_error_message(e))
-            
+
             # Clear window handle as it might have changed
             self._window_handle = None
         return
@@ -297,8 +300,7 @@ class PhotoshopHandler(ApplicationHandler):
         Returns:
             str: String representation of Char ID.
         """
-        return self.typeIDToStringID(
-            self.charIDToTypeID(index))
+        return self.typeIDToStringID(self.charIDToTypeID(index))
 
     @cache
     def stringIDToCharID(self, index: int) -> str:
@@ -310,8 +312,7 @@ class PhotoshopHandler(ApplicationHandler):
         Returns:
             str: Character representation of String ID.
         """
-        return self.typeIDToCharID(
-            self.stringIDToTypeID(index))
+        return self.typeIDToCharID(self.stringIDToTypeID(index))
 
     """
     * Executing Action Descriptors
@@ -321,7 +322,7 @@ class PhotoshopHandler(ApplicationHandler):
         self,
         event_id: int,
         descriptor: ActionDescriptor | None = None,
-        display_dialogs: DialogModes = DialogModes.DisplayNoDialogs
+        display_dialogs: DialogModes = DialogModes.DisplayNoDialogs,
     ) -> ActionDescriptor:
         """Middleware to allow all dialogs when an error occurs upon calling executeAction in development mode.
 
@@ -335,7 +336,9 @@ class PhotoshopHandler(ApplicationHandler):
         """
         if self.is_error_dialog_enabled():
             # Allow error dialogs if enabled in the app environment
-            return super().executeAction(event_id, descriptor, DialogModes.DisplayErrorDialogs)
+            return super().executeAction(
+                event_id, descriptor, DialogModes.DisplayErrorDialogs
+            )
         return super().executeAction(event_id, descriptor, display_dialogs)
 
     """
@@ -345,17 +348,17 @@ class PhotoshopHandler(ApplicationHandler):
     @cache
     def supports_target_text_replace(self) -> bool:
         """bool: Checks if Photoshop version supports targeted text replacement."""
-        return self.version_meets_requirement('22.0.0')
+        return self.version_meets_requirement("22.0.0")
 
     @cache
     def supports_webp(self) -> bool:
         """bool: Checks if Photoshop version supports WEBP files."""
-        return self.version_meets_requirement('23.2.0')
+        return self.version_meets_requirement("23.2.0")
 
     @cache
     def supports_generative_fill(self) -> bool:
         """Checks if Photoshop version supports Generative Fill."""
-        return self.version_meets_requirement('24.6.0')
+        return self.version_meets_requirement("24.6.0")
 
     def version_meets_requirement(self, value: str) -> bool:
         """Checks if Photoshop version meets or exceeds required value.
@@ -388,7 +391,9 @@ class ReferenceLayer(ArtLayer):
     """A static ArtLayer whose properties such as width or height are not going to change. Most often
     used as a reference to position or size other layers."""
 
-    def __init__(self, parent: Photoshop | None = None, app: PhotoshopHandler | None = None):
+    def __init__(
+        self, parent: Photoshop | None = None, app: PhotoshopHandler | None = None
+    ):
         self._global_app = app if app else PhotoshopHandler()
         super().__init__(parent=parent)
 
@@ -397,10 +402,10 @@ class ReferenceLayer(ArtLayer):
     """
 
     def duplicate(
-            self,
-            relativeObject: Layer | None = None,
-            insertionLocation: ElementPlacement | None = None
-        ) -> ArtLayer:
+        self,
+        relativeObject: Layer | None = None,
+        insertionLocation: ElementPlacement | None = None,
+    ) -> ArtLayer:
         """Duplicates the layer and returns it as a `ReferenceLayer` object."""
         return ReferenceLayer(super().duplicate(relativeObject, insertionLocation))
 
@@ -437,7 +442,7 @@ class ReferenceLayer(ArtLayer):
             Action descriptor info object about the layer.
         """
         ref = ActionReference()
-        ref.putIdentifier(self.sID('layer'), self.id)
+        ref.putIdentifier(self.sID("layer"), self.id)
         return self._global_app.executeActionGet(ref)
 
     """
@@ -456,15 +461,16 @@ class ReferenceLayer(ArtLayer):
             d = self.action_getter
             try:
                 # Try getting bounds no effects
-                bounds = d.getObjectValue(self.sID('boundsNoEffects'))
+                bounds = d.getObjectValue(self.sID("boundsNoEffects"))
             except PS_EXCEPTIONS:
                 # Try getting bounds
-                bounds = d.getObjectValue(self.sID('bounds'))
+                bounds = d.getObjectValue(self.sID("bounds"))
             return (
-                bounds.getInteger(self.sID('left')),
-                bounds.getInteger(self.sID('top')),
-                bounds.getInteger(self.sID('right')),
-                bounds.getInteger(self.sID('bottom')))
+                bounds.getInteger(self.sID("left")),
+                bounds.getInteger(self.sID("top")),
+                bounds.getInteger(self.sID("right")),
+                bounds.getInteger(self.sID("bottom")),
+            )
         # Fallback to layer object bounds property
         return self.bounds
 
@@ -475,22 +481,22 @@ class ReferenceLayer(ArtLayer):
     @cached_property
     def dims(self) -> LayerDimensions:
         """LayerDimensions: Returns dimensions of the layer (cached), including:
-            - bounds (left, right, top, bottom)
-            - height
-            - width
-            - center_x
-            - center_y
+        - bounds (left, right, top, bottom)
+        - height
+        - width
+        - center_x
+        - center_y
         """
         return self.get_dimensions_from_bounds(self.bounds)
 
     @cached_property
     def dims_no_effects(self) -> LayerDimensions:
         """LayerDimensions: Returns dimensions of the layer (cached) without layer effects applied, including:
-            - bounds (left, right, top, bottom)
-            - height
-            - width
-            - center_x
-            - center_y
+        - bounds (left, right, top, bottom)
+        - height
+        - width
+        - center_x
+        - center_y
         """
         return self.get_dimensions_from_bounds(self.bounds_no_effects)
 
@@ -499,7 +505,9 @@ class ReferenceLayer(ArtLayer):
     """
 
     @staticmethod
-    def get_dimensions_from_bounds(bounds: tuple[float,float,float,float]) -> LayerDimensions:
+    def get_dimensions_from_bounds(
+        bounds: tuple[float, float, float, float],
+    ) -> LayerDimensions:
         """Compute width and height based on a set of bounds given.
 
         Args:
@@ -515,8 +523,11 @@ class ReferenceLayer(ArtLayer):
             height=height,
             center_x=round((width / 2) + bounds[0]),
             center_y=round((height / 2) + bounds[1]),
-            left=int(bounds[0]), right=int(bounds[2]),
-            top=int(bounds[1]), bottom=int(bounds[3]))
+            left=int(bounds[0]),
+            right=int(bounds[2]),
+            top=int(bounds[1]),
+            bottom=int(bounds[3]),
+        )
 
 
 """
@@ -524,7 +535,7 @@ class ReferenceLayer(ArtLayer):
 """
 
 
-def try_photoshop[**P,T](func: Callable[P, T]) -> Callable[P, T | None]:
+def try_photoshop[**P, T](func: Callable[P, T]) -> Callable[P, T | None]:
     """Decorator to handle trying to run a Photoshop action but allowing exceptions to fail silently.
 
     Args:
@@ -533,11 +544,13 @@ def try_photoshop[**P,T](func: Callable[P, T]) -> Callable[P, T | None]:
     Returns:
         The wrapped function.
     """
+
     def wrapper(*args: P.args, **kwargs: P.kwargs):
         try:
             return func(*args, **kwargs)
         except PS_EXCEPTIONS:
             return
+
     return wrapper
 
 
@@ -556,11 +569,13 @@ def get_photoshop_error_message(err: Exception) -> str:
         Proper user response for this exception.
     """
     return (
-        "Photoshop is currently busy, close any dialogs and stop any actions.\n"
-    ) if 'busy' in str(err).lower() else (
-        "Photoshop does not appear to be installed on your system.\n"
-        "Please close Proxyshop and install a fresh copy of Photoshop,\n"
-        "if Photoshop is installed, view the FAQ for troubleshooting.\n"
+        ("Photoshop is currently busy, close any dialogs and stop any actions.\n")
+        if "busy" in str(err).lower()
+        else (
+            "Photoshop does not appear to be installed on your system.\n"
+            "Please close Proxyshop and install a fresh copy of Photoshop,\n"
+            "if Photoshop is installed, view the FAQ for troubleshooting.\n"
+        )
     )
 
 

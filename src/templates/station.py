@@ -1,5 +1,5 @@
-from functools import cached_property
 from collections.abc import Callable
+from functools import cached_property
 
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet

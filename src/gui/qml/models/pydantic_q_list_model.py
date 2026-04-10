@@ -156,7 +156,7 @@ class PydanticQItemModel[T: BaseModel](PydanticQItemModelBase[T], QAbstractItemM
         if not value.isValid() or not item:
             self._selected_model_index = value
             self.selected_model_index_changed.emit(value)
-            self.selected_title = ""  # pyright: ignore[reportAttributeAccessIssue]
+            self.selected_title = ""
             return None
 
         if value != self._selected_model_index:

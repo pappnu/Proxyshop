@@ -49,7 +49,7 @@ def get_window_handle_by_process_file_path_suffix(suffix: str) -> int | None:
         if (
             # Try to skip windows that aren't visible in taskbar
             not (
-                win32gui.GetWindowLong(handle, win32con.GWL_STYLE)
+                win32gui.GetWindowLong(handle, win32con.GWL_STYLE)  # pyright: ignore[reportUnknownMemberType]
                 & win32con.WS_EX_APPWINDOW
             )
             # win32gui.GetParent(handle)
@@ -66,10 +66,10 @@ def get_window_handle_by_process_file_path_suffix(suffix: str) -> int | None:
             )
             try:
                 for module_handle in win32process.EnumProcessModules(process_handle):
-                    process_file_path: str = win32process.GetModuleFileNameEx(
+                    process_file_path: str = win32process.GetModuleFileNameEx(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
                         process_handle, module_handle
                     )
-                    if process_file_path.endswith(suffix):
+                    if process_file_path.endswith(suffix):  # pyright: ignore[reportUnknownMemberType]
                         return handle
             finally:
                 win32api.CloseHandle(process_handle)

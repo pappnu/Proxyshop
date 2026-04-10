@@ -1,6 +1,7 @@
 """
 * Helpers: Documents
 """
+
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -220,7 +221,9 @@ def jump_to_history_state(position: int):
     ref1 = ActionReference()
     ref1.putOffset(APP.instance.sID("historyState"), position)
     desc1.putReference(APP.instance.sID("target"), ref1)
-    APP.instance.executeAction(APP.instance.sID("select"), desc1, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("select"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def toggle_history_state(direction: str = "previous") -> None:
@@ -237,7 +240,9 @@ def toggle_history_state(direction: str = "previous") -> None:
         APP.instance.sID(direction),
     )
     desc1.putReference(APP.instance.sID("target"), ref1)
-    APP.instance.executeAction(APP.instance.sID("select"), desc1, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("select"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def undo_action() -> None:
@@ -260,7 +265,9 @@ def reset_document(docref: Document | None = None) -> None:
     d1, r1 = ActionDescriptor(), ActionReference()
     r1.putName(APP.instance.sID("snapshotClass"), docref.name)
     d1.putReference(APP.instance.sID("target"), r1)
-    APP.instance.executeAction(APP.instance.sID("select"), d1, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("select"), d1, DialogModes.DisplayNoDialogs
+    )
 
 
 """
@@ -349,7 +356,9 @@ def trim_transparent_pixels() -> None:
     desc258.putBoolean(APP.instance.sID("bottom"), True)
     desc258.putBoolean(APP.instance.sID("left"), True)
     desc258.putBoolean(APP.instance.sID("right"), True)
-    APP.instance.executeAction(APP.instance.sID("trim"), desc258, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("trim"), desc258, DialogModes.DisplayNoDialogs
+    )
 
 
 """
@@ -436,7 +445,9 @@ def save_document_psb(path: Path) -> None:
     d1.putObject(APP.instance.sID("as"), APP.instance.sID("largeDocumentFormat"), d2)
     d1.putPath(APP.instance.sID("in"), str(path.with_suffix(".psb")))
     d1.putBoolean(APP.instance.sID("lowerCase"), True)
-    APP.instance.executeAction(APP.instance.sID("save"), d1, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("save"), d1, DialogModes.DisplayNoDialogs
+    )
 
 
 def close_document(
@@ -476,7 +487,9 @@ def rotate_document(angle: int) -> None:
     )
     desc1.putReference(APP.instance.sID("target"), ref1)
     desc1.putUnitDouble(APP.instance.sID("angle"), APP.instance.sID("angleUnit"), angle)
-    APP.instance.executeAction(APP.instance.sID("rotateEventEnum"), desc1, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("rotateEventEnum"), desc1, DialogModes.DisplayNoDialogs
+    )
 
 
 def rotate_counter_clockwise() -> None:
@@ -514,4 +527,6 @@ def paste_to_document(layer: ArtLayer | LayerSet | None = None):
         APP.instance.sID("antiAliasNone"),
     )
     desc1.putClass(APP.instance.sID("as"), APP.instance.sID("pixel"))
-    APP.instance.executeAction(APP.instance.sID("paste"), desc1, DialogModes.DisplayNoDialogs)
+    APP.instance.executeAction(
+        APP.instance.sID("paste"), desc1, DialogModes.DisplayNoDialogs
+    )
