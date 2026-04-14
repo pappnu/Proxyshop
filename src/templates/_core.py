@@ -246,6 +246,8 @@ class BaseTemplate:
     @cached_property
     def output_directory(self) -> Path:
         """Directory where the rendered image will be saved to."""
+        if output_directory := self.layout.file["kwargs"].get("dir", None):
+            return PATH.OUT / output_directory
         return PATH.OUT
 
     @cached_property
@@ -1637,6 +1639,9 @@ class BaseTemplate:
         # Manual edit step?
         if self.config.exit_early:
             await self.pause_async("Rendering paused for manual editing.")
+
+        # Make sure output folder exists
+        self.output_directory.mkdir(parents=True, exist_ok=True)
 
         # Save the document
         if not self.run_tasks(

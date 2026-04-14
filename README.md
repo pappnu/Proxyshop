@@ -67,16 +67,68 @@ If you need help with this app or wish to troubleshoot an issue, [please join ou
     ```
     Brainstorm [SLD] {175}$My Creator Name.jpg
     ```
+- Proxyshop also has support for additional key-value pairs in the filename via `[key=value]`.
+  - Force Set-Symbol `[sym=SET]`: The `SET` part of this follows the same rules as `[SET]`, but will only affect the set-symbol.
+  - Template `[tmpl=TEMPLATE]`: Forces Proxyshop to render the card with the given template. Note that `TEMPLATE` has to match exactly the name of a template as seen in the UI _and_ the template has to support the card's layout. Otherwise Proxyshop will fall back to the selected template.
+  - Art-File `[art=FILE]`: Force to use a specific art, other than the art-file. `FILE` has to be an absolute path or relative to the art-file.
+  - Nickname: `[nick=NICKNAME]`: Use the specified nickname, only supported by select templates, e.g. Borderless.
 
 # 💻 Using the Proxyshop GUI
 
 ### Rendering
 
-- **Render**: Opens a file picker for choosing images to render. Template used for rendering is determined based on the tab you are in and what templates you have selected. Completed renders are saved to `out/` under Proxyshop's directory.
+- **Render**: Opens a file picker for choosing images to render. Template used for rendering is determined based on the tab you are in and what templates you have selected. Completed renders are saved to `out/` under Proxyshop's directory. The chosen files can also be YAML (.yaml, .yml) or JSON (.json), see [Render Specifications](#render_specifications) and [Custom Cards](#custom_cards) for details.
 - **Templates tab**: Allows selecting a specific template to render cards in. If a card has a layout that isn't supporeted by the selected template it won't be rendered.
 - **Batch mode tab**: Allows selecting a different template per card layout (e.g. Normal, Transform, Planeswalker, etc.). If some layout is left without a selection cards of that type are skipped. The batch mode is similar to how the old Proxyshop GUI used to function.
 - **Queue**: Allows viewing what cards have been queued for rendering. Individual entries can be removed from the queue or the whole queue can be cleared.
 - **Cancel/Resume**: Cancel aborts rendering. The currently active operation is removed but the rest of the queue is left intact. Resume can be used to proceed with the rest of the queue after a cancel.
+
+### Render Specifications
+
+You can load a YAML file (.yaml or .yml) which contains a specification for queueing multipe cards at once. In these specifications you can add settings to cards without changing their filenames, as well as use glob-patterns to queue multiple files with the same settings. A schema for render specifications is available in the `schemas` folder.
+
+<details>
+
+<summary>Expand for a description and usage-example of Render Specifications</summary>
+
+- Reusable configurations can be defined as follows:
+```yml
+- configs:
+  DOM: "[DOM]" # This config specifies the set DOM
+  SLD: "[sym=STAR]" # Force the STAR set-icon
+```
+
+- Cards to render can be defined as follows:
+```yml
+- files:
+  # Just a string, which is a path relative to the Render Specification
+  - "Normal/*.*" # Render all cards in the folder Normal
+  # A string, which is a path relative to the Render Specification
+  # and a string with additional settings
+  - file: "Borderless/*.*" # Render all cards in the folder Borderless ...
+    settings: "[tmpl=Borderless]" # ... using the Borderless template
+  # Settings can also be a list of strings, and can use the configs defined earlier
+  - file: "UB/*.*"
+    settings:
+      - "[tmpl=Universes Beyond]"
+      - "SLD"
+```
+In the above example, if you have a file `UB/Dungeon Descent.png` it will be rendered from that file, but as if its filename was `Dungeon Descent [tmpl=Universes Beyond] [sym=STAR].png`. Since the same is true for all files in the `UB` folder this makes it easy to render batches of files without fiddling with many filenames.
+
+- Lastly, you can also define groups, which contain a set of files (or other groups) and settings:
+```yml
+- groups:
+  - files: # List of files in this group, same syntax as bove
+    - "Normal/*.*"
+    - file: "Borderless/*.*"
+      settings: "[tmpl=Borderless]"
+    - file: "UB/*.*"
+      settings:
+        - "[tmpl=Universes Beyond]"
+        - "SLD"
+  - settings: "(My Favorite Artist)" # Render all files as being by this artist
+```
+</details>
 
 ### Updater
 

@@ -71,6 +71,7 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
         self._message_dialog_model = message_dialog_model
         self._render_queue = render_queue
         self._test_renders_model = test_renders_model
+        self._template_library = template_library
 
         self.built_in_templates_by_layout: dict[
             LayoutCategory, dict[str, AssembledTemplate]
@@ -199,6 +200,7 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
             ) -> None:
                 if render_operations := prepare_render_operations(
                     self.template_choices,
+                    self._template_library,
                     (input,),
                     file_dialog=self._file_dialog_model,
                     message_dialog=self._message_dialog_model,
@@ -214,7 +216,7 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
             selections = await self._file_dialog_model.select_images(
                 dialog_id="batch_mode_render",
                 filters=[
-                    FileDialogModel.IMAGES_AND_JSON_FILTER,
+                    FileDialogModel.IMAGES_AND_DATA_FILTER,
                     FileDialogModel.ALL_FILTER,
                 ],
             )

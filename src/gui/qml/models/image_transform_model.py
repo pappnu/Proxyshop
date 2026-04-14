@@ -106,9 +106,10 @@ class ImageTransformModel(QObject):
 
     async def transform_image(self, image: Path) -> None:
         try:
+            out_dir = image.parent / "compressed"
+            out_dir.mkdir(parents=True, exist_ok=True)
             out_path = (
-                image.parent
-                / "compressed"
+                out_dir
                 / image.with_suffix(
                     IMAGE_ENCODING_TO_SUFFIX_MAPPING[self._image_file_format]
                 ).name

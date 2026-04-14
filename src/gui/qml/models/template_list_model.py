@@ -66,6 +66,8 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
         self._message_dialog_model = message_dialog_model
         self._template_library = template_library
         self._test_renders_model = test_renders_model
+        self._template_library = template_library
+        
         self.built_in_templates = template_library.built_in_templates_by_name
         self.plugin_templates = template_library.plugin_templates_by_name
 
@@ -156,6 +158,7 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
             ) -> None:
                 if render_operations := prepare_render_operations(
                     template,
+                    self._template_library,
                     (input,),
                     file_dialog=self._file_dialog_model,
                     message_dialog=self._message_dialog_model,
@@ -171,7 +174,7 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
             selections = await self._file_dialog_model.select_images(
                 dialog_id="template_list_render",
                 filters=[
-                    FileDialogModel.IMAGES_AND_JSON_FILTER,
+                    FileDialogModel.IMAGES_AND_DATA_FILTER,
                     FileDialogModel.ALL_FILTER,
                 ],
             )

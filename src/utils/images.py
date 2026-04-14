@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from logging import getLogger
 from os import PathLike
 from pathlib import Path
@@ -7,6 +8,7 @@ from PIL import Image
 from pydantic import ValidationError
 
 from src.cards import CardDetails, parse_card_info
+from src.render_spec import parse_render_spec
 from src.utils.data_structures import find_index
 from src.utils.scryfall import ScryfallCard
 
@@ -39,6 +41,8 @@ def save_scaled_card_image(
         if image_format == "png":
             save_kwargs = {"optimize": True}
         elif image_format == "jpeg":
+            if f.mode == "RGBA":
+                f = f.convert("RGB")
             save_kwargs = {"optimize": True, "quality": quality}
         elif image_format == "webp":
             save_kwargs = {"quality": quality, "method": 6}
@@ -57,12 +61,16 @@ def match_images_with_data_files(
         Pydantic.ValidationError: if some of the data files don't conform to the data model
     """
     data_files = [pth for pth in paths if pth.suffix == ".json"]
-    image_files = [pth for pth in paths if pth.suffix != ".json"]
+    render_specs = [pth for pth in paths if pth.suffix in (".yaml", ".yml")]
+    image_files = [pth for pth in paths if pth.suffix not in (".json", ".yaml", ".yml")]
 
     results: list[CardDetails | tuple[CardDetails, ScryfallCard]] = []
 
-    for path in image_files:
-        card = parse_card_info(path)
+    @dataclass
+    class _ValidationError(ValidationError):
+        file: Path
+
+    def add_card(card: CardDetails) -> None:
         card_name = card["name"]
 
         idx = find_index(data_files, lambda item: item.stem == card_name)
@@ -75,13 +83,31 @@ def match_images_with_data_files(
                         ScryfallCard.model_validate_json(data_file.read_bytes()),
                     )
                 )
-            except ValidationError:
-                _logger.exception(
-                    f"Data file <i>{data_file}</i> failed to validate. Please correct the reported errors in the data and then try again. Since the file selection was invalid nothing will be added to the render queue."
-                )
-                return []
+            except ValidationError as e:
+                raise _ValidationError(data_file) from e
         else:
             results.append(card)
+
+    try:
+        for path in render_specs:
+            try:
+                cards = parse_render_spec(path).cards
+                for card in cards:
+                    add_card(card)
+            except ValidationError as e:
+                raise _ValidationError(path) from e
+
+            for card in cards:
+                add_card(card)
+
+        for path in image_files:
+            card = parse_card_info(path)
+            add_card(card)
+    except _ValidationError as e:
+        _logger.exception(
+            f"Data file <i>{e.file}</i> failed to validate. Please correct the reported errors in the data and then try again. Since the file selection was invalid nothing will be added to the render queue."
+        )
+        return []
 
     if data_files:
         _logger.warning(

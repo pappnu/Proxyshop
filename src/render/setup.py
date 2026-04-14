@@ -6,7 +6,12 @@ from typing import TYPE_CHECKING, TypedDict
 
 from src import CON, ENV
 from src._config import AppConfig
-from src._loader import ConfigHandler, RenderableTemplate, get_template_class
+from src._loader import (
+    ConfigHandler,
+    RenderableTemplate,
+    TemplateLibrary,
+    get_template_class,
+)
 from src.cards import CardDetails
 from src.enums.mtg import LayoutCategory
 from src.layouts import NormalLayout, assign_layout, join_dual_card_layouts
@@ -131,6 +136,7 @@ class RenderOperation:
 
 def prepare_render_operations(
     template_choices: RenderableTemplate | Mapping[LayoutCategory, RenderableTemplate],
+    template_library: TemplateLibrary,
     assets: Iterable[CardDetails | tuple[CardDetails, ScryfallCard]],
     file_dialog: FileDialogModel,
     message_dialog: MessageDialogContentModel,
@@ -162,18 +168,34 @@ def prepare_render_operations(
             # assign_layout reports its own errors
             continue
 
-        if isinstance(template_choices, Mapping):
-            if not (template_to_use := template_choices.get(layout.category, None)):
-                _logger.error(
-                    f"Skipping image <i>{
-                        card['file'].name
-                    }</i> because no template was specified for layout <i>{
-                        layout.category
-                    }</i>."
-                )
-                continue
-        else:
-            template_to_use = template_choices
+        template_to_use: RenderableTemplate | None = None
+
+        if template_name := card["kwargs"].get("tmpl"):
+            if builtin_template := template_library.built_in_templates_by_name.get(
+                template_name, None
+            ):
+                if layout.category in builtin_template.layout_categories:
+                    template_to_use = builtin_template
+            if template_to_use is None:
+                for templates in template_library.plugin_templates_by_name.values():
+                    if plugin_template := templates.get(template_name, None):
+                        if layout.category in plugin_template.layout_categories:
+                            template_to_use = plugin_template
+                            break
+
+        if template_to_use is None:
+            if isinstance(template_choices, Mapping):
+                if not (template_to_use := template_choices.get(layout.category, None)):
+                    _logger.error(
+                        f"Skipping image <i>{
+                            card['file'].name
+                        }</i> because no template was specified for layout <i>{
+                            layout.category
+                        }</i>."
+                    )
+                    continue
+            else:
+                template_to_use = template_choices
 
         if not (
             class_name_and_file := template_to_use.get_class_name_and_file_for_layout(

@@ -20,8 +20,8 @@ class FileDialogModel(BaseDialogModel):
     ALL_FILTER = "All (*)"
     PSD_FILTER = "PSD (*.psd)"
     IMAGES_FILTER = "Images (*.png *.jpg *.jpeg *.jxl *.avif *.webp)"
-    IMAGES_AND_JSON_FILTER = (
-        "Images and data (*.png *.jpg *.jpeg *.jxl *.avif *.webp *.json)"
+    IMAGES_AND_DATA_FILTER = (
+        "Images and data (*.png *.jpg *.jpeg *.jxl *.avif *.webp *.json *.yaml *.yml)"
     )
 
     def __init__(

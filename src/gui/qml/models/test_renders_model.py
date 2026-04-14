@@ -60,6 +60,7 @@ class TestRendersModel(QObject):
                     if render_operations := await to_thread(
                         prepare_render_operations,
                         template,
+                        self._template_library,
                         (parse_card_info(PATH.SRC_IMG_TEST, name_override=test_case),),
                         file_dialog=self._file_dialog_model,
                         message_dialog=self._message_dialog_model,
