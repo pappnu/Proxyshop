@@ -22,7 +22,7 @@ from PIL import Image
 
 import src.helpers as psd
 from src import APP, CON
-from src._state import PATH
+from src._state import PATH, WatermarkFormat
 from src.cards import sanitize_card_filename, strip_reminder_text
 from src.enums.layers import LAYERS
 from src.enums.mtg import CardTextPatterns, MagicIcons
@@ -1100,7 +1100,9 @@ class BaseTemplate:
             return
 
         # Get watermark custom settings if available
-        wm_details = CON.watermarks.get(self.layout.watermark, {})
+        wm_details: WatermarkFormat | dict[str, float] = CON.watermarks.get(
+            self.layout.watermark, {}
+        )
 
         # Import and frame the watermark
         wm = psd.import_svg(

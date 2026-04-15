@@ -359,10 +359,8 @@ class ScryfallError(BaseModel):
 # Rate limiter to safely limit Scryfall requests
 _rate_limit_storage = MemoryStorage()
 _scryfall_rate_limit = MovingWindowRateLimiter(_rate_limit_storage)
-# Using a limit of 10 per second seems to trigger Scryfall's rate limiting,
-# even though that's what Scryfall recommends. We don't need to make that many
-# simultaneous requests, so a lower limit is used.
-_rate_limit = RateLimitItemPerSecond(5)
+# https://scryfall.com/docs/api/rate-limits
+_rate_limit = RateLimitItemPerSecond(2)
 
 # Scryfall HTTP header
 scryfall_http_header = HEADERS.Default.copy()
