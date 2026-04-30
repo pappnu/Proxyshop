@@ -235,6 +235,40 @@ class NormalLayout:
         return False
 
     """
+    * Panorama Data
+    """
+
+    @cached_property
+    def is_panorama(self) -> bool:
+        return self.panorama_size[0] > 1 or self.panorama_size[1] > 1
+
+    @cached_property
+    def is_vertical_panorama(self) -> bool:
+        return self.panorama_size[1] > 1
+
+    @cached_property
+    def panorama_element(self) -> tuple[int, int]:
+        pano_pos_arg = self.file["kwargs"].get("pano_pos", None)
+        if (
+            pano_pos_arg is not None
+            and len(parts := pano_pos_arg.split("x", maxsplit=1)) == 2
+        ):
+            return (int(parts[0]), int(parts[1]))
+        else:
+            pano_elem = int(self.file["kwargs"].get("pano_elem", 0))
+            pano_x = pano_elem % self.panorama_size[0]
+            pano_y = pano_elem // self.panorama_size[0]
+            return (pano_x, pano_y)
+
+    @cached_property
+    def panorama_size(self) -> tuple[int, int]:
+        panorama_size = self.file["kwargs"].get("pano_size", "1x1")
+        panorama_size = [int(c) for c in panorama_size.split("x", maxsplit=1)]
+        if len(panorama_size) < 2:
+            panorama_size = panorama_size + [1] * (2 - len(panorama_size))
+        return (panorama_size[0], panorama_size[1])
+
+    """
     * Core Data
     """
 
@@ -256,7 +290,7 @@ class NormalLayout:
     @cached_property
     def art_file(self) -> Path:
         """Path: Art image file path."""
-        art_file = self.file['kwargs'].get('art', None)
+        art_file = self.file["kwargs"].get("art", None)
         if art_file is not None:
             art_file = Path(art_file)
             if art_file.is_absolute():
@@ -316,13 +350,11 @@ class NormalLayout:
 
             if not matching_face:
                 face_listing = "\n".join(f"  - {face.name}" for face in faces)
-                _logger.warning(
-                    f"None of the card faces<br>{
+                _logger.warning(f"None of the card faces<br>{
                         face_listing
                     }<br>matches the input file's name <i>{
                         self.input_name
-                    }</i>.<br>Defaulting to first face."
-                )
+                    }</i>.<br>Defaulting to first face.")
                 return faces[0]
 
             return matching_face
@@ -518,7 +550,7 @@ class NormalLayout:
     @cached_property
     def symbol_code(self) -> str:
         """Code used to match a symbol to this card's set. Provided by hexproof.io."""
-        forced_symbol = self.file['kwargs'].get('sym', None)
+        forced_symbol = self.file["kwargs"].get("sym", None)
         if forced_symbol:
             return forced_symbol.upper()
         if self.config.symbol_force_default:
@@ -1757,9 +1789,11 @@ class SplitLayout(NormalLayout):
         """Both side oracle texts."""
         text: list[str] = []
         for t in [
-            c.printed_text or c.oracle_text or ""
-            if self.is_alt_lang
-            else c.oracle_text or ""
+            (
+                c.printed_text or c.oracle_text or ""
+                if self.is_alt_lang
+                else c.oracle_text or ""
+            )
             for c in self.cards
         ]:
             if "Fuse" in self.keywords:
@@ -1785,9 +1819,11 @@ class SplitLayout(NormalLayout):
     def shared_reminder(self) -> str:
         prev_match: str = ""
         for oracle_text in [
-            c.printed_text or c.oracle_text or ""
-            if self.is_alt_lang
-            else c.oracle_text or ""
+            (
+                c.printed_text or c.oracle_text or ""
+                if self.is_alt_lang
+                else c.oracle_text or ""
+            )
             for c in self.cards
         ]:
             match = CardTextPatterns.TEXT_REMINDER_ENDING.match(oracle_text)

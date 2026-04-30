@@ -92,8 +92,6 @@ def match_images_with_data_files(
         for path in render_specs:
             try:
                 cards = parse_render_spec(path).cards
-                for card in cards:
-                    add_card(card)
             except ValidationError as e:
                 raise _ValidationError(path) from e
 

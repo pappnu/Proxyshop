@@ -800,8 +800,10 @@ class BaseTemplate:
                 layer=art_layer, path=art_file, docref=self.docref
             )
 
-        if art_reference:
-            # Frame the artwork
+        # Frame the artwork
+        if self.layout.is_panorama:
+            psd.frame_panorama(art_layer, self.docref, self.layout.panorama_element, self.layout.panorama_size)
+        elif art_reference:
             psd.frame_layer(layer=art_layer, ref=art_reference)
 
         if self.config.pause_for_manual_art_alignment:
@@ -871,10 +873,7 @@ class BaseTemplate:
                 layer.rotate(90)
 
             # Frame the layer and position it above the art layer
-            bleed = int(self.docref.resolution / 8)
-            dims = psd.get_dimensions_from_bounds(
-                (bleed, bleed, self.docref.width - bleed, self.docref.height - bleed)
-            )
+            dims = psd.get_card_dimensions(self.docref)
             psd.frame_layer(layer, dims)
             if self.art_layer:
                 layer.move(self.art_layer, ElementPlacement.PlaceBefore)
@@ -1204,11 +1203,14 @@ class BaseTemplate:
     @try_photoshop
     def color_border(self) -> None:
         """Color this card's border based on given setting."""
-        if self.border_group and self.border_color != BorderColor.Black:
-            psd.apply_fx(
-                self.border_group,
-                [EffectColorOverlay(color=psd.get_color(self.border_color))],
-            )
+        if self.border_group is not None:
+            if self.layout.is_vertical_panorama:
+                self.border_group.visible = False
+            elif self.border_color != BorderColor.Black:
+                psd.apply_fx(
+                    self.border_group,
+                    [EffectColorOverlay(color=psd.get_color(self.border_color))],
+                )
 
     """
     * Formatted Text Layers

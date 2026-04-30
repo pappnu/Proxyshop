@@ -85,7 +85,6 @@ class RenderSpec:
 
 
 def parse_render_spec_file(render_spec_path: Path) -> RenderSpecModel:
-    print(RootModel[RenderSpecModel].model_json_schema())
     return parse_model(render_spec_path, RootModel[RenderSpecModel]).root
 
 

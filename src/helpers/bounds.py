@@ -6,6 +6,7 @@ from contextlib import suppress
 from typing import TypedDict
 
 from photoshop.api._artlayer import ArtLayer
+from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
 
 from src import APP
@@ -118,6 +119,35 @@ def get_layer_height(layer: ArtLayer | LayerSet) -> float | int:
     """
     bounds = layer.bounds
     return int(bounds[3] - bounds[1])
+
+
+def get_document_dimensions(document: Document) -> LayerDimensions:
+    """Compute the width and height dimensions of a document.
+
+    Args:
+        document: A document object
+
+    Returns:
+        Dict containing height, width, and positioning locations.
+    """
+    doc_width: float = int(document.width)
+    doc_height: float = int(document.height)
+    return get_dimensions_from_bounds((0, 0, doc_width, doc_height))
+
+
+def get_card_dimensions(document: Document) -> LayerDimensions:
+    """Compute the width and height dimensions of a document.
+
+    Args:
+        document: A document object
+
+    Returns:
+        Dict containing height, width, and positioning locations.
+    """
+    bleed = int(document.resolution / 8)
+    doc_width: float = int(document.width)
+    doc_height: float = int(document.height)
+    return get_dimensions_from_bounds((bleed, bleed, doc_width - bleed, doc_height - bleed))
 
 
 """

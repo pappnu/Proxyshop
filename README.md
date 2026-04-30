@@ -130,6 +130,37 @@ In the above example, if you have a file `UB/Dungeon Descent.png` it will be ren
 ```
 </details>
 
+#### Scene/Panorama Renders
+One example use-case of the _Render Specifications_ is the rendering of scenes, internally referred to as panoramas. An example of a scene are the six cards with Collector Number from _301_ to _306_ in the set _TLA_. To render a panorama of these cards from a single seamless artwork is currently not possible without _Render Specifications_. The following would render this scene:
+```yaml
+configs:
+  AVATAR:
+    - "[art=Avatar-Scene.png]"
+    - "[pano_size=3x2]"
+    - "[pano_elem=${GROUP_INDEX}]"
+
+groups:
+  files:
+    - "Combustion Technique"
+    - "Zuko, Conflicted"
+    - "Azula, Cunning Usurper"
+    - "Aang, at the Crossroads"
+    - "Katara, the Fearless"
+    - "Dai Li Agents"
+  settings: "AVATAR"
+```
+
+Note the reusable configuration _AVATAR_, which defines the size of the panorama as well as each card's position in that panorama. `${GROUP_INDEX}` will simply be replaced by the position in the list of files for each card. Lastly the art is replaced with the seamless art in the file `Avatar-Scene.png`. Once this _Render Specification_ is fully evaluated it will contain the following renders.
+```txt
+Combustion Technique [art=Avatar-Scene.png] [pano_size=3x2] [pano_elem=0]
+Zuko, Conflicted [art=Avatar-Scene.png] [pano_size=3x2] [pano_elem=1]
+Azula, Cunning Usurper [art=Avatar-Scene.png] [pano_size=3x2] [pano_elem=2]
+Aang, at the Crossroads [art=Avatar-Scene.png] [pano_size=3x2] [pano_elem=3]
+Katara, the Fearless [art=Avatar-Scene.png] [pano_size=3x2] [pano_elem=4]
+Dai Li Agents [art=Avatar-Scene.png] [pano_size=3x2] [pano_elem=5]
+```
+Proxyshop will use these to automatically position the artwork within the frame such that the resulting cards will seamlessly fit next to each other once bleed edge is trimmed.
+
 ### Updater
 
 The updater window allows downloading and updating template files. The files can originate from Proxyshop or installed plugins.

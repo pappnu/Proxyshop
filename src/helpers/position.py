@@ -20,6 +20,7 @@ from src.helpers.bounds import (
     get_layer_dimensions,
     get_layer_height,
     get_layer_width,
+    get_card_dimensions,
 )
 from src.helpers.selection import (
     check_selection_bounds,
@@ -248,6 +249,41 @@ def space_layers_apart(layers: Sequence[ArtLayer | LayerSet], gap: int | float) 
 """
 * Framing Funcs
 """
+
+
+def frame_panorama(
+    layer: ArtLayer | LayerSet,
+    document: Document,
+    panorama_position: tuple[int, int],
+    panorama_size: tuple[int, int],
+    anchor: AnchorPosition = AnchorPosition.TopLeft,
+) -> None:
+    """
+    Scale and position a layer within the bounds of a reference layer to make a borderless panorama.
+    @param layer: Layer to scale and position.
+    @param reference: Reference frame to position within.
+    @param anchor: Anchor position for scaling the layer.
+    """
+    # Get layer and full reference dimensions
+    art_dim: LayerDimensions = get_layer_dimensions(layer)
+    ref_dim = get_card_dimensions(document)
+    panorama_dim = (ref_dim["width"] * panorama_size[0],
+                    ref_dim["height"] * panorama_size[1])
+
+    # Scale the layer to fit either the largest dimension
+    scale = 100 * max(
+        (panorama_dim[0] / art_dim["width"]), (panorama_dim[1] / art_dim["height"])
+    )
+    layer.resize(scale, scale, anchor)
+
+    # Align the original layer on the top-left
+    alignments = ("left", "top")
+    align(alignments, layer, ref_dim)
+
+    # Move the layer according to the given index
+    pano_x = -ref_dim["width"] * panorama_position[0]
+    pano_y = -ref_dim["height"] * panorama_position[1]
+    layer.translate(pano_x, pano_y)
 
 
 def frame_layer(
