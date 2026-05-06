@@ -2,17 +2,17 @@
 * Scryfall API Module
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from datetime import date
+from json import dumps
 from logging import getLogger
 from pathlib import Path
 from shutil import copyfileobj
-from typing import Literal, NotRequired, ParamSpec, SupportsInt, TypedDict, TypeVar
+from typing import TYPE_CHECKING, Literal, NotRequired, SupportsInt, TypedDict
+from urllib.parse import quote_plus, urlencode
 from uuid import UUID
 
 import requests
-import yarl
-from hexproof.scryfall.enums import ScryURL
 from limits import RateLimitItemPerSecond
 from limits.storage import MemoryStorage
 from limits.strategies import MovingWindowRateLimiter
@@ -22,7 +22,14 @@ from pydantic import BaseModel, Field, HttpUrl, ValidationError
 from requests.exceptions import RequestException
 
 from src._state import PATH
+from src.enums.mtg import LayoutScryfall
 from src.utils.download import HEADERS
+
+if TYPE_CHECKING:
+    from urllib.parse import (
+        _QueryType,  # pyright: ignore[reportPrivateUsage]
+        _QuoteVia,  # pyright: ignore[reportPrivateUsage]
+    )
 
 _logger = getLogger()
 
@@ -30,41 +37,7 @@ _logger = getLogger()
 * Types
 """
 
-T = TypeVar("T")
-P = ParamSpec("P")
-
-LayoutType = Literal[
-    "adventure",
-    "art_series",
-    "augment",
-    "battle",
-    "case",
-    "class",
-    "double_faced_token",
-    "emblem",
-    "flip",
-    "host",
-    "leveler",
-    "meld",
-    "modal_dfc",
-    "mutate",
-    "normal",
-    "planar",
-    "prepare",
-    "prototype",
-    "reversible_card",
-    "saga",
-    "scheme",
-    "split",
-    "token",
-    "transform",
-    "vanguard",
-    # Non-official extensions
-    "planeswalker",
-    "planeswalker_tf",
-    "planeswalker_mdfc",
-    "station",
-]
+QueryVar = object | Sequence[object]
 
 MagicColor = Literal["W", "U", "B", "R", "G"]
 
@@ -188,7 +161,7 @@ class ScryfallCardFace(BaseModel):
     flavor_text: str | None = None
     illustration_id: UUID | None = None
     image_uris: ScryfallImageUris | None = None
-    layout: LayoutType | None = None
+    layout: LayoutScryfall | None = None
     loyalty: str | None = None
     mana_cost: str | None = None
     name: str
@@ -216,7 +189,7 @@ class ScryfallCard(BaseModel):
     tcgplayer_etched_id: int | None = None
     cardmarket_id: int | None = None
     object: Literal["card"]
-    layout: LayoutType
+    layout: LayoutScryfall
     oracle_id: UUID | None = None
     prints_search_uri: HttpUrl
     rulings_uri: HttpUrl
@@ -303,7 +276,7 @@ class ScryfallCard(BaseModel):
 class ScryfallList[T](BaseModel):
     object: Literal["list"]
     data: list[T]
-    has_more: bool
+    has_more: bool = False
     next_page: HttpUrl | None = None
     total_cards: int | None = None
     warnings: list[str] | None = None
@@ -350,6 +323,42 @@ class ScryfallError(BaseModel):
     details: str
     type: str | None = None
     warnings: list[str] | None = None
+
+
+# region URLs
+
+_base_scryfall_url = "https://api.scryfall.com"
+_cards_url = f"{_base_scryfall_url}/cards"
+_cards_collection_url = f"{_cards_url}/collection"
+
+
+def _cards_single_url(code: str, number: str | int, lang: str | None = None) -> str:
+    """/cards/:code/:number(/:lang)"""
+    return f"{_cards_url}/{code}/{number}{f'/{lang}' if lang else ''}"
+
+
+def _cards_search_url(
+    query: _QueryType | None = None,
+    doseq: bool = False,
+    safe: str | bytes = "",
+    encoding: str | None = None,
+    errors: str | None = None,
+    quote_via: _QuoteVia = quote_plus,
+) -> str:
+    """/cards/search(?:query)
+    Query is encoded with `urllib.parse.urlencode`"""
+    return f"{_cards_url}/search{
+        f'?{urlencode(query, doseq, safe, encoding, errors, quote_via)}'
+        if query
+        else ''
+    }"
+
+
+def _sets_url(code: str | UUID | None = None) -> str:
+    return f"{_base_scryfall_url}/sets{f'/{code}' if code else ''}"
+
+
+# endregion URLs
 
 
 """
@@ -422,8 +431,29 @@ class ScryfallException(RequestException):
             response = exception.response
         super().__init__(msg, request=request, response=response)
 
+    def __str__(self) -> str:
+        """Return a detailed error message with response debug information."""
+        msg = super().__str__()
 
-def scryfall_request_wrapper() -> Callable[[Callable[P, T]], Callable[P, T]]:
+        if self.response is not None and not self.response.ok:
+            # Add HTTP status information
+            msg += f"\nHTTP Status: {self.response.status_code}"
+            if self.response.reason:
+                msg += f" ({self.response.reason})"
+
+            # Add response content if available
+            if self.response.text:
+                # Show a concise version of the response
+                response_text = self.response.text.strip()
+                if len(response_text) > 200:
+                    msg += f"\nResponse: {response_text[:200]}..."
+                else:
+                    msg += f"\nResponse: {response_text}"
+
+        return msg
+
+
+def scryfall_request_wrapper[**P, T]() -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Wrapper for a Scryfall request function to handle retries, rate limits, and a final exception catch.
 
     Returns:
@@ -520,11 +550,12 @@ def get_card_unique(card_set: str, card_number: str, lang: str = "en") -> Scryfa
         ScryfallException: if the request fails
     """
     # Establish API pathing
-    url = ScryURL.API.Cards.Main / card_set.lower() / card_number
-    url = url / lang if lang != "en" else url
+    url = _cards_single_url(
+        card_set.lower(), card_number, lang if lang != "en" else None
+    )
 
     # Request the data
-    res = requests.get(url=str(url), headers=scryfall_http_header)
+    res = requests.get(url=url, headers=scryfall_http_header)
 
     try:
         card = ScryfallCard.model_validate_json(res.content)
@@ -594,15 +625,13 @@ def get_card_search(
     """
     # Query Scryfall
     res = requests.get(
-        url=str(
-            ScryURL.API.Cards.Search.with_query(
-                {
-                    "q": f'!"{card_name}"'
-                    f" lang:{lang}"
-                    f"{f' set:{card_set.lower()}' if card_set else ''}",
-                    **kwargs,
-                }
-            )
+        url=_cards_search_url(
+            {
+                "q": f'!"{card_name}" lang:{lang} {
+                    f" set:{card_set.lower()}" if card_set else ""
+                }',
+                **kwargs,
+            }
         ),
         headers=scryfall_http_header,
     )
@@ -645,9 +674,9 @@ def get_card_search(
 @scryfall_request_wrapper()
 @return_on_exception([])
 def get_cards_paged(
-    url: yarl.URL | None = None,
+    url: str | None = None,
     all_pages: bool = True,
-    **kwargs: yarl.QueryVariable,
+    **kwargs: QueryVar,
 ) -> list[ScryfallCard]:
     """Grab paginated card list from a Scryfall API endpoint.
 
@@ -657,19 +686,21 @@ def get_cards_paged(
         **kwargs: Optional parameters to pass to API endpoint.
     """
     # Configure URL object
-    url = url or ScryURL.API.Cards.Search
+    url = (
+        f"{url}{f'?{urlencode(kwargs)}' if kwargs else None}"
+        if url
+        else _cards_search_url(kwargs)
+    )
 
     # Query Scryfall
-    res = requests.get(url=str(url.with_query(kwargs)), headers=scryfall_http_header)
+    res = requests.get(url=str(_cards_search_url(kwargs)), headers=scryfall_http_header)
 
     try:
         list_data = ScryfallCardList.model_validate_json(res.content)
         cards = list_data.data
         if all_pages and list_data.has_more and list_data.next_page:
             cards.extend(
-                get_cards_paged(
-                    url=yarl.URL(str(list_data.next_page)), all_pages=all_pages
-                )
+                get_cards_paged(url=str(list_data.next_page), all_pages=all_pages)
             )
         return cards
     except ValidationError as exc:
@@ -688,9 +719,9 @@ def get_cards_paged(
 @scryfall_request_wrapper()
 @return_on_exception(None)
 def get_cards_oracle(
-    oracle_id: str,
+    oracle_id: str | UUID,
     all_pages: bool = False,
-    **kwargs: yarl.QueryVariable,
+    **kwargs: QueryVar,
 ) -> list[ScryfallCard]:
     """Grab paginated card list from a Scryfall API endpoint using the Oracle ID of the card.
 
@@ -703,7 +734,7 @@ def get_cards_oracle(
         A list of card objects.
     """
     return get_cards_paged(
-        url=ScryURL.API.Cards.Search,
+        url=None,
         all_pages=all_pages,
         q=f"oracleid:{oracle_id}",
         dir=kwargs.pop("dir", "asc"),
@@ -711,6 +742,77 @@ def get_cards_oracle(
         unique=kwargs.pop("unique", "prints"),
         **kwargs,
     )
+
+
+class CardIdentifierBase(TypedDict):
+    id: NotRequired[str | UUID]
+    mtgo_id: NotRequired[int]
+    multiverse_id: NotRequired[int]
+    oracle_id: NotRequired[str | UUID]
+    illustration_id: NotRequired[str | UUID]
+
+
+class CardIdentifierWithName(CardIdentifierBase):
+    name: NotRequired[str]
+
+
+class CardIdentifierWithNameAndSet(CardIdentifierBase):
+    name: str
+    set: str
+
+
+class CardIdentifierWithCollectorNumber(CardIdentifierBase):
+    collector_number: str
+    set: str
+
+
+CardIdentifier = (
+    CardIdentifierWithCollectorNumber
+    | CardIdentifierWithNameAndSet
+    | CardIdentifierWithName
+)
+
+
+class ScryfallCollectionList(ScryfallList[ScryfallCard]):
+    not_found: list[CardIdentifier] = []
+
+
+@scryfall_request_wrapper()
+@return_on_exception(None)
+def get_cards_collection(
+    identifiers: Iterable[CardIdentifier],
+) -> ScryfallCollectionList:
+    """Get cards using POST /cards/collection Scryfall API endpoint.
+    A maximum of 75 identifiers may be submitted per request.
+
+    Notes:
+        https://scryfall.com/docs/api/cards/collection
+
+    Raises:
+        ScryfallException: if the request fails
+    """
+    res = requests.post(
+        url=_cards_collection_url,
+        json={"identifiers": identifiers},
+        headers=scryfall_http_header,
+    )
+
+    try:
+        return ScryfallCollectionList.model_validate_json(res.content)
+    except ValidationError as exc:
+        _logger.exception("Validation exc")
+        try:
+            err = ScryfallError.model_validate_json(res.content)
+            scry_exc = _get_scryfall_exception(error=err, response=res)
+        except ValidationError:
+            scry_exc = ScryfallException(exception=exc)
+        _logger.error(
+            f"Couldn't retrieve the following cards from Scryfall collection endpoint:<br>{
+                dumps(identifiers, indent=2)
+            }",
+            exc_info=scry_exc,
+        )
+        raise scry_exc from exc
 
 
 """
@@ -730,9 +832,7 @@ def get_set(card_set: str) -> ScryfallSet | None:
         Scryfall set dict or empty dict.
     """
     # Make the request
-    res = requests.get(
-        str(ScryURL.API.Sets.All / card_set.upper()), headers=scryfall_http_header
-    )
+    res = requests.get(_sets_url(card_set.upper()), headers=scryfall_http_header)
 
     try:
         return ScryfallSet.model_validate_json(res.content)

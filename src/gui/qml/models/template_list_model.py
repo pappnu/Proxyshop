@@ -1,4 +1,5 @@
 from asyncio import ensure_future, gather, to_thread
+from collections.abc import Sequence
 from functools import cached_property
 from logging import getLogger
 from pathlib import Path
@@ -7,6 +8,7 @@ from urllib.request import url2pathname
 from pydantic import BaseModel
 from PySide6.QtCore import QObject, QUrl, Slot
 
+from src._config import AppConfig
 from src._loader import (
     AssembledTemplate,
     AssembledTemplateConfigChangedArgs,
@@ -23,7 +25,7 @@ from src.gui.qml.models.test_renders_model import TestRendersModel
 from src.render.render_queue import RenderQueue, cancel_with_render
 from src.render.setup import prepare_render_operations
 from src.utils.data_structures import first
-from src.utils.images import match_images_with_data_files
+from src.utils.inputs import get_cards_from_inputs
 from src.utils.scryfall import ScryfallCard
 
 _logger = getLogger(__name__)
@@ -58,6 +60,7 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
         message_dialog_model: MessageDialogContentModel,
         template_library: TemplateLibrary,
         test_renders_model: TestRendersModel,
+        app_config: AppConfig,
         parent: QObject | None = None,
         selected_index: int = 0,
     ) -> None:
@@ -67,7 +70,8 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
         self._template_library = template_library
         self._test_renders_model = test_renders_model
         self._template_library = template_library
-        
+        self._app_config = app_config
+
         self.built_in_templates = template_library.built_in_templates_by_name
         self.plugin_templates = template_library.plugin_templates_by_name
 
@@ -140,7 +144,7 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
             _logger.info(
                 f"Queueing {
                     len(paths)
-                } entries for render. Do note that the actual amount of renders might be lower if you selected JSON files or art for split cards."
+                } inputs for render. Do note that the actual amount of renders might be different if you selected JSON or YAML files or art for split cards."
             )
 
             selected_template_entry = self.items[self._selected_index]
@@ -150,8 +154,6 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
                 ]
             else:
                 template = self.built_in_templates[selected_template_entry.name]
-
-            matched_inputs = match_images_with_data_files(paths)
 
             def add_render(
                 input: CardDetails | tuple[CardDetails, ScryfallCard],
@@ -165,7 +167,10 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
                 ):
                     self._render_queue.enqueue(render_operations[0])
 
-            await gather(*[to_thread(add_render, input) for input in matched_inputs])
+            async def add_renders(cards: Sequence[tuple[CardDetails, ScryfallCard]]):
+                await gather(*[to_thread(add_render, card) for card in cards])
+
+            await get_cards_from_inputs(paths, add_renders, self._app_config)
 
     @Slot()
     def render_selections(self) -> None:
@@ -208,16 +213,18 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
             else:
                 template = self.built_in_templates[selected_template_entry.name]
 
-            preparation_routines = self._test_renders_model.prepare_test_renders(
-                (template,), layout_category, quick
-            )
-
             _logger.info(
                 f"Queueing {
                     layout_category.value + ' ' if layout_category else ''
                 }tests for template {template.name}."
             )
-            await gather(*preparation_routines)
+
+            await self._test_renders_model.test_renders(
+                {layout_category: (template,)}
+                if layout_category
+                else {category: (template,) for category in template.layout_categories},
+                quick,
+            )
 
         cancel_with_render(ensure_future(action()), self._render_queue)
 

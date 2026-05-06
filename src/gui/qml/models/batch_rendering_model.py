@@ -1,4 +1,5 @@
-from asyncio import Task, create_task, ensure_future, gather, to_thread
+from asyncio import ensure_future, gather, to_thread
+from collections.abc import Iterable, Sequence
 from functools import cached_property
 from logging import getLogger
 from pathlib import Path
@@ -8,11 +9,11 @@ from urllib.request import url2pathname
 from pydantic import BaseModel, RootModel, ValidationError
 from PySide6.QtCore import QModelIndex, QObject, QPersistentModelIndex, QUrl, Slot
 
+from src._config import AppConfig
 from src._loader import (
     AppPlugin,
     AssembledTemplate,
     AssembledTemplateInstalledArgs,
-    RenderableTemplate,
     TemplateLibrary,
 )
 from src.cards import CardDetails
@@ -23,7 +24,7 @@ from src.gui.qml.models.pydantic_q_list_model import PydanticQListModel
 from src.gui.qml.models.test_renders_model import TestRendersModel
 from src.render.render_queue import RenderQueue, cancel_with_render
 from src.render.setup import prepare_render_operations
-from src.utils.images import match_images_with_data_files
+from src.utils.inputs import get_cards_from_inputs
 from src.utils.scryfall import ScryfallCard
 
 _logger = getLogger(__name__)
@@ -64,6 +65,7 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
         plugins: dict[str, AppPlugin],
         template_library: TemplateLibrary,
         test_renders_model: TestRendersModel,
+        app_config: AppConfig,
         parent: QObject | None = None,
         selected_index: int = -1,
     ) -> None:
@@ -72,6 +74,7 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
         self._render_queue = render_queue
         self._test_renders_model = test_renders_model
         self._template_library = template_library
+        self._app_config = app_config
 
         self.built_in_templates_by_layout: dict[
             LayoutCategory, dict[str, AssembledTemplate]
@@ -154,8 +157,8 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
         return 2
 
     @property
-    def template_choices(self) -> dict[LayoutCategory, RenderableTemplate]:
-        template_choices: dict[LayoutCategory, RenderableTemplate] = {}
+    def template_choices(self) -> dict[LayoutCategory, AssembledTemplate]:
+        template_choices: dict[LayoutCategory, AssembledTemplate] = {}
         for item in self.items:
             if item.selected < 0:
                 continue
@@ -191,9 +194,8 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
             _logger.info(
                 f"Queueing {
                     len(paths)
-                } batch mode entries for render. Do note that the actual amount of renders might be lower if you selected JSON files or art for split cards."
+                } batch mode inputs for render. Do note that the actual amount of renders might be different if you selected JSON or YAML files or art for split cards."
             )
-            matched_inputs = match_images_with_data_files(paths)
 
             def add_render(
                 input: CardDetails | tuple[CardDetails, ScryfallCard],
@@ -207,7 +209,10 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
                 ):
                     self._render_queue.enqueue(render_operations[0])
 
-            await gather(*[to_thread(add_render, input) for input in matched_inputs])
+            async def add_renders(cards: Sequence[tuple[CardDetails, ScryfallCard]]):
+                await gather(*[to_thread(add_render, card) for card in cards])
+
+            await get_cards_from_inputs(paths, add_renders, self._app_config)
 
     @Slot()
     def render_selections(self) -> None:
@@ -242,26 +247,39 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
         async def action() -> None:
             layout_category = LayoutCategory(layout) if layout else None
 
-            preparation_routines: list[Task[None]] = []
-            for category, template in self.template_choices.items():
-                if layout_category and category != layout_category:
-                    continue
-
-                preparation_routines.append(
-                    create_task(
-                        self._test_renders_model.test_render(template, category, quick)
-                    )
+            if layout_category and not (
+                (template := self.template_choices.get(layout_category))
+                and template.is_installed(layout_category)
+            ):
+                _logger.info(
+                    f"A template hasn't been chosen/installed for {layout_category} so there are no tests to queue."
                 )
+                return
 
-                if layout_category:
-                    break
+            if layout_category:
+                conf: dict[LayoutCategory, Iterable[AssembledTemplate] | None] = {
+                    layout_category: (self.template_choices[layout_category],)
+                }
+            else:
+                conf = {
+                    cat: (template,)
+                    for cat, template in self.template_choices.items()
+                    if template.is_installed(cat)
+                }
+
+            if not conf:
+                _logger.info(
+                    "No installed templates have been chosen so there are no tests to queue."
+                )
+                return
 
             _logger.info(
                 f"Queueing {
                     layout_category.value + ' ' if layout_category else ''
                 }tests for batch mode selections."
             )
-            await gather(*preparation_routines)
+
+            await self._test_renders_model.test_renders(conf, quick)
 
         cancel_with_render(ensure_future(action()), self._render_queue)
 

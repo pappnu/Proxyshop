@@ -10,6 +10,13 @@ def first[T](iterable: Iterable[T]) -> T:
     return next(iter(iterable))
 
 
+def find_item[T](iterable: Iterable[T], condition: Callable[[T], bool]) -> T | None:
+    for item in iterable:
+        if condition(item):
+            return item
+    return None
+
+
 def find_index[T](iterable: Iterable[T], condition: Callable[[T], bool]) -> int:
     for idx, item in enumerate(iterable):
         if condition(item):

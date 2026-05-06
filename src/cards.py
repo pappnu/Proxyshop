@@ -3,6 +3,8 @@
 * Handles raw card data fetching and processing
 """
 
+from collections.abc import Iterable
+from json import dumps
 from logging import Logger, getLogger
 from pathlib import Path
 from typing import TypedDict
@@ -11,9 +13,16 @@ from omnitils.strings import normalize_str
 from pathvalidate import sanitize_filename
 
 from src._config import AppConfig
-from src.enums.mtg import CardTextPatterns, TransformIcons, non_italics_abilities
+from src.enums.mtg import (
+    CardTextPatterns,
+    LayoutScryfall,
+    TransformIcons,
+    non_italics_abilities,
+)
 from src.schema.colors import ColorObject
+from src.utils.data_structures import find_item
 from src.utils.scryfall import (
+    CardIdentifier,
     ScryfallCard,
     ScryfallCardFace,
     ScryfallException,
@@ -21,13 +30,12 @@ from src.utils.scryfall import (
     get_card_search,
     get_card_unique,
     get_card_via_url,
+    get_cards_collection,
 )
 
 _logger = getLogger(__name__)
 
-"""
-* Types
-"""
+# region Types
 
 # (Start index, end index)
 CardItalicString = tuple[int, int]
@@ -59,6 +67,10 @@ class FrameDetails(TypedDict):
     is_hybrid: bool
 
 
+# endregion Types
+
+# region Constants
+
 _filename_character_replacements: dict[str, str] = {
     "＜": "<",
     "＞": ">",
@@ -82,13 +94,13 @@ _reverse_filename_character_replacements: dict[str, str] = {
     value: key for key, value in _filename_character_replacements.items()
 }
 
-"""
-* Handling Data Requests
-"""
+# endregion Constants
+
+# region Requests
 
 
 def get_card_data(
-    card: CardDetails,
+    card: CardDetails | CardIdentifier,
     cfg: AppConfig,
 ) -> ScryfallCard | None:
     """Fetch card data from the Scryfall API.
@@ -96,7 +108,6 @@ def get_card_data(
     Args:
         card: Card details pulled from the art image filename.
         cfg: AppConfig object providing search configuration settings.
-        logger: Console or other logger object used to relay warning messages.
 
     Returns:
         Scryfall 'Card' object data if card was returned, otherwise None.
@@ -151,9 +162,46 @@ def get_card_data(
             _logger.exception("Couldn't retrieve card from Scryfall.")
 
 
-"""
-* Pre-processing Data
-"""
+def get_batch_of_cards(
+    batch: Iterable[tuple[CardIdentifier, list[CardDetails]]],
+) -> list[tuple[CardDetails, ScryfallCard]]:
+    if result := get_cards_collection([item[0] for item in batch]):
+        if result.not_found:
+            _logger.warning(
+                f"The following cards were not found from Scryfall:<br>{
+                    '<br>'.join(
+                        [
+                            f'{dumps(ide)} derived from {
+                                human_readable_card_details(card[1][0])
+                                if (
+                                    card := find_item(
+                                        batch, lambda item: item[0] == ide
+                                    )
+                                )
+                                else None
+                            }'
+                            for ide in result.not_found
+                        ]
+                    )
+                }"
+            )
+
+        out: list[tuple[CardDetails, ScryfallCard]] = []
+        idx: int = 0
+        for identifier, cards in batch:
+            if identifier in result.not_found:
+                continue
+            for card in cards:
+                out.append((card, result.data[idx]))
+            idx += 1
+
+        return out
+    return []
+
+
+# endregion Requests
+
+# region Card data processing
 
 
 def parse_card_info(file_path: Path, name_override: str | None = None) -> CardDetails:
@@ -192,29 +240,26 @@ def parse_card_info(file_path: Path, name_override: str | None = None) -> CardDe
     }
 
 
-"""
-* Post-processing Data
-"""
-
-
 def process_card_data(data: ScryfallCard, card: CardDetails) -> ScryfallCard:
     """Process any additional required data before sending it to the layout object.
+    This function is expected to be idempotent.
 
     Args:
-        data: Unprocessed scryfall data.
+        data: Scryfall data.
         card: Card details processed from art image file name.
 
     Returns:
-        Processed scryfall data.
+        Processed Scryfall data.
     """
     # Define a normalized name
     name_normalized = normalize_str(card["name"], no_space=True)
 
     # Modify meld card data to fit transform layout
     if data.layout == "meld":
-        # Ignore tokens and other objects
         front: list[ScryfallRelatedCard] = []
         back: ScryfallRelatedCard | None = None
+
+        # Ignore tokens and other objects
         for part in data.all_parts if data.all_parts else []:
             if part.component == "meld_part":
                 front.append(part)
@@ -236,12 +281,12 @@ def process_card_data(data: ScryfallCard, card: CardDetails) -> ScryfallCard:
         try:
             if is_back and back:
                 data = get_card_via_url(str(back.uri))
-                data.layout = "normal"
+                data.layout = LayoutScryfall.Normal
             else:
                 # Pull JSON data for each face and set object to card_face
                 data.card_faces = []
                 for face in faces:
-                    if face:
+                    if face and not isinstance(face, ScryfallCardFace):
                         face_data = get_card_via_url(str(face.uri))
                         face_data_dict = face_data.model_dump()
                         face_data_dict["object"] = "card_face"
@@ -252,7 +297,7 @@ def process_card_data(data: ScryfallCard, card: CardDetails) -> ScryfallCard:
                     [bool(n in TransformIcons) for n in data.frame_effects]
                 ):
                     data.frame_effects = ["meld"]
-                data.layout = "transform"
+                data.layout = LayoutScryfall.Transform
         except ScryfallException:
             _logger.exception(
                 "Couldn't retrieve additional card details for a meld card."
@@ -277,39 +322,39 @@ def process_card_data(data: ScryfallCard, card: CardDetails) -> ScryfallCard:
         if card_face.type_line:
             if "Planeswalker" in card_face.type_line:
                 data.layout = (
-                    "planeswalker_tf"
-                    if data.layout == "transform"
-                    else "planeswalker_mdfc"
+                    LayoutScryfall.PlaneswalkerTransform
+                    if data.layout == LayoutScryfall.Transform
+                    else LayoutScryfall.PlaneswalkerMDFC
                 )
             # Transform Saga layout
             elif "Saga" in card_face.type_line:
-                data.layout = "saga"
+                data.layout = LayoutScryfall.Saga
             # Battle layout
             elif "Battle" in card_face.type_line:
-                data.layout = "battle"
+                data.layout = LayoutScryfall.Battle
 
         return data
 
     # Add Mutate layout
     if "Mutate" in data.keywords:
-        data.layout = "mutate"
+        data.layout = LayoutScryfall.Mutate
         return data
 
     type_line = data.type_line
 
     # Add Planeswalker layout
     if "Planeswalker" in type_line:
-        data.layout = "planeswalker"
+        data.layout = LayoutScryfall.Planeswalker
         return data
 
     # Check for Saga Creature layout
     if "Saga" in type_line and "Creature" in type_line:
-        data.layout = "saga"
+        data.layout = LayoutScryfall.Saga
         return data
 
     # Check for Station layout
     if data.keywords and "Station" in data.keywords:
-        data.layout = "station"
+        data.layout = LayoutScryfall.Station
         return data
 
     # Return updated data
@@ -322,9 +367,21 @@ def sanitize_card_filename(name: str) -> str:
     return sanitize_filename(name)
 
 
-"""
-* Card Text Utilities
-"""
+def card_details_to_scryfall_identifier(card: CardDetails) -> CardIdentifier:
+    if card["set"] and card["number"]:
+        return {
+            "set": card["set"],
+            "collector_number": card["number"],
+        }
+    elif card["set"]:
+        return {"name": card["name"], "set": card["set"]}
+    else:
+        return {"name": card["name"]}
+
+
+# endregion Card data processing
+
+# region Card text processing
 
 
 def locate_symbols(
@@ -480,3 +537,12 @@ def strip_reminder_text(text: str) -> str:
 
     # Remove any extra whitespace
     return CardTextPatterns.EXTRA_SPACE.sub("", text_stripped).strip()
+
+
+def human_readable_card_details(details: CardDetails) -> str:
+    return f"{details['name']} ({details['artist']}) [{details['set']}] {{{
+        details['number']
+    }}} |{details['file']}|"
+
+
+# endregion Card text processing

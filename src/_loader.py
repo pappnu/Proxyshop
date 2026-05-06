@@ -8,9 +8,10 @@ from contextlib import suppress
 from enum import Enum
 from functools import cached_property
 from json import load
+from logging import getLogger
 from pathlib import Path
 from threading import Lock
-from traceback import format_exc, print_exc
+from traceback import print_exc
 from types import ModuleType
 from typing import Annotated, Any, Literal, NotRequired, Protocol, TypedDict, overload
 
@@ -42,6 +43,8 @@ from src.enums.mtg import (
 from src.utils.data_structures import dump_model, parse_model
 from src.utils.download import download_cloudfront
 from src.utils.event import SubscribableEvent
+
+_logger = getLogger(__name__)
 
 # region Types
 
@@ -1307,6 +1310,10 @@ class AppTemplate:
         Returns:
             True if succeeded, False if failed.
         """
+
+        def get_fail_message() -> str:
+            return f"Failed to update template: {self.name}"
+
         if self.path_download:
             try:
                 result: bool = False
@@ -1323,20 +1330,19 @@ class AppTemplate:
                         )
                     )
 
-                if self.url_amazon:
-                    # Google Drive failed or isn't an option, download from Amazon S3
-                    if not result:
-                        result = download_cloudfront(
-                            url=self.url_amazon,
-                            path=self.path_download,
-                            callback=callback,
-                        )
+                    # If downloaded file is a 7z archive, extract the template from it
+                    if result and self.path_download.suffix == ".7z":
+                        with SevenZipFile(self.path_7z, "r") as archive:
+                            archive.extractall(self.path_templates)
+                        self.path_7z.unlink(missing_ok=True)
 
-                # If downloaded file is a 7z archive, extract the template from it
-                if result and self.path_download.suffix == ".7z":
-                    with SevenZipFile(self.path_7z, "r") as archive:
-                        archive.extractall(self.path_templates)
-                    self.path_7z.unlink()
+                if self.url_amazon and not result:
+                    # Google Drive failed or isn't an option, download from Amazon S3
+                    result = download_cloudfront(
+                        url=self.url_amazon,
+                        path=self.path_download,
+                        callback=callback,
+                    )
 
                 if self.google_drive_id and self.update_version:
                     self.versions[self.google_drive_id] = self.update_version
@@ -1344,13 +1350,16 @@ class AppTemplate:
                 if will_install:
                     self.template_installed.trigger(None)
 
+                if not result:
+                    _logger.error(get_fail_message())
+
                 return result
 
             # Exception caught while downloading / unpacking
             except Exception:
-                print(f"Failed to update template: {self.name}", format_exc())
+                _logger.exception(get_fail_message())
         else:
-            print("Template update failed. Download path isn't specified.")
+            _logger.error("Template update failed. Download path isn't specified.")
         return False
 
     """
@@ -1558,6 +1567,19 @@ class TemplateLibrary:
     def save_template_versions(self) -> None:
         if self.initial_versions != self.versions:
             dump_model(PATH.SRC_DATA_VERSIONS, self.versions)
+
+    def get_templates_for_layout_category(
+        self, layout_category: LayoutCategory
+    ) -> list[AssembledTemplate]:
+        templates: list[AssembledTemplate] = []
+        for template in self.built_in_templates_by_name.values():
+            if template.is_installed(layout_category):
+                templates.append(template)
+        for plugin_templates in self.plugin_templates_by_name.values():
+            for template in plugin_templates.values():
+                if template.is_installed(layout_category):
+                    templates.append(template)
+        return templates
 
     def _group_templates_by_plugin(
         self, templates: list[AppTemplate]

@@ -1,6 +1,5 @@
 """
-* General Testing Utility
-* For contributors and plugin development.
+* Miscellaneous utils that are awaiting refinement/relocation.
 """
 
 import csv
@@ -9,11 +8,15 @@ import logging
 import warnings
 import xml.etree.ElementTree as ET
 from _ctypes import COMError
+from collections.abc import Iterable, Sequence
 from contextlib import suppress
+from os import PathLike
+from typing import Any
 from xml.dom import minidom
 
 from photoshop.api import ActionDescriptor, ActionReference
 from photoshop.api._artlayer import ArtLayer
+from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
 from photoshop.api.enumerations import DialogModes, ElementPlacement, LayerKind
 from psd_tools import PSDImage
@@ -21,9 +24,9 @@ from psd_tools.constants import Resource
 from psd_tools.psd.image_resources import ImageResource
 
 import src.helpers as psd
-from src import APP, TEMPLATES
+from src import APP
+from src._loader import AppTemplate
 from src.schema.colors import ColorObject
-from src.utils.adobe import LayerContainer
 
 # Reference Box colors
 ORANGE = [255, 172, 64]
@@ -60,10 +63,11 @@ def test_new_color(
         groups.remove(r)
     for g in groups:
         # Enable new color
-        psd.getLayer(new, g).visible = True
+        if new_layer := psd.getLayer(new, g):
+            new_layer.visible = True
         # Disable old color
-        if old:
-            psd.getLayer(old, g).visible = False
+        if old and (old_layer := psd.getLayer(old, g)):
+            old_layer.visible = False
 
 
 def make_duals(
@@ -84,30 +88,32 @@ def make_duals(
 
     # Loop through each dual
     for dual in duals:
-        # Change layer visibility
-        top = psd.getLayer(dual[0], group).duplicate(ref, ElementPlacement.PlaceBefore)
-        bottom = psd.getLayer(dual[1], group).duplicate(
-            top, ElementPlacement.PlaceAfter
-        )
-        top.visible = True
-        bottom.visible = True
+        if (top := psd.getLayer(dual[0], group)) and (
+            bottom := psd.getLayer(dual[1], group)
+        ):
+            top = top.duplicate(ref, ElementPlacement.PlaceBefore)
+            bottom = bottom.duplicate(top, ElementPlacement.PlaceAfter)
 
-        # Enable masks
-        if mask_top:
-            psd.copy_layer_mask(mask_top, top)
-        if mask_bottom:
-            psd.copy_layer_mask(mask_bottom, bottom)
+            # Change layer visibility
+            top.visible = True
+            bottom.visible = True
 
-        # Merge the layers and rename
-        new_layer = psd.merge_layers([top, bottom])
-        new_layer.name = dual
+            # Enable masks
+            if mask_top:
+                psd.copy_layer_mask(mask_top, top)
+            if mask_bottom:
+                psd.copy_layer_mask(mask_bottom, bottom)
+
+            # Merge the layers and rename
+            new_layer = psd.merge_layers([top, bottom])
+            new_layer.name = dual
 
 
 def create_blended_layer(
     colors: str | list[str],
     group: LayerSet,
-    masks: None | ArtLayer | list[ArtLayer] = None,
-):
+    masks: Sequence[ArtLayer] | None = None,
+) -> None:
     """Create a multicolor layer using a gradient mask.
 
     Args:
@@ -115,26 +121,22 @@ def create_blended_layer(
         group: Group to look for the color layers within.
         masks: Layers containing a gradient mask.
     """
-    if not masks:
-        # No mask provided
-        masks = [psd.getLayer("Mask")]
-    elif isinstance(masks, ArtLayer):
-        # Single layer provided
-        masks = [masks]
     layers: list[ArtLayer] = []
 
     # Enable each layer color
     for i, color in enumerate(colors):
-        layer = psd.getLayer(color, group)
-        layer.visible = True
+        if layer := psd.getLayer(color, group):
+            layer.visible = True
 
-        # Position the new layer and add a mask to previous, if previous layer exists
-        if layers:
-            layer.move(layers[i - 1], ElementPlacement.PlaceAfter)
-            psd.copy_layer_mask(masks[i - 1], layers[i - 1])
+            # Position the new layer and add a mask to previous, if previous layer exists
+            if layers:
+                prev_idx = i - 1
+                layer.move(layers[prev_idx], ElementPlacement.PlaceAfter)
+                if masks and prev_idx < len(masks):
+                    psd.copy_layer_mask(masks[i - 1], layers[i - 1])
 
-        # Add to the layer list
-        layers.append(layer)
+            # Add to the layer list
+            layers.append(layer)
 
 
 """
@@ -142,7 +144,7 @@ def create_blended_layer(
 """
 
 
-def check_if_needed(key, keys_stored):
+def check_if_needed(key: str, keys_stored: Iterable[str]):
     """Check if double key has been locked, skip int keys if it is.
 
     Args:
@@ -158,7 +160,7 @@ def check_if_needed(key, keys_stored):
     return True
 
 
-def try_all_getters(desc: ActionDescriptor, type_id) -> dict:
+def try_all_getters(desc: ActionDescriptor, type_id: int) -> dict[str, Any]:
     """Try all possible getter functions for this Descriptor and Type ID.
 
     Args:
@@ -168,7 +170,7 @@ def try_all_getters(desc: ActionDescriptor, type_id) -> dict:
     Returns:
         All values returned from our getters.
     """
-    values = {}
+    values: dict[str, Any] = {}
     getters = {
         "bool": "getBoolean",
         "class": "getClass",
@@ -202,7 +204,7 @@ def try_all_getters(desc: ActionDescriptor, type_id) -> dict:
     return values
 
 
-def get_action_items(desc) -> dict:
+def get_action_items(desc: ActionDescriptor) -> dict[str, Any]:
     """Try to pull objects and getters from each action key in a descriptor.
 
     Args:
@@ -211,7 +213,7 @@ def get_action_items(desc) -> dict:
     Returns:
         Recursive dict of all objects and getters matched to each key.
     """
-    items = {}
+    items: dict[str, Any] = {}
     try:
         count = desc.count
     except COMError:
@@ -234,7 +236,7 @@ def get_action_items(desc) -> dict:
     return items
 
 
-def dump_layer_action_descriptors(layer: ArtLayer, path: str) -> dict:
+def dump_layer_action_descriptors(layer: ArtLayer, path: str) -> dict[str, Any]:
     """Combs through all available descriptor keys for a layer, dumps it to JSOn, and returns as a dict.
 
     Args:
@@ -256,30 +258,6 @@ def dump_layer_action_descriptors(layer: ArtLayer, path: str) -> dict:
     with open(path, "w", encoding="utf-8-sig") as f:
         json.dump(actions, f)
     return actions
-
-
-"""
-* Dict Utilities
-"""
-
-
-def get_differing_dict(d1: dict, d2: dict):
-    """Recursively generates a new dictionary comprised of differing values in two dicts.
-
-    Args:
-        d1: First dictionary.
-        d2: Second dictionary.
-
-    Returns:
-        A dictionary comprised of differing key value pairs.
-    """
-    new_dict = {}
-    for key, val in d1.items():
-        if isinstance(val, dict):
-            new_dict[key] = get_differing_dict(d1[key], d2[key])
-        elif val != d2[key]:
-            new_dict[key] = [val, d2[key]]
-    return new_dict
 
 
 """
@@ -307,7 +285,7 @@ def apply_single_line_composer(layer: ArtLayer) -> None:
     )
 
 
-def combine_text_items(from_layer: ArtLayer, to_layer: ArtLayer, sep: str | None = " "):
+def combine_text_items(from_layer: ArtLayer, to_layer: ArtLayer, sep: str = " "):
     """Append the "from_layer" contents to the end of "to_layer" contents with optional separator.
         Preserves the complete style range formatting of both text contents.
 
@@ -474,7 +452,12 @@ def create_color_shape(layer: ArtLayer, color: ColorObject) -> ArtLayer:
 
     layer.remove()
     docref.activeLayer.visible = False
-    return docref.activeLayer
+
+    created_layer = docref.activeLayer
+    if not isinstance(created_layer, ArtLayer):
+        raise ValueError("Created color shape layer isn't the active layer as expected")
+
+    return created_layer
 
 
 """
@@ -482,34 +465,38 @@ def create_color_shape(layer: ArtLayer, color: ColorObject) -> ArtLayer:
 """
 
 
-def log_all_template_fonts() -> dict:
+def log_all_template_fonts(templates: Iterable[AppTemplate]) -> dict[str, list[str]]:
     """Create a log of every font found for each PSD template."""
 
     # Ignore warnings from the psd_tools module
     logging.getLogger("psd_tools").setLevel(logging.FATAL)
     warnings.filterwarnings("ignore", module="psd_tools")
 
-    def _get_fonts_from_psd(doc_path: str) -> set[str]:
+    def _get_fonts_from_psd(doc_path: str | PathLike[str]) -> set[str]:
         """
         Get a set of every font found in a given Photoshop document.
         @param doc_path: Path to the Photoshop document.
         @return: Set of font names found in the document.
         """
-        file, fonts = PSDImage.open(doc_path), set()
+        file = PSDImage.open(doc_path)  # pyright: ignore[reportUnknownMemberType]
+        fonts: set[str] = set()
         for layer in [n for n in file.descendants() if n.kind == "type"]:
-            for style in layer.engine_dict["StyleRun"]["RunArray"]:
-                font_key = style["StyleSheet"]["StyleSheetData"]["Font"]
-                fonts.add(layer.resource_dict["FontSet"][font_key]["Name"])
+            for style in layer.engine_dict["StyleRun"]["RunArray"]:  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportAttributeAccessIssue]
+                font_key = style["StyleSheet"]["StyleSheetData"]["Font"]  # pyright: ignore[reportUnknownVariableType]
+                fonts.add(layer.resource_dict["FontSet"][font_key]["Name"])  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType, reportAttributeAccessIssue]
         return fonts
 
     # PSD documents to test
     docs = {
         t.path_psd: f"{t.name} ({t.plugin.name if t.plugin else 'BASE'})"
-        for t in TEMPLATES
+        for t in templates
     }
 
     # Track progress
-    doc_fonts, master, current, total = {}, {}, 1, len(docs)
+    doc_fonts: dict[str, set[str]] = {}
+    master: dict[str, list[str]] = {}
+    current = 1
+    total = len(docs)
 
     # Check each document
     logging.basicConfig(level=logging.INFO)
@@ -527,9 +514,7 @@ def log_all_template_fonts() -> dict:
             master.setdefault(str(f), []).append(doc)
 
     # Log a sorted master list
-    master: dict[str, list] = {
-        k: v for k, v in sorted(master.items(), key=lambda item: len(item[1]))
-    }
+    master = {k: v for k, v in sorted(master.items(), key=lambda item: len(item[1]))}
     with open("logs/FONTS.json", "w", encoding="utf-8") as f:
         json.dump(master, f, indent=2)
     return master
@@ -560,7 +545,7 @@ def insert_data_set_variables(
     warnings.filterwarnings("ignore", module="psd_tools")
 
     # Open the PSD file
-    f = PSDImage.open(from_path)
+    f = PSDImage.open(from_path)  # pyright: ignore[reportUnknownMemberType]
 
     # Replace the image variables data
     new_resource = ImageResource(
@@ -572,7 +557,7 @@ def insert_data_set_variables(
     f.image_resources[Resource.IMAGE_READY_VARIABLES] = new_resource
 
     # Save the PSD file
-    f.save(to_path)
+    f.save(to_path)  # pyright: ignore[reportUnknownMemberType]
 
 
 def print_data_set_variables(path: str) -> None:
@@ -581,7 +566,7 @@ def print_data_set_variables(path: str) -> None:
     Args:
         path: Path to a PSD document.
     """
-    data = PSDImage.open(path).image_resources.get_data(Resource.IMAGE_READY_DATA_SETS)
+    data = PSDImage.open(path).image_resources.get_data(Resource.IMAGE_READY_DATA_SETS)  # pyright: ignore[reportUnknownMemberType]
     pretty_xml = minidom.parseString(data).toprettyxml()
 
     # Print without excess newlines
@@ -601,7 +586,7 @@ def format_data_set_variable_name(text: str) -> str:
 
 
 def get_data_set_variables(
-    group: LayerContainer | None = None, tree: str | None = None
+    group: LayerSet | Document | None = None, tree: str | None = None
 ) -> list[dict[str, str]]:
     """Get data set variables for all ArtLayer and LayerSet objects in document or LayerSet.
 
@@ -745,12 +730,3 @@ def apply_data_set(data_set_name: str) -> None:
     APP.instance.executeAction(
         APP.instance.sID("apply"), desc, DialogModes.DisplayNoDialogs
     )
-
-
-"""
-* Testing Stuff
-"""
-
-if __name__ == "__main__":
-    """Insert any test actions here."""
-    pass

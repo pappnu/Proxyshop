@@ -71,31 +71,31 @@ class LayoutType(StrEnum):
 class LayoutScryfall(StrEnum):
     """Card layout type, according to Scryfall data."""
 
-    Normal = "normal"
-    Split = "split"
-    Flip = "flip"
-    Transform = "transform"
-    MDFC = "modal_dfc"
-    Meld = "meld"
-    Leveler = "leveler"
+    Adventure = "adventure"
+    ArtSeries = "art_series"
+    Augment = "augment"
+    Battle = "battle"
     Case = "case"
     Class = "class"
-    Saga = "saga"
-    Adventure = "adventure"
-    Prepare = "prepare"
-    Mutate = "mutate"
-    Prototype = "prototype"
-    Battle = "battle"
-    Planar = "planar"
-    Scheme = "scheme"
-    Vanguard = "vanguard"
-    Token = "token"
     DoubleFacedToken = "double_faced_token"
     Emblem = "emblem"
-    Augment = "augment"
+    Flip = "flip"
     Host = "host"
-    ArtSeries = "art_series"
+    Leveler = "leveler"
+    MDFC = "modal_dfc"
+    Meld = "meld"
+    Mutate = "mutate"
+    Normal = "normal"
+    Planar = "planar"
+    Prepare = "prepare"
+    Prototype = "prototype"
     ReversibleCard = "reversible_card"
+    Saga = "saga"
+    Scheme = "scheme"
+    Split = "split"
+    Token = "token"
+    Transform = "transform"
+    Vanguard = "vanguard"
 
     # Definitions added to Scryfall built-ins
     Planeswalker = "planeswalker"
@@ -176,6 +176,41 @@ layout_map_display_condition_dual: dict[
         LayoutType.PlaneswalkerMDFCFront,
         LayoutType.PlaneswalkerMDFCBack,
     ),
+}
+
+
+scryfall_layout_category_map: dict[LayoutScryfall, LayoutCategory] = {
+    LayoutScryfall.Adventure: LayoutCategory.Adventure,
+    LayoutScryfall.ArtSeries: LayoutCategory.Normal,
+    LayoutScryfall.Augment: LayoutCategory.Normal,
+    LayoutScryfall.Battle: LayoutCategory.Battle,
+    LayoutScryfall.Case: LayoutCategory.Case,
+    LayoutScryfall.Class: LayoutCategory.Class,
+    LayoutScryfall.DoubleFacedToken: LayoutCategory.Transform,
+    LayoutScryfall.Emblem: LayoutCategory.Normal,
+    LayoutScryfall.Flip: LayoutCategory.Transform,
+    LayoutScryfall.Host: LayoutCategory.Normal,
+    LayoutScryfall.Leveler: LayoutCategory.Leveler,
+    LayoutScryfall.MDFC: LayoutCategory.MDFC,
+    # Meld might be Normal or Transform, so this case should not be retrieved from the map
+    # LayoutScryfall.Meld: LayoutCategory.Transform,
+    LayoutScryfall.Mutate: LayoutCategory.Mutate,
+    LayoutScryfall.Normal: LayoutCategory.Normal,
+    LayoutScryfall.Planar: LayoutCategory.Planar,
+    LayoutScryfall.Prepare: LayoutCategory.Prepare,
+    LayoutScryfall.Prototype: LayoutCategory.Prototype,
+    LayoutScryfall.ReversibleCard: LayoutCategory.Transform,
+    LayoutScryfall.Saga: LayoutCategory.Saga,
+    LayoutScryfall.Scheme: LayoutCategory.Normal,
+    LayoutScryfall.Split: LayoutCategory.Split,
+    LayoutScryfall.Token: LayoutCategory.Normal,
+    LayoutScryfall.Transform: LayoutCategory.Transform,
+    LayoutScryfall.Vanguard: LayoutCategory.Normal,
+    # Definitions added to Scryfall built-ins
+    LayoutScryfall.Planeswalker: LayoutCategory.Planeswalker,
+    LayoutScryfall.PlaneswalkerMDFC: LayoutCategory.PlaneswalkerMDFC,
+    LayoutScryfall.PlaneswalkerTransform: LayoutCategory.PlaneswalkerTransform,
+    LayoutScryfall.Station: LayoutCategory.Station,
 }
 
 

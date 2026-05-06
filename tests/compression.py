@@ -1,10 +1,7 @@
-"""
-* Tests: Compression
-"""
-
 from logging import getLogger
 from pathlib import Path
 from time import perf_counter
+from typing import TypedDict
 
 import matplotlib.pyplot as plt
 from omnitils.files.archive import DictionarySize, WordSize, compress_7z
@@ -13,12 +10,13 @@ from PIL.Image import Resampling
 
 _logger = getLogger(__name__)
 
-"""
-* Test Funcs
-"""
+
+class CompressionTestResult(TypedDict):
+    time: float
+    size: float
 
 
-def test_7z_compression(path: Path) -> dict:
+def test_7z_compression(path: Path) -> dict[str, CompressionTestResult]:
     """Test all compression settings for a given file and generates a plot of time and compression
     efficiency.
 
@@ -55,12 +53,15 @@ def test_7z_compression(path: Path) -> dict:
 
     # For each Word and Dictionary size run a test
     total, current = len(word_sizes) * len(dict_sizes), 0
-    x, y, z = [], [], []
+    x: list[float] = []
+    y: list[float] = []
+    z: list[str] = []
     for ws in word_sizes:
         for ds in dict_sizes:
             current += 1
             s = perf_counter()
             path_out = compress_7z(path, word_size=ws, dict_size=ds)
+            assert path_out
             size = path_out.stat().st_size
             time = round(perf_counter() - s, 3)
             x.append(time)
@@ -70,7 +71,7 @@ def test_7z_compression(path: Path) -> dict:
 
     # Format a 600 DPI plot at 12" x 8"
     plt.rcParams["lines.markersize"] = 5
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots()  # pyright: ignore[reportUnknownMemberType]
     fig.set_dpi(600)
     fig.set_size_inches(12, 8)
 
@@ -79,16 +80,16 @@ def test_7z_compression(path: Path) -> dict:
     ax.invert_yaxis()
 
     # Set axis labels and plot our points
-    ax.set_xlabel("Seconds")
-    ax.set_ylabel("Megabytes")
-    ax.scatter(x, y, s=1)
+    ax.set_xlabel("Seconds")  # pyright: ignore[reportUnknownMemberType]
+    ax.set_ylabel("Megabytes")  # pyright: ignore[reportUnknownMemberType]
+    ax.scatter(x, y, s=1)  # pyright: ignore[reportUnknownMemberType]
 
     # Annotate each point with its label (z)
     for i, txt in enumerate(z):
-        ax.annotate(txt, (x[i], y[i]), rotation=45, fontsize=5)
+        ax.annotate(txt, (x[i], y[i]), rotation=45, fontsize=5)  # pyright: ignore[reportUnknownMemberType]
 
     # Show the plot and return raw data
-    plt.show()
+    plt.show()  # pyright: ignore[reportUnknownMemberType]
     return {name: {"time": x[i], "size": y[i]} for i, name in enumerate(z)}
 
 

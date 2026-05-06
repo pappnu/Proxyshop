@@ -77,6 +77,7 @@ def launch_gui(template_library: TemplateLibrary, plugins: dict[str, AppPlugin])
         template_library,
         file_dialog_model,
         render_message_dialog_content_model,
+        CFG,
     )
     template_list_model = TemplateListModel(
         render_queue,
@@ -84,6 +85,7 @@ def launch_gui(template_library: TemplateLibrary, plugins: dict[str, AppPlugin])
         render_message_dialog_content_model,
         template_library,
         test_renders_model,
+        CFG,
     )
     batch_render_model = BatchRenderingModel(
         file_dialog_model,
@@ -92,6 +94,7 @@ def launch_gui(template_library: TemplateLibrary, plugins: dict[str, AppPlugin])
         plugins,
         template_library,
         test_renders_model,
+        CFG,
     )
     settings_tree_model = SettingsTreeModel(
         app_config=CFG, template_library=template_library

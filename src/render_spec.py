@@ -5,14 +5,14 @@
 
 from __future__ import annotations
 
+import glob
 import os
 import re
-import glob
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, TypeVar
-from dataclasses import dataclass
 
-from pydantic import BaseModel, RootModel, BeforeValidator
+from pydantic import BaseModel, BeforeValidator, RootModel
 
 from src.cards import CardDetails, parse_card_info
 from src.utils.data_structures import parse_model
@@ -20,21 +20,21 @@ from src.utils.data_structures import parse_model
 # region Model-Types
 
 
-def __ensure_list__[T](values: list[T] | T) -> list[T]:
+def _ensure_list[T](values: list[T] | T) -> list[T]:
     if isinstance(values, list):
         return values  # type: ignore
     return [values]
 
 
-def __ensure_str__(values: list[str] | str) -> str:
+def _ensure_str(values: list[str] | str) -> str:
     if isinstance(values, list):
         return " ".join(values)
     return values
 
 
 T = TypeVar("T")
-EnsuredList = Annotated[list[T], BeforeValidator(__ensure_list__)]
-EnsuredStr = Annotated[str, BeforeValidator(__ensure_str__)]
+EnsuredList = Annotated[list[T], BeforeValidator(_ensure_list)]
+EnsuredStr = Annotated[str, BeforeValidator(_ensure_str)]
 
 
 class ConfigModel(BaseModel):
