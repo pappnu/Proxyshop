@@ -233,6 +233,19 @@ Additionally if you want to do UI development the extensions below will help wit
 
 After installing the Qt extensions add your absolute path to `./src/gui` to the `qt-qml.qmlls.additionalImportPaths` setting in VS Code. Without it qmllint won't recognize local Qml imports. At the time of writing the qmllint, provided by the Qt Qml extension, doesn't recognize context defined in Python so warnings within the Qml files are expected.
 
+# 🔬 Tests
+
+## Template renders
+
+Predefined template test render cases may be run via the _Tests_ menu in the GUI. The currently chosen template or batch mode configuration determines which templates are tested when choosing to run template specific tests. The _Quick_ tests queue only the first test case for each layout.
+
+## Automatic tests
+
+Automatic tests are defined under the `/tests` directory. All of them can run with the command:
+```bash
+pytest ./tests
+```
+
 # 💾 Download Templates Manually
 If you wish to download the templates manually, visit [this link](https://drive.google.com/drive/u/1/folders/1sgJ3Xu4FabxNgDl0yeI7OjDZ7fqlI4p3). These archives must be extracted to the `/templates` 
 directory. The archives found within the **Investigamer** and **SilvanMTG** drive folders must be extracted to 

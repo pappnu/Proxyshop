@@ -5,7 +5,7 @@
 from asyncio import gather, to_thread
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import cache
 from io import BytesIO
 from logging import getLogger
@@ -52,14 +52,7 @@ hexproof_http_header = HEADERS.Default.copy()
 def hexproof_request_wrapper[T, **P](
     fallback: T,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """Wrapper for a Hexproof.io request function to handle retries, rate limits, and a final exception catch.
-
-    Args:
-        logr: Logger object to output any exception messages.
-
-    Returns:
-        Wrapped function.
-    """
+    """Wrapper for a Hexproof.io request function to handle retries, rate limits, and a final exception catch."""
 
     def decorator(func: Callable[P, T]):
         @return_on_exception(fallback)
@@ -136,7 +129,10 @@ async def check_api_keys(env: AppEnvironment) -> bool:
     return bool(env.API_GOOGLE or env.API_AMAZON)
 
 
-@hexproof_request_wrapper({})
+_get_metadata_fallback: dict[str, Meta] = {}
+
+
+@hexproof_request_wrapper(_get_metadata_fallback)
 def get_metadata() -> dict[str, Meta]:
     """Return a manifest of all resource metadata.
 
@@ -156,7 +152,10 @@ def get_metadata() -> dict[str, Meta]:
     )
 
 
-@hexproof_request_wrapper({})
+_get_sets_fallback: dict[str, HexproofSet] = {}
+
+
+@hexproof_request_wrapper(_get_sets_fallback)
 def get_sets() -> dict[str, HexproofSet]:
     """Retrieve the current 'Set' data manifest from https://api.hexproof.io.
 
@@ -234,8 +233,11 @@ def update_hexproof_cache() -> tuple[bool, str | None]:
                     asset_timestamp = datetime.fromisoformat(chosen_asset.updated_at)
                 if not (
                     current_symbols_manifest := get_symbols_manifest()
-                ) or asset_timestamp > datetime.fromisoformat(
-                    current_symbols_manifest.meta.date
+                ) or asset_timestamp > datetime.fromtimestamp(
+                    datetime.fromisoformat(
+                        current_symbols_manifest.meta.date
+                    ).timestamp(),
+                    tz=UTC,
                 ):
                     symbols_dl_url = chosen_asset.browser_download_url
     else:
