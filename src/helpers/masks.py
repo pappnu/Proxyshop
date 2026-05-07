@@ -3,6 +3,7 @@
 """
 
 from _ctypes import COMError
+from enum import StrEnum
 
 from photoshop.api import ActionDescriptor, ActionReference
 from photoshop.api._artlayer import ArtLayer
@@ -262,7 +263,16 @@ def enter_rgb_channel(layer: ArtLayer | LayerSet | None = None):
     )
 
 
-def create_mask(layer: ArtLayer | LayerSet | None = None):
+class MaskSelectionBehaviour(StrEnum):
+    REVEAL_ALL = "revealAll"
+    REVEAL_SELECTION = "revealSelection"
+    HIDE_SELECTION = "hideSelection"
+
+
+def create_mask(
+    layer: ArtLayer | LayerSet | None = None,
+    selection_behaviour: MaskSelectionBehaviour = MaskSelectionBehaviour.REVEAL_ALL,
+):
     """Add a mask to provided or active layer.
 
     Args:
@@ -282,7 +292,7 @@ def create_mask(layer: ArtLayer | LayerSet | None = None):
     d1.putEnumerated(
         APP.instance.sID("using"),
         APP.instance.sID("userMaskEnabled"),
-        APP.instance.sID("revealAll"),
+        APP.instance.sID(selection_behaviour),
     )
     APP.instance.executeAction(
         APP.instance.sID("make"), d1, DialogModes.DisplayNoDialogs
@@ -331,7 +341,7 @@ def delete_mask(layer: ArtLayer | LayerSet | None = None) -> None:
     """Removes a given layer's mask.
 
     Args:
-        layer: ArtLayer ore LayerSet object, use active layer if not provided.
+        layer: to delete mask from. Uses active layer if not provided.
     """
     if layer:
         APP.instance.activeDocument.activeLayer = layer
@@ -345,4 +355,25 @@ def delete_mask(layer: ArtLayer | LayerSet | None = None) -> None:
     desc1.putReference(APP.instance.sID("target"), ref1)
     APP.instance.executeAction(
         APP.instance.sID("delete"), desc1, DialogModes.DisplayNoDialogs
+    )
+
+
+def delete_mask_from_solid_color_layer(layer: ArtLayer | None = None) -> None:
+    """Removes the layer mask from a given solid color fill layer.
+
+    Args:
+        layer: to delete mask from. Uses active layer if not provided.
+    """
+    if layer:
+        APP.instance.activeDocument.activeLayer = layer
+    desc = ActionDescriptor()
+    ref = ActionReference()
+    ref.putEnumerated(
+        APP.instance.sID("channel"),
+        APP.instance.sID("channel"),
+        APP.instance.sID("mask"),
+    )
+    desc.putReference(APP.instance.sID("target"), ref)
+    APP.instance.executeAction(
+        APP.instance.sID("delete"), desc, DialogModes.DisplayNoDialogs
     )

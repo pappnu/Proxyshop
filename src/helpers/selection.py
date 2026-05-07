@@ -93,7 +93,7 @@ def select_canvas(docref: Document | None = None, bleed: int = 0):
 
 def select_layer_pixels(
     layer: ArtLayer | None = None, add_to_selection: bool = False
-) -> None:
+) -> Selection:
     """Select pixels of the active layer, or a target layer.
 
     Args:
@@ -119,11 +119,12 @@ def select_layer_pixels(
         des1,
         DialogModes.DisplayNoDialogs,
     )
+    return APP.instance.activeDocument.selection
 
 
 def select_vector_layer_pixels(
     layer: ArtLayer | None = None, add_to_selection: bool = False
-) -> None:
+) -> Selection:
     """Select pixels of the active vector layer, or a target layer.
 
     Args:
@@ -149,6 +150,7 @@ def select_vector_layer_pixels(
         desc1,
         DialogModes.DisplayNoDialogs,
     )
+    return APP.instance.activeDocument.selection
 
 
 """

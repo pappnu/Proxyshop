@@ -10,12 +10,14 @@ from glob import glob
 from pathlib import Path
 from shutil import copy2, copytree, move, rmtree
 from subprocess import run
-from typing import NotRequired, TypedDict
+from typing import Any, NotRequired, TypedDict
 
-import PyInstaller.__main__
-from omnitils.files import dump_data_file, get_project_version, load_data_file
+from pydantic import BaseModel, RootModel
+from PyInstaller.__main__ import run as run_pyinstaller
+from yaml import dump, safe_load
 
 from src._state import PATH
+from src.utils.data_structures import parse_model
 
 # Directory definitions
 SRC: Path = PATH.CWD
@@ -26,6 +28,14 @@ DIST_CONFIG: Path = PATH.SRC_DATA / "build" / "dist.yml"
 """
 * Types
 """
+
+
+class ProjectModel(BaseModel):
+    version: str
+
+
+class PyProjectModel(BaseModel):
+    project: ProjectModel
 
 
 class DistConfigNames(TypedDict):
@@ -66,6 +76,8 @@ class DistConfig(TypedDict):
     make: DistConfigMakeDir
     copy: dict[str, DistConfigCopyDir]
 
+
+DistConfigModel = RootModel[DistConfig]
 
 """
 * Handling Build Files
@@ -219,21 +231,37 @@ def build_release(
         zipped: Whether to create a zip of this release.
     """
     # Load dist config
-    dist_config: DistConfig = load_data_file(DIST_CONFIG)
+    dist_config = parse_model(DIST_CONFIG, DistConfigModel).root
 
     # Pre-build steps
     clear_build_files()
     make_directories(dist_config)
 
     # Use provided version or fallback to project defined
-    version = version or get_project_version((SRC / "pyproject").with_suffix(".toml"))
+    version = (
+        version or parse_model(SRC / "pyproject.toml", PyProjectModel).project.version
+    )
     generate_version_file(version)
 
     # Run Pyinstaller
-    spec_path: list[str] = (
-        dist_config["spec"]["console"] if console else dist_config["spec"]["release"]
+    run_pyinstaller(
+        (
+            "--distpath",
+            "./dist",
+            *(("--console",) if console else []),
+            "-n",
+            "Proxyshop",
+            "--onefile",
+            "--icon",
+            "./src/img/favicon.ico",
+            "--clean",
+            "--add-data",
+            "src/gui/qml:src/gui/qml",
+            "--add-data",
+            "src/img/favicon.ico:src/img/favicon.ico",
+            "main.py",
+        )
     )
-    PyInstaller.__main__.run([str(Path(SRC, *spec_path)), "--clean"])
 
     # Copy our essential app files
     copy_app_files(dist_config)
@@ -353,7 +381,9 @@ def update_mkdocs_yml(nav: list[dict[str, list[str]]]) -> None:
     Args:
         nav: List of nav objects to insert into nav data in mkdocs.yml.
     """
-    mkdocs_yml = load_data_file(Path(SRC, "mkdocs.yml"))
+    mkdocs_path = SRC / "mkdocs.yml"
+    with open(mkdocs_path, "rb") as f:
+        mkdocs_yml: dict[str, Any] = safe_load(f)
     mkdocs_yml["nav"] = [
         {"Home": "index.md"},
         {"Changelog": "changelog.md"},
@@ -366,4 +396,5 @@ def update_mkdocs_yml(nav: list[dict[str, list[str]]]) -> None:
         },
         {"License": "license.md"},
     ]
-    dump_data_file(mkdocs_yml, Path(SRC, "mkdocs.yml"), config={"sort_keys": False})
+    with open(mkdocs_path, "w", encoding="UTF-8") as f:
+        dump(mkdocs_yml, stream=f)

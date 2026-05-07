@@ -2,8 +2,6 @@
 * Proxyshop Application Launcher
 """
 
-import os
-import sys
 from pathlib import Path
 
 from PySide6.QtGui import QIcon
@@ -16,21 +14,6 @@ from src._loader import (
     get_template_file_versions,
 )
 from src.startup import run_startup_checks
-
-
-def launch_cli():
-    """Launch the app in CLI mode."""
-
-    # Enable headless mode
-    os.environ["PROXYSHOP_HEADLESS"] = "1"
-    # Remove cli marker
-    if "cli" in sys.argv:
-        sys.argv.remove("cli")
-
-    from src.commands import ProxyshopCLI
-
-    # Run the CLI application
-    ProxyshopCLI.main()
 
 
 def launch_gui(template_library: TemplateLibrary, plugins: dict[str, AppPlugin]):
@@ -147,6 +130,4 @@ if __name__ == "__main__":
         template_file_versions=versions,
     )
 
-    if "cli" in sys.argv:
-        sys.exit(launch_cli())
     launch_gui(template_library, plugins)

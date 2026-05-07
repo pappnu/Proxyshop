@@ -2,7 +2,7 @@
 * Global Settings Module
 """
 
-from enum import StrEnum
+from enum import Enum
 from typing import Literal, overload
 
 from src._loader import ConfigHandler, CustomConfigParser
@@ -12,7 +12,6 @@ from src.enums.settings import (
     CollectorMode,
     CollectorPromo,
     FillMode,
-    HasDefault,
     NicknameShorten,
     OutputFileType,
     ScryfallSorting,
@@ -101,7 +100,7 @@ class AppConfig:
             "APP.FILES", "Overwrite.Duplicate", fallback=True
         )
         self.output_file_type = self.get_option(
-            "APP.FILES", "Output.File.Type", OutputFileType
+            "APP.FILES", "Output.File.Type", OutputFileType, default=OutputFileType.JPG
         )
         self.output_file_name = self.file.get(
             section="APP.FILES",
@@ -141,10 +140,13 @@ class AppConfig:
             "BASE.TEXT", "No.Reminder.Text", fallback=False
         )
         self.collector_mode = self.get_option(
-            "BASE.TEXT", "Collector.Mode", CollectorMode
+            "BASE.TEXT", "Collector.Mode", CollectorMode, default=CollectorMode.Normal
         )
         self.collector_promo = self.get_option(
-            "BASE.TEXT", "Collector.Promo", CollectorPromo
+            "BASE.TEXT",
+            "Collector.Promo",
+            CollectorPromo,
+            default=CollectorPromo.Automatic,
         )
         self.nickname_allow = self.file.getboolean(
             "BASE.TEXT", "Nickname", fallback=True
@@ -156,7 +158,10 @@ class AppConfig:
             "BASE.TEXT", "Nickname.In.Oracle", fallback=True
         )
         self.nickname_shorten_in_oracle_text = self.get_option(
-            "BASE.TEXT", "Nickname.Shorten.In.Oracle", NicknameShorten
+            "BASE.TEXT",
+            "Nickname.Shorten.In.Oracle",
+            NicknameShorten,
+            default=NicknameShorten.ALL_BUT_FIRST,
         )
 
         # BASE - SYMBOLS
@@ -175,7 +180,10 @@ class AppConfig:
 
         # BASE - WATERMARKS
         self.watermark_mode = self.get_option(
-            "BASE.WATERMARKS", "Watermark.Mode", WatermarkMode
+            "BASE.WATERMARKS",
+            "Watermark.Mode",
+            WatermarkMode,
+            default=WatermarkMode.Disabled,
         )
         self.watermark_default = self.file.get(
             "BASE.WATERMARKS", "Default.Watermark", fallback="WOTC"
@@ -217,22 +225,39 @@ class AppConfig:
             "BASE.TEMPLATES", "Import.Scryfall.Scan", fallback=False
         )
         self.border_color = self.get_option(
-            "BASE.TEMPLATES", "Border.Color", BorderColor
+            "BASE.TEMPLATES", "Border.Color", BorderColor, default=BorderColor.Black
         )
 
     """
     * Setting Utils
     """
 
-    def get_option(
+    @overload
+    def get_option[T: Enum](
         self,
         section: str,
         key: str,
-        enum_class: type[StrEnum],
-        default: str | None = None,
-    ) -> str:
+        enum_class: type[T],
+        default: T,
+    ) -> T: ...
+
+    @overload
+    def get_option[T: Enum](
+        self,
+        section: str,
+        key: str,
+        enum_class: type[T],
+        default: T | None = None,
+    ) -> T | None: ...
+
+    def get_option[T: Enum](
+        self,
+        section: str,
+        key: str,
+        enum_class: type[T],
+        default: T | None = None,
+    ) -> T | None:
         """Returns the current value of an "options" setting if that option exists in its StrEnum class.
-        Otherwise, returns the default value of that StrEnum class.
 
         Args:
             section: Group (section) to access within the config file.
@@ -243,16 +268,13 @@ class AppConfig:
         Returns:
             Validated current value, or default value.
         """
-        defa: str = (
-            default or str(enum_class.Default)
-            if isinstance(enum_class, HasDefault)
-            else ""
-        )
         if self.file.has_section(section):
-            option = self.file[section].get(key, fallback=defa)
-            if option in enum_class:
-                return option
-        return defa
+            option = self.file[section].get(key)
+            try:
+                return enum_class(option)
+            except ValueError:
+                pass
+        return default
 
     @overload
     def get_setting(

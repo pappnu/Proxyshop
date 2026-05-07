@@ -1517,10 +1517,13 @@ class BorderlessVectorTemplate(
         )
 
     @cached_property
-    def artifact_color_mode(self) -> str:
+    def artifact_color_mode(self) -> BorderlessColorMode:
         """Setting determining what elements to color for colored artifacts.."""
         return self.config.get_option(
-            section="COLORS", key="Artifact.Color.Mode", enum_class=BorderlessColorMode
+            section="COLORS",
+            key="Artifact.Color.Mode",
+            enum_class=BorderlessColorMode,
+            default=BorderlessColorMode.Twins_And_PT,
         )
 
     """
@@ -2425,9 +2428,14 @@ class ClassicModernTemplate(VectorTransformMod, VectorMDFCMod, VectorTemplate):
     """
 
     @cached_property
-    def crown_mode(self) -> str:
+    def crown_mode(self) -> ModernClassicCrown:
         """Whether to use pinlines when generating the Legendary Crown."""
-        return self.config.get_option("FRAME", "Crown.Mode", ModernClassicCrown)
+        return self.config.get_option(
+            "FRAME",
+            "Crown.Mode",
+            ModernClassicCrown,
+            default=ModernClassicCrown.Pinlines,
+        )
 
     """
     * References
