@@ -186,37 +186,32 @@ You may supply Proxyshop with image and JSON pairs to render cards with custom s
 
 # 🐍 Setup Guide (Python Environment)
 Setting up the Python environment for Proxyshop is intended for advanced users, contributors, and anyone who wants to 
-get their hands dirty making a plugin or custom template for the app! This guide assumes you already have Python installed.
-See `pyproject.toml` for supported Python versions.
-1. Install Poetry with pipx.
-    ```bash
-    # Install pipx and poetry
-    python -m pip install --user pipx
-    python -m pipx ensurepath
-    pipx install poetry
-    # Store the virtual environment in the project directory
-    poetry config virtualenvs.in-project true
+get their hands dirty making a plugin or custom template for the app!
+1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/)
+2. If you don't have Python installed yet, you may install it with uv. See `pyproject.toml` for supported Python versions.
+   ```bash
+    uv python install 3.14
     ```
-2. Clone Proxyshop somewhere on your system, we'll call this the ***root directory***.
+3. Clone Proxyshop somewhere on your system, we'll call this the ***root directory***.
     ```bash
     git clone https://github.com/MrTeferi/Proxyshop.git
     ```
-3. Navigate to the **root directory** and install the project environment.
+4. Navigate to the **root directory** and install the project environment.
     ```bash
     cd proxyshop
-    poetry install
+    uv sync
     ```
-4. Install the fonts included in the `fonts/` folder.
-5. Run the app.
+5. Install the fonts included in the `fonts/` folder.
+6. Run the app.
     ```bash
     # OPTION 1) Activate the virtual environment and run the app's entrypoint with Python
     ./.venv/Scripts/Activate
     python main.py
 
-    # OPTION 2) Execute via poetry
-    poetry run python main.py
+    # OPTION 2) Execute via uv
+    uv run main.py
     ```
-6. Refer to the [usage guide](#-using-the-proxyshop-gui) for navigating the GUI.
+7. Refer to the [usage guide](#-using-the-proxyshop-gui) for navigating the GUI.
 
 # 🖥 Development Environment
 
