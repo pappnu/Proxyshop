@@ -310,6 +310,8 @@ class ConfigHandler:
         self.schema_path = schema_path
         self.ini_path = ini_path
 
+        self.ini_path.parent.mkdir(parents=True, exist_ok=True)
+
         self.config_added: SubscribableEvent[ConfigHandler] = SubscribableEvent()
         self.config_reset: SubscribableEvent[ConfigHandler] = SubscribableEvent()
         self.config_deleted: SubscribableEvent[ConfigHandler] = SubscribableEvent()
