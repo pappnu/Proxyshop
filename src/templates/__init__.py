@@ -15,6 +15,7 @@ from src.templates.mutate import *
 from src.templates.normal import *
 from src.templates.planar import *
 from src.templates.planeswalker import *
+from src.templates.prepare import *
 from src.templates.prototype import *
 from src.templates.saga import *
 from src.templates.split import *
