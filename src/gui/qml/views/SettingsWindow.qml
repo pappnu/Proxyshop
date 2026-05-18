@@ -22,6 +22,39 @@ ApplicationWindow {
     visible: true
     color: systemPalette.window
 
+    component RoleData: QtObject {
+        property string type
+        property string title
+    }
+
+    SortFilterProxyModel {
+        id: sfSettingsModel
+
+        model: settingsWindow.settingsModel
+        filters: [
+            FunctionFilter {
+                id: settingsFilter
+
+                property string searchString: ""
+                property string effectiveSearchString: searchString.toLowerCase()
+
+                function filter(data: RoleData): bool {
+                    if (!settingsFilter.searchString)
+                        return true;
+                    return data.type !== "title" && data.title.toLowerCase().includes(settingsFilter.effectiveSearchString);
+                }
+            }
+        ]
+    }
+
+    Timer {
+        id: settingsFilterInvalidationDebounce
+
+        interval: 150
+        repeat: false
+        onTriggered: settingsFilter.invalidate()
+    }
+
     Settings {
         id: settings
 
@@ -129,6 +162,8 @@ ApplicationWindow {
             spacing: 0
 
             Rectangle {
+                id: headerBackground
+
                 Layout.alignment: Qt.AlignTop
                 Layout.fillWidth: true
                 Layout.minimumHeight: headerTitle.height + 10
@@ -145,12 +180,47 @@ ApplicationWindow {
                         id: headerTitle
 
                         Layout.alignment: Qt.AlignLeft
-                        Layout.fillWidth: true
                         Layout.leftMargin: 10
 
                         text: settingsWindow.settingsTreeModel.selected_title
                         font.pointSize: 16
                         color: settingsWindow.systemPalette.text
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.minimumHeight: settingsSearchInput.height
+                        Layout.maximumHeight: settingsSearchInput.height
+
+                        color: settingsWindow.systemPalette.base
+
+                        RowLayout {
+                            anchors.fill: parent
+                            spacing: 3
+
+                            Text {
+                                Layout.leftMargin: 3
+
+                                text: `<font face="${settingsWindow.emojiFontName}">🔍</font>`
+                                font.pointSize: 11
+                            }
+                            CustomTextField {
+                                id: settingsSearchInput
+
+                                Layout.fillWidth: true
+
+                                text: settingsFilter.searchString
+                                color: settingsWindow.systemPalette.text
+                                placeholderText: "Search settings"
+
+                                function onSetValue() {
+                                    settingsFilter.searchString = settingsSearchInput.text;
+                                    settingsFilterInvalidationDebounce.restart();
+                                }
+
+                                //onEditingFinished: onSetValue()
+                                onTextEdited: onSetValue()
+                            }
+                        }
                     }
                     CustomButton {
                         id: resetButton
@@ -199,7 +269,7 @@ ApplicationWindow {
                 clip: true
                 spacing: 5
                 highlightFollowsCurrentItem: false
-                model: settingsWindow.settingsModel
+                model: sfSettingsModel
                 delegate: ItemDelegate {
                     id: settingsListDelegate
 
