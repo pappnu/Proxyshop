@@ -4,7 +4,7 @@ from pydantic import RootModel
 
 from src.cards import generate_italics
 from src.utils.data_structures import parse_model
-from tests.utils import TestDataPaths
+from tests.testing_utils import TestDataPaths
 
 
 class TestCaseTextItalic(TypedDict):

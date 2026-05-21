@@ -101,6 +101,14 @@ def get_rgb_from_hex(hex_code: str) -> SolidColor:
     return color
 
 
+def get_rgb_tuple(color: ColorObject) -> tuple[float, float, float]:
+    if isinstance(color, tuple) and len(color) == 3:
+        return color
+    colr = get_color(color)
+    rgb = colr.rgb
+    return (rgb.red, rgb.green, rgb.blue)
+
+
 def get_cmyk(c: float, m: float, y: float, k: float) -> SolidColor:
     """Creates a SolidColor object with the given CMYK values.
 
@@ -276,7 +284,8 @@ def apply_rgb(
         c: SolidColor object matching RGB model.
         color_type: Color action descriptor type, defaults to 'color'.
     """
-    apply_rgb_from_list(action, (c.rgb.red, c.rgb.green, c.rgb.blue), color_type)
+    rgb = c.rgb
+    apply_rgb_from_list(action, (rgb.red, rgb.green, rgb.blue), color_type)
 
 
 def apply_cmyk(
@@ -289,8 +298,9 @@ def apply_cmyk(
         c: SolidColor object matching CMYK model.
         color_type: Color action descriptor type, defaults to 'color'.
     """
+    cmyk = c.cmyk
     apply_cmyk_from_list(
-        action, (c.cmyk.cyan, c.cmyk.magenta, c.cmyk.yellow, c.cmyk.black), color_type
+        action, (cmyk.cyan, cmyk.magenta, cmyk.yellow, cmyk.black), color_type
     )
 
 

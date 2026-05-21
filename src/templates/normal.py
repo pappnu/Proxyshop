@@ -17,7 +17,6 @@ from src.enums.mtg import MagicIcons
 from src.enums.settings import (
     BorderlessColorMode,
     BorderlessTextbox,
-    CollectorMode,
     ModernClassicCrown,
 )
 from src.frame_logic import is_multicolor_string
@@ -506,20 +505,6 @@ class ClassicTemplate(NormalTemplate):
         # Shift collector text
         if self.is_align_collector_left and self.collector_reference:
             [psd.align_left(n, ref=self.collector_reference.dims) for n in layers]
-
-    def collector_info(self) -> None:
-        """Format and add the collector info at the bottom."""
-
-        # Which collector info mode?
-        if (
-            self.config.collector_mode in [CollectorMode.Default, CollectorMode.Modern]
-            and self.layout.collector_data
-        ):
-            self.collector_info_authentic()
-        elif self.config.collector_mode == CollectorMode.ArtistOnly:
-            self.collector_info_artist_only()
-        else:
-            self.collector_info_basic()
 
     def collector_info_basic(self) -> None:
         """Called to generate basic collector info."""

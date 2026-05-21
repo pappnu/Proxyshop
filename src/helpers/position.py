@@ -16,11 +16,11 @@ from src import APP
 from src.enums.adobe import Dimensions
 from src.helpers.bounds import (
     LayerDimensions,
+    get_card_dimensions,
     get_dimensions_from_bounds,
     get_layer_dimensions,
     get_layer_height,
     get_layer_width,
-    get_card_dimensions,
 )
 from src.helpers.selection import (
     check_selection_bounds,

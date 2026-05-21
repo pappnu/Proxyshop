@@ -12,7 +12,10 @@ from logging import getLogger
 from pathlib import Path
 from typing import TypedDict
 
-from fontTools.ttLib import TTFont, TTLibError
+from fontTools.ttLib import (  # pyright: ignore[reportMissingTypeStubs]
+    TTFont,
+    TTLibError,
+)
 from packaging.version import parse
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet

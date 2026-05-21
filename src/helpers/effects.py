@@ -5,9 +5,10 @@
 from _ctypes import COMError
 from logging import getLogger
 
-from photoshop.api import ActionDescriptor, ActionList, ActionReference, DialogModes
+from photoshop.api import ActionDescriptor, ActionList, ActionReference
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
+from photoshop.api.enumerations import DialogModes
 
 from src import APP
 from src.enums.adobe import Stroke

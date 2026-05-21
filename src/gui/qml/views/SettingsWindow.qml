@@ -281,6 +281,7 @@ ApplicationWindow {
                     required property var default_value
                     required property var options
                     property bool isTitle: settingsListDelegate.type === "title"
+                    readonly property int sourceIndex: sfSettingsModel.mapToSource(sfSettingsModel.index(index, 0)).row
 
                     width: settingsList.width
                     highlighted: false
@@ -369,7 +370,7 @@ ApplicationWindow {
                                     color: settingsWindow.systemPalette.text
 
                                     function onSetValue() {
-                                        settingsWindow.settingsModel.str_value_changed(settingsListDelegate.index, settingTextInput.text);
+                                        settingsWindow.settingsModel.str_value_changed(settingsListDelegate.sourceIndex, settingTextInput.text);
                                     }
 
                                     onEditingFinished: onSetValue()
@@ -393,7 +394,7 @@ ApplicationWindow {
                                     systemPalette: settingsWindow.systemPalette
                                     checked: settingsListDelegate.value
 
-                                    onClicked: settingsWindow.settingsModel.bool_value_changed(settingsListDelegate.index, settingCheckbox.checked)
+                                    onClicked: settingsWindow.settingsModel.bool_value_changed(settingsListDelegate.sourceIndex, settingCheckbox.checked)
                                 }
                             }
                             Component {
@@ -408,7 +409,7 @@ ApplicationWindow {
                                     value: settingsListDelegate.value
 
                                     function onSetValue(): void {
-                                        settingsWindow.settingsModel.int_value_changed(settingsListDelegate.index, settingSpinBoxInt.value);
+                                        settingsWindow.settingsModel.int_value_changed(settingsListDelegate.sourceIndex, settingSpinBoxInt.value);
                                     }
 
                                     onValueModified: onSetValue()
@@ -462,7 +463,7 @@ ApplicationWindow {
                                     }
 
                                     function onSetValue(): void {
-                                        settingsWindow.settingsModel.float_value_changed(settingsListDelegate.index, settingSpinBoxDouble.realValue);
+                                        settingsWindow.settingsModel.float_value_changed(settingsListDelegate.sourceIndex, settingSpinBoxDouble.realValue);
                                     }
 
                                     onValueModified: onSetValue()
@@ -491,7 +492,7 @@ ApplicationWindow {
                                     currentValue: settingsListDelegate.value
 
                                     onActivated: idx => {
-                                        settingsWindow.settingsModel.str_value_changed(settingsListDelegate.index, settingComboBox.model[idx]);
+                                        settingsWindow.settingsModel.str_value_changed(settingsListDelegate.sourceIndex, settingComboBox.model[idx]);
                                     }
                                 }
                             }

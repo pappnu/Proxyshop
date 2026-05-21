@@ -32,7 +32,7 @@ from src.enums.mtg import (
     layout_map_types,
     planeswalkers_tall,
 )
-from src.enums.settings import CollectorMode, NicknameShorten, WatermarkMode
+from src.enums.settings import NicknameShorten, WatermarkMode
 from src.frame_logic import (
     check_hybrid_mana_cost,
     get_frame_details,
@@ -350,11 +350,13 @@ class NormalLayout:
 
             if not matching_face:
                 face_listing = "\n".join(f"  - {face.name}" for face in faces)
-                _logger.warning(f"None of the card faces<br>{
+                _logger.warning(
+                    f"None of the card faces<br>{
                         face_listing
                     }<br>matches the input file's name <i>{
                         self.input_name
-                    }</i>.<br>Defaulting to first face.")
+                    }</i>.<br>Defaulting to first face."
+                )
                 return faces[0]
 
             return matching_face
@@ -616,13 +618,10 @@ class NormalLayout:
 
     @cached_property
     def card_count(self) -> int | None:
-        """int | None: Number of cards within the card's release set. Only required in 'Normal' Collector Mode."""
+        """int | None: Number of cards within the card's release set."""
 
-        # Skip if collector mode doesn't require it or if collector number is bad
-        if (
-            self.config.collector_mode != CollectorMode.Normal
-            or not self.collector_number_raw
-        ):
+        # Skip if collector number is bad
+        if not self.collector_number_raw:
             return
 
         # Prefer printed count, fallback to card count, skip if count isn't found
@@ -1933,11 +1932,8 @@ class TokenLayout(NormalLayout):
     def card_count(self) -> int | None:
         """Optional[int]: Use token count for token cards."""
 
-        # Skip if collector mode doesn't require it or if collector number is bad
-        if (
-            self.config.collector_mode != CollectorMode.Normal
-            or not self.collector_number_raw
-        ):
+        # Skip if collector number is bad
+        if not self.collector_number_raw:
             return
 
         if self.set_data:

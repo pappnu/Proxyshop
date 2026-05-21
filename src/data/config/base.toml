@@ -32,10 +32,41 @@ title = "Collector Mode"
 desc = """Default: Formats collector info like modern cards pre-2023.
 Modern: Formats collector info like March of the Machine and onwards.
 Minimal: Only includes artist, set code, and language.
-Artist: Only includes artist."""
+Artist: Only includes artist.
+Custom: Formats collector info lines according to specified custom formats."""
 type = "options"
 default = "default"
-options = ["default", "modern", "minimal", "artist"]
+options = ["default", "modern", "minimal", "artist", "custom"]
+
+[TEXT."Collector.Line.A"]
+title = "First Collector Info Line Format"
+desc = """Fills the first collector info line with given text. The following variable substitutions may be used in the text:<br>
+<br>
+<b>{pen}</b>: Artist pen icon.<br>
+<b>{artist}</b>: Card's artist.<br>
+<b>{number}</b>: Card's collector number.<br>
+<b>{set}</b>: Card's set.<br>
+<b>{rarity}</b>: Card's rarity code.<br>
+<b>{lang}</b>: Card's language code.<br>
+<b>{date:<format>}</b>: Current datetime formatted with <a href="https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes">strftime(<format>)</a>.
+<br><br>
+If no text is provided, the layer will be hidden.
+<br><br>
+Example:<br>
+With <i>Together as One [SOS] {4}</i><br>
+<tt>Static Text {lang} - {set} - {number}</tt><br>
+would convert to<br>
+<tt>Static Text EN - SOS - 4</tt>
+<br><br>
+This is an experimental setting and the format syntax might change in a later version."""
+type = "string"
+default = ""
+
+[TEXT."Collector.Line.B"]
+title = "Second Collector Info Line Format"
+desc = "Fills the second collector info line with given text. Supports the same variable substitutions as the first line."
+type = "string"
+default = ""
 
 [TEXT."Collector.Promo"]
 title = "Collector Promo Star"

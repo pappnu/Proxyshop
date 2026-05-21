@@ -17,7 +17,7 @@ from src.cards import (
 from src.layouts import NormalLayout, layout_map
 from src.utils.data_structures import parse_model
 from src.utils.scryfall import CardIdentifier, ScryfallCard, get_cards_collection
-from tests.utils import TestDataPaths
+from tests.testing_utils import TestDataPaths
 
 LayoutTestCases = RootModel[dict[str, dict[str, tuple[str, str, str, str, bool, bool]]]]
 

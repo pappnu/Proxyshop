@@ -4,9 +4,11 @@
 
 from collections.abc import Callable, Sequence
 from contextlib import suppress
+from datetime import UTC, datetime
 from functools import cached_property
 from logging import getLogger
 from pathlib import Path
+from re import Match, sub
 from threading import Event
 from traceback import format_stack
 from typing import TYPE_CHECKING, Any, Unpack
@@ -25,7 +27,7 @@ from src import APP, CON
 from src._state import PATH, WatermarkFormat
 from src.cards import sanitize_card_filename, strip_reminder_text
 from src.enums.layers import LAYERS
-from src.enums.mtg import CardTextPatterns, MagicIcons
+from src.enums.mtg import CardFonts, CardTextPatterns, MagicIcons
 from src.enums.settings import (
     BorderColor,
     CollectorMode,
@@ -38,6 +40,7 @@ from src.frame_logic import is_multicolor_string
 from src.helpers.adjustments import CreateColorLayerKwargs
 from src.helpers.effects import LayerEffects
 from src.helpers.position import DimensionNames
+from src.helpers.text import get_font_size, override_text_style_ranges
 from src.layouts import NormalLayout, SplitLayout
 from src.schema.adobe import EffectBevel, EffectColorOverlay, EffectGradientOverlay
 from src.schema.colors import (
@@ -63,6 +66,7 @@ from src.utils.adobe import (
     try_photoshop,
 )
 from src.utils.scryfall import get_card_scan
+from src.utils.text import format_string_with_indices
 from src.utils.windows import WindowState
 
 if TYPE_CHECKING:
@@ -802,7 +806,12 @@ class BaseTemplate:
 
         # Frame the artwork
         if self.layout.is_panorama:
-            psd.frame_panorama(art_layer, self.docref, self.layout.panorama_element, self.layout.panorama_size)
+            psd.frame_panorama(
+                art_layer,
+                self.docref,
+                self.layout.panorama_element,
+                self.layout.panorama_size,
+            )
         elif art_reference:
             psd.frame_layer(layer=art_layer, ref=art_reference)
 
@@ -887,22 +896,20 @@ class BaseTemplate:
     def collector_info(self) -> None:
         """Format and add the collector info at the bottom."""
 
-        # Ignore this step if legal layer not present
-        if not self.legal_group:
-            return
-
         # If creator is specified add the text
         if self.layout.creator and self.text_layer_creator:
             self.text_layer_creator.textItem.contents = self.layout.creator
 
         # Which collector info mode?
         if (
-            self.config.collector_mode in [CollectorMode.Default, CollectorMode.Modern]
+            self.config.collector_mode in [CollectorMode.Normal, CollectorMode.Modern]
             and self.layout.collector_data
         ):
             return self.collector_info_authentic()
         elif self.config.collector_mode == CollectorMode.ArtistOnly:
             return self.collector_info_artist_only()
+        elif self.config.collector_mode == CollectorMode.Custom:
+            return self.collector_info_custom()
         return self.collector_info_basic()
 
     def collector_info_basic(self) -> None:
@@ -985,6 +992,73 @@ class BaseTemplate:
         # Insert artist name
         if self.text_layer_artist:
             psd.replace_text(self.text_layer_artist, "Artist", self.layout.artist)
+
+    def collector_info_custom(self) -> None:
+        """Formats collector layers according to configured custom format."""
+        if layer_a := psd.getLayer(LAYERS.SET, self.legal_group):
+            layer_a_ti = layer_a.textItem
+            font = layer_a_ti.font
+            font_size = get_font_size(layer_a)
+
+            if self.config.collector_line_a_format:
+                self.format_collector_info_line_custom(
+                    layer_a, self.config.collector_line_a_format
+                )
+            else:
+                layer_a.visible = False
+
+            if layer_b := self.text_layer_artist:
+                layer_b_ti = layer_b.textItem
+                layer_b_ti.font = font
+                layer_b_ti.size = font_size
+
+                if self.config.collector_line_b_format:
+                    self.format_collector_info_line_custom(
+                        layer_b, self.config.collector_line_b_format
+                    )
+                else:
+                    layer_b.visible = False
+
+    def format_collector_info_line_custom(self, layer: ArtLayer, format: str) -> None:
+        """Format collector info line according to given format, e.g.
+        `{artist} {date:%Y-%m-%d %H:%M}Z`"""
+
+        # Build values dictionary with all available placeholders
+        values = {
+            "pen": MagicIcons.PAINTBRUSH_MODERN,
+            "artist": self.layout.artist,
+            "number": self.layout.collector_number,
+            "set": self.layout.set,
+            "rarity": self.layout.rarity_letter,
+            "lang": self.layout.lang,
+        }
+
+        now = datetime.now(tz=UTC)
+        id_counter: list[int] = [0]
+        prefix = "_TkJqxrzSveisbe_"
+
+        def replace_date(match: Match[str]) -> str:
+            new_id = f"{prefix}{id_counter[0]}"
+            id_counter[0] += 1
+            values[new_id] = now.strftime(match.group(1))
+            return f"{{{new_id}}}"
+
+        # Handle {date:<format>} pattern
+        format_str = sub(r"\{date:([^}]+)\}", replace_date, format)
+
+        # Format string with values
+        formatted_text, indices = format_string_with_indices(format_str, **values)
+        layer.textItem.contents = formatted_text
+
+        # Apply specific text styles to substitutions that need them
+        if ranges := indices.get("pen"):
+            override_text_style_ranges(
+                layer, ranges, font=CardFonts.MANA, size=5, tracking=200
+            )
+        if ranges := indices.get("artist"):
+            override_text_style_ranges(
+                layer, ranges, font=CardFonts.ARTIST, size=4.6, tracking=0
+            )
 
     """
     * Expansion Symbol

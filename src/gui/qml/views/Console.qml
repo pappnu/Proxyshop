@@ -91,13 +91,6 @@ ColumnLayout {
                 color: root.systemPalette.text
                 text: logDelegate.message
                 font.family: root.monospaceFontFamily
-                onLinkActivated: Qt.openUrlExternally(hoveredLink)
-
-                MouseArea {
-                    anchors.fill: parent
-                    acceptedButtons: Qt.NoButton // we don't want to eat clicks on the Text
-                    cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : undefined
-                }
             }
         }
 

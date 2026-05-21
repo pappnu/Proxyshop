@@ -2,14 +2,7 @@
 * Enums: Settings
 """
 
-from enum import StrEnum, nonmember
-from typing import Protocol, runtime_checkable
-
-
-@runtime_checkable
-class HasDefault(Protocol):
-    Default: nonmember[str]
-
+from enum import StrEnum
 
 """
 * App Settings
@@ -21,8 +14,6 @@ class OutputFileType(StrEnum):
     PNG = "png"
     PSD = "psd"
 
-    Default = nonmember(JPG)
-
 
 class ScryfallSorting(StrEnum):
     Released = "released"
@@ -33,14 +24,10 @@ class ScryfallSorting(StrEnum):
     EDHRec = "edhrec"
     Artist = "artist"
 
-    Default = nonmember(Released)
-
 
 class ScryfallUnique(StrEnum):
     Prints = "prints"
     Arts = "arts"
-
-    Default = nonmember(Arts)
 
 
 """
@@ -53,8 +40,7 @@ class CollectorMode(StrEnum):
     Modern = "modern"
     Minimal = "minimal"
     ArtistOnly = "artist"
-
-    Default = nonmember(Normal)
+    Custom = "custom"
 
 
 class BorderColor(StrEnum):
@@ -63,15 +49,11 @@ class BorderColor(StrEnum):
     Silver = "silver"
     Gold = "gold"
 
-    Default = nonmember(Black)
-
 
 class CollectorPromo(StrEnum):
     Automatic = "automatic"
     Always = "always"
     Never = "never"
-
-    Default = nonmember(Automatic)
 
 
 class WatermarkMode(StrEnum):
@@ -79,8 +61,6 @@ class WatermarkMode(StrEnum):
     Automatic = "Automatic"
     Fallback = "Fallback"
     Forced = "Forced"
-
-    Default = nonmember(Disabled)
 
 
 class FillMode(StrEnum):
@@ -109,8 +89,6 @@ class BorderlessColorMode(StrEnum):
     PT = "PT Box"
     Disabled = "None"
 
-    Default = nonmember(Twins_And_PT)
-
 
 class BorderlessTextbox(StrEnum):
     Automatic = "Automatic"
@@ -119,8 +97,6 @@ class BorderlessTextbox(StrEnum):
     Medium = "Medium"
     Short = "Short"
     Tall = "Tall"
-
-    Default = nonmember(Automatic)
 
 
 """
@@ -132,5 +108,3 @@ class ModernClassicCrown(StrEnum):
     Pinlines = "Pinlines"
     TexturePinlines = "Texture Pinlines"
     TextureBackground = "Texture Background"
-
-    Default = nonmember(Pinlines)

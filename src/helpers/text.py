@@ -6,7 +6,7 @@ from collections.abc import Iterable, Sequence
 from logging import getLogger
 from typing import Literal, overload
 
-from photoshop.api import ActionDescriptor, ActionList, ActionReference
+from photoshop.api import ActionDescriptor, ActionList, ActionReference, SolidColor
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
@@ -20,6 +20,13 @@ from src.helpers.bounds import (
     get_textbox_width,
     get_width_no_effects,
 )
+from src.helpers.descriptors import (
+    set_or_copy_color,
+    set_or_copy_enumerated,
+    set_or_copy_integer,
+    set_or_copy_string,
+    set_or_copy_unit_double,
+)
 from src.helpers.document import pixels_to_points
 from src.utils.adobe import PS_EXCEPTIONS
 
@@ -30,13 +37,18 @@ _logger = getLogger(__name__)
 """
 
 
-def get_font_size(layer: ArtLayer) -> float:
+def get_font_size(layer: ArtLayer, raw_size: float | None = None) -> float:
     """Get scale factor adjusted font size of a given text layer.
 
     Args:
         layer: Text layer to get size of.
     """
-    return round(layer.textItem.size * get_text_scale_factor(layer), 2)
+    return round(
+        layer.textItem.size
+        if raw_size is None
+        else raw_size * get_text_scale_factor(layer),
+        2,
+    )
 
 
 def get_text_key(layer: ArtLayer) -> ActionDescriptor:
@@ -301,11 +313,67 @@ def remove_leading_text(layer: ArtLayer, idx: int) -> None:
     apply_text_key(layer, key)
 
 
+def set_text_style_values(
+    text_style: ActionDescriptor,
+    source: ActionDescriptor | None = None,
+    font: str | None = None,
+    size: float | None = None,
+    leading: float | None = None,
+    kerning: Literal["metricsKern", "opticalKern", "manual"] | None = None,
+    tracking: int | None = None,
+    color: SolidColor | None = None,
+    language: str | None = None,
+    reference_layer: ArtLayer | None = None,
+) -> None:
+    """Set text style descriptor values."""
+    set_or_copy_string(APP.instance.sID("fontPostScriptName"), text_style, source, font)
+    set_or_copy_unit_double(
+        APP.instance.sID("size"),
+        text_style,
+        source,
+        unit_type=APP.instance.sID("pointsUnit"),
+        unit_value=size,
+        source_value_hook=(lambda value: get_font_size(reference_layer, value))
+        if reference_layer
+        else None,
+    )
+    set_or_copy_unit_double(
+        APP.instance.sID("leading"),
+        text_style,
+        source,
+        unit_type=APP.instance.sID("pointsUnit"),
+        unit_value=leading,
+    )
+    kern_id = APP.instance.sID("autoKern")
+    set_or_copy_enumerated(
+        kern_id,
+        text_style,
+        source,
+        enum_type=kern_id,
+        enum_value=APP.instance.sID(kerning) if kerning else None,
+    )
+    set_or_copy_integer(APP.instance.sID("tracking"), text_style, source, tracking)
+    set_or_copy_color("color", text_style, source, color)
+    lang_id = APP.instance.sID("textLanguage")
+    set_or_copy_enumerated(
+        lang_id,
+        text_style,
+        source,
+        enum_type=lang_id,
+        enum_value=APP.instance.sID(language) if language else None,
+    )
+
+
 def override_text_style_ranges(
     layer: ArtLayer,
     ranges: Iterable[tuple[int, int]],
     font: str | None = None,
     size: float | None = None,
+    leading: float | None = None,
+    kerning: Literal["metricsKern", "opticalKern", "manual"] | None = None,
+    tracking: int | None = None,
+    color: SolidColor | None = None,
+    language: str | None = None,
 ) -> None:
     """Override style properties in specified character ranges of a text layer.
 
@@ -324,9 +392,6 @@ def override_text_style_ranges(
     from_id = APP.instance.sID("from")
     to_id = APP.instance.sID("to")
     text_style_id = APP.instance.sID("textStyle")
-    points_unit_id = APP.instance.sID("pointsUnit")
-    font_post_script_id = APP.instance.sID("fontPostScriptName")
-    size_id = APP.instance.sID("size")
 
     # Get text key and current text
     text_key = get_text_key(layer)
@@ -364,17 +429,33 @@ def override_text_style_ranges(
         new_range.putInteger(from_id, start)
         new_range.putInteger(to_id, end)
 
-        # Copy the text style from original
-        text_style = orig_range.getObjectValue(text_style_id)
+        orig_style = orig_range.getObjectValue(text_style_id)
 
-        # Check if this range is overridden
         overridden = any(ov_start <= start < ov_end for ov_start, ov_end in ranges)
         if overridden:
-            # Apply overrides
-            if font is not None:
-                text_style.putString(font_post_script_id, font)
-            if size is not None:
-                text_style.putUnitDouble(size_id, points_unit_id, size)
+            # Create new range if values require overriding,
+            # as editing the original range's text style
+            # doesn't allow changing unit values, such as size,
+            # because the Photoshop API doesn't seem to support it.
+            # The values can be successfully set to the original text
+            # style descriptor but they just won't come into effect when
+            # the action is applied.
+            text_style = ActionDescriptor()
+            set_text_style_values(
+                text_style,
+                orig_style,
+                font=font,
+                size=size,
+                leading=leading,
+                kerning=kerning,
+                tracking=tracking,
+                color=color,
+                language=language,
+                reference_layer=layer,
+            )
+        else:
+            # Use original range's text style if no overriding should be done
+            text_style = orig_style
 
         new_range.putObject(text_style_id, text_style_id, text_style)
         new_style_ranges.putObject(text_style_range_id, new_range)

@@ -142,6 +142,12 @@ class AppConfig:
         self.collector_mode = self.get_option(
             "BASE.TEXT", "Collector.Mode", CollectorMode, default=CollectorMode.Normal
         )
+        self.collector_line_a_format = self.get_setting(
+            "BASE.TEXT", "Collector.Line.A", default=""
+        )
+        self.collector_line_b_format = self.get_setting(
+            "BASE.TEXT", "Collector.Line.B", default=""
+        )
         self.collector_promo = self.get_option(
             "BASE.TEXT",
             "Collector.Promo",

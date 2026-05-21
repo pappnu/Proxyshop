@@ -6,9 +6,9 @@ from collections.abc import Callable, Sequence
 from functools import cached_property
 from logging import getLogger
 
-from photoshop.api import ColorBlendMode, ElementPlacement
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
+from photoshop.api.enumerations import ColorBlendMode, ElementPlacement
 
 import src.helpers as psd
 import src.text_layers as text_classes

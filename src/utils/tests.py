@@ -20,6 +20,7 @@ def prepare_test_render(render_operation: RenderOperation, config: AppConfig):
     """Modifies render operation so that the render process won't pause for manual editing.
     Call this after loading the config for a test render."""
     config.fill_mode = FillMode.NO_FILL
+    config.import_scryfall_scan = False
 
     render_operation.do_not_pause = True
 

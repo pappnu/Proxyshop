@@ -8,21 +8,18 @@ from functools import cached_property
 from logging import getLogger
 from typing import NotRequired, TypedDict, Unpack
 
-from photoshop.api import (
-    ActionDescriptor,
-    ActionList,
-    ActionReference,
+from photoshop.api import ActionDescriptor, ActionList, ActionReference, SolidColor
+from photoshop.api._artlayer import ArtLayer
+from photoshop.api._document import Document
+from photoshop.api._layerSet import LayerSet
+from photoshop.api._selection import Selection
+from photoshop.api.enumerations import (
     DialogModes,
     Justification,
     Language,
     LayerKind,
     RasterizeType,
-    SolidColor,
 )
-from photoshop.api._artlayer import ArtLayer
-from photoshop.api._document import Document
-from photoshop.api._layerSet import LayerSet
-from photoshop.api._selection import Selection
 from photoshop.api.text_item import TextItem
 
 from src import APP, CFG, CON

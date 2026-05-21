@@ -14,17 +14,14 @@ from photoshop.api import (
     ActionDescriptor,
     ActionReference,
     Application,
-    DialogModes,
-    ElementPlacement,
     PhotoshopPythonAPIError,
-    TypeUnits,
-    Units,
 )
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._core import Photoshop
 from photoshop.api._document import Document
 from photoshop.api._layer import Layer
 from photoshop.api._layerSet import LayerSet
+from photoshop.api.enumerations import DialogModes, ElementPlacement, TypeUnits, Units
 from win32api import FormatMessage
 
 from src._state import AppEnvironment
@@ -219,7 +216,7 @@ class PhotoshopHandler(ApplicationHandler):
     """
 
     @cache
-    def charIDToTypeID(self, index: str) -> int:
+    def charIDToTypeID(self, index: str) -> int:  # pyright: ignore[reportIncompatibleMethodOverride]
         """Caching handler for charIDToTypeID.
 
         Args:
@@ -235,7 +232,7 @@ class PhotoshopHandler(ApplicationHandler):
         return self.charIDToTypeID(index)
 
     @cache
-    def typeIDToCharID(self, index: int) -> str:
+    def typeIDToCharID(self, index: int) -> str:  # pyright: ignore[reportIncompatibleMethodOverride]
         """Caching handler for typeIDToCharID.
 
         Args:
@@ -255,7 +252,7 @@ class PhotoshopHandler(ApplicationHandler):
     """
 
     @cache
-    def stringIDToTypeID(self, index: str) -> int:
+    def stringIDToTypeID(self, index: str) -> int:  # pyright: ignore[reportIncompatibleMethodOverride]
         """Caching handler for stringIDToTypeID.
 
         Args:
@@ -271,7 +268,7 @@ class PhotoshopHandler(ApplicationHandler):
         return self.stringIDToTypeID(index)
 
     @cache
-    def typeIDToStringID(self, index: int) -> str:
+    def typeIDToStringID(self, index: int) -> str:  # pyright: ignore[reportIncompatibleMethodOverride]
         """Caching handler for typeIDToStringID.
 
         Args:
@@ -430,7 +427,7 @@ class ReferenceLayer(ArtLayer):
     """
 
     @cached_property
-    def id(self) -> int:
+    def id(self) -> int:  # pyright: ignore[reportIncompatibleMethodOverride]
         """int: This layer's ID (cached)."""
         return super().id
 
@@ -450,8 +447,8 @@ class ReferenceLayer(ArtLayer):
     """
 
     @cached_property
-    def bounds(self) -> LayerBounds:
-        """LayerBounds: Bounds of the layer (left, top, right, bottom)."""
+    def bounds(self) -> LayerBounds:  # pyright: ignore[reportIncompatibleMethodOverride]
+        """LayerBounds: Bounds of the layer (left, top, right, bottom) (cached)."""
         return super().bounds
 
     @cached_property

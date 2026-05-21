@@ -9,12 +9,13 @@ from logging import getLogger
 from pathlib import Path
 
 from omnitils.strings import normalize_str
-from photoshop.api import BlendMode, ElementPlacement
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
+from photoshop.api.enumerations import BlendMode, ElementPlacement
 
 import src.helpers as psd
 from src import CON
+from src._state import WatermarkFormat
 from src.enums.layers import LAYERS
 from src.helpers import LayerEffects
 from src.helpers.effects import copy_layer_fx
@@ -467,7 +468,9 @@ class SplitMod(BaseTemplate):
                     and (textbox_ref := self.textbox_references[i])
                 ):
                     # Get watermark custom settings if available
-                    wm_details = CON.watermarks.get(watermark, {})
+                    wm_details: WatermarkFormat | dict[str, int] = CON.watermarks.get(
+                        watermark, {}
+                    )
 
                     # Import and frame the watermark
                     wm = psd.import_svg(

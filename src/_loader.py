@@ -3,7 +3,7 @@
 """
 
 from collections.abc import Callable
-from configparser import ConfigParser
+from configparser import RawConfigParser
 from contextlib import suppress
 from enum import Enum
 from functools import cached_property
@@ -267,7 +267,7 @@ class PluginManifest(BaseModel):
 # region Configs
 
 
-class CustomConfigParser(ConfigParser):
+class CustomConfigParser(RawConfigParser):
     def optionxform(self, optionstr: str) -> str:
         return optionstr
 
@@ -293,7 +293,7 @@ _setting_to_python_type = {
 }
 
 
-def configparser_to_dict(parser: ConfigParser) -> dict[str, dict[str, str]]:
+def configparser_to_dict(parser: RawConfigParser) -> dict[str, dict[str, str]]:
     return {
         section: {key: value for key, value in content.items()}
         for section, content in parser.items()
@@ -385,14 +385,14 @@ class ConfigHandler:
         )
 
     @cached_property
-    def _parser(self) -> ConfigParser:
+    def _parser(self) -> RawConfigParser:
         parser = CustomConfigParser(default_section="", allow_no_value=True)
         if self.ini_path.is_file():
             parser.read_string(self.ini_path.read_text(encoding="utf-8"))
         return parser
 
     @property
-    def parser(self) -> ConfigParser:
+    def parser(self) -> RawConfigParser:
         vals = self.setting_values
         self._parser.clear()
         self._parser.read_dict(vals)
