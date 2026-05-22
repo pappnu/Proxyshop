@@ -30,7 +30,7 @@ from src.cards import (
     locate_italics,
     locate_symbols,
 )
-from src.enums.mtg import CardFonts
+from src.enums.mtg import CardFonts, CardTextPatterns
 from src.helpers import select_layer
 from src.helpers.bounds import LayerDimensions, get_layer_dimensions, get_layer_width
 from src.helpers.colors import apply_color, rgb_black
@@ -79,13 +79,10 @@ class TextFieldKwargs(TypedDict):
     scale_width: NotRequired[bool]
     fix_overflow_height: NotRequired[bool]
     fix_overflow_width: NotRequired[bool]
+    replace_characters_in_title_font: NotRequired[bool]
 
 
 class TextField:
-    FONT = CardFonts.TITLES
-    FONT_ITALIC = CardFonts.RULES_ITALIC
-    FONT_BOLD = CardFonts.RULES_BOLD
-
     def __init__(
         self, layer: ArtLayer, contents: str = "", **kwargs: Unpack[TextFieldKwargs]
     ):
@@ -230,6 +227,12 @@ class TextField:
         """Font provided, or fallback on global constant."""
         return self.kw_font or CON.font_title
 
+    @cached_property
+    def replace_characters_in_title_font(self) -> bool:
+        """Whether to replace specific characters when using title font
+        in order to more closely match real cards."""
+        return self.kwargs.get("replace_characters_in_title_font", True)
+
     """
     * Methods
     """
@@ -253,6 +256,18 @@ class TextField:
     def execute(self):
         """Executes all text actions."""
 
+        # Apply custom word end characters if using Beleren font,
+        # which is usually used in card name and type.
+        if self.replace_characters_in_title_font and self.font == CardFonts.TITLES:
+            for pattern, replacement in (
+                (CardTextPatterns.TEXT_WORD_END_F, "\ue006"),
+                (CardTextPatterns.TEXT_WORD_END_H, "\ue007"),
+                (CardTextPatterns.TEXT_WORD_END_M, "\ue008"),
+                (CardTextPatterns.TEXT_WORD_END_N, "\ue009"),
+                (CardTextPatterns.TEXT_WORD_END_K, "\ue00a"),
+            ):
+                self.input = pattern.sub(replacement, self.input)
+
         # Update TextItem contents
         self.TI.contents = self.input
 
@@ -261,7 +276,7 @@ class TextField:
             self.TI.color = self.color
 
         # Update font manually if mismatch detected
-        if self.font != self.FONT:
+        if self.font != CardFonts.TITLES:
             self.TI.font = self.font
 
         # Change to English formatting if needed

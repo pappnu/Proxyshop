@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import Any, Literal, override
+from typing import Literal, override
 
 from pydantic import BaseModel
 from PySide6.QtCore import (
@@ -88,7 +88,7 @@ class SettingsModel(PydanticQListModel[HybridSettingItem]):
     def setData(
         self,
         index: QModelIndex | QPersistentModelIndex,
-        value: Any,
+        value: int | float | str | bool,
         /,
         role: int = Qt.ItemDataRole.EditRole,
     ) -> bool:

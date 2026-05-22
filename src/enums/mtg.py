@@ -409,6 +409,10 @@ class MagicIcons(StrEnum):
 """
 
 
+def _create_word_end_regex(end: str) -> re.Pattern[str]:
+    return re.compile(end + r"(?:\s|$)")
+
+
 @dataclass
 class CardTextPatterns:
     """Defined card data regex patterns."""
@@ -452,3 +456,10 @@ class CardTextPatterns:
     TEXT_ABILITY: re.Pattern[str] = re.compile(
         r"(?:^|\r)+(?:• )*([^\r]+) — ", re.MULTILINE
     )
+
+    # Text - Specific letters at word end
+    TEXT_WORD_END_F: re.Pattern[str] = _create_word_end_regex("f")
+    TEXT_WORD_END_H: re.Pattern[str] = _create_word_end_regex("h")
+    TEXT_WORD_END_M: re.Pattern[str] = _create_word_end_regex("m")
+    TEXT_WORD_END_N: re.Pattern[str] = _create_word_end_regex("n")
+    TEXT_WORD_END_K: re.Pattern[str] = _create_word_end_regex("k")

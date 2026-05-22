@@ -100,7 +100,7 @@ def select_layer_pixels(
         layer: Layer to select. Uses active layer if not provided.
     """
     if layer and layer.kind == LayerKind.SolidFillLayer:
-        return select_vector_layer_pixels(layer)
+        return select_vector_layer_pixels(layer, add_to_selection=add_to_selection)
     des1 = ActionDescriptor()
     ref1 = ActionReference()
     ref2 = ActionReference()
@@ -143,10 +143,9 @@ def select_vector_layer_pixels(
     if layer:
         ref2.putIdentifier(APP.instance.sID("layer"), layer.id)
     desc1.putReference(APP.instance.sID("to"), ref2)
-    desc1.putInteger(APP.instance.sID("version"), 1)
     desc1.putBoolean(APP.instance.sID("vectorMaskParams"), True)
     APP.instance.executeAction(
-        APP.instance.sID("add" if add_to_selection else "set"),
+        APP.instance.sID("addTo" if add_to_selection else "set"),
         desc1,
         DialogModes.DisplayNoDialogs,
     )
