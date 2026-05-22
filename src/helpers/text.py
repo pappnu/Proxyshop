@@ -525,7 +525,10 @@ def get_text_scale_factor(
 
 
 def align_text(
-    action_list: ActionList, start: int, end: int, alignment: str = "right"
+    action_list: ActionList,
+    start: int,
+    end: int,
+    alignment: Literal["left", "center", "right"] = "right",
 ) -> ActionList:
     """Align a slice of text in an action using given alignment.
 

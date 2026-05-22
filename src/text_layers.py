@@ -35,7 +35,7 @@ from src.helpers import select_layer
 from src.helpers.bounds import LayerDimensions, get_layer_dimensions, get_layer_width
 from src.helpers.colors import apply_color, rgb_black
 from src.helpers.position import clear_reference_vertical, position_between_layers
-from src.helpers.selection import select_layer_bounds
+from src.helpers.selection import select_layer_bounds, select_layer_pixels
 from src.helpers.text import (
     get_text_scale_factor,
     remove_trailing_text,
@@ -768,7 +768,21 @@ class FormattedTextField(TextField):
 
         # Justify center if required
         if self.contents_centered:
+            initial_justification = self.TI.justification
             self.TI.justification = Justification.Center
+            # Revert justification change if it caused overflow
+            if initial_justification != Justification.Center and self.reference_dims:
+                selection = select_layer_pixels(self.layer)
+                selection_bounds = selection.bounds
+                selection.deselect()
+                if (
+                    initial_justification == Justification.Left
+                    and self.reference_dims["right"] < selection_bounds[2]
+                ) or (
+                    initial_justification == Justification.Right
+                    and self.reference_dims["left"] > selection_bounds[0]
+                ):
+                    self.TI.justification = initial_justification
 
         # Ensure hyphenation disabled
         self.TI.hyphenation = False
