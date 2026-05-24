@@ -410,7 +410,7 @@ class MagicIcons(StrEnum):
 
 
 def _create_word_end_regex(end: str) -> re.Pattern[str]:
-    return re.compile(end + r"(?:\s|$)")
+    return re.compile(end + r"(\s|$)")
 
 
 @dataclass

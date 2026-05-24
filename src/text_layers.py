@@ -6,6 +6,7 @@ from _ctypes import COMError
 from contextlib import suppress
 from functools import cached_property
 from logging import getLogger
+from re import Match
 from typing import NotRequired, TypedDict, Unpack
 
 from photoshop.api import ActionDescriptor, ActionList, ActionReference, SolidColor
@@ -266,7 +267,14 @@ class TextField:
                 (CardTextPatterns.TEXT_WORD_END_N, "\ue009"),
                 (CardTextPatterns.TEXT_WORD_END_K, "\ue00a"),
             ):
-                self.input = pattern.sub(replacement, self.input)
+
+                def replacer(match: Match[str]) -> str:
+                    after_char = match.group(1)
+                    return (
+                        replacement + after_char if isinstance(after_char, str) else ""
+                    )
+
+                self.input = pattern.sub(replacer, self.input)
 
         # Update TextItem contents
         self.TI.contents = self.input
