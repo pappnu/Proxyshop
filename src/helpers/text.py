@@ -44,9 +44,8 @@ def get_font_size(layer: ArtLayer, raw_size: float | None = None) -> float:
         layer: Text layer to get size of.
     """
     return round(
-        layer.textItem.size
-        if raw_size is None
-        else raw_size * get_text_scale_factor(layer),
+        (layer.textItem.size if raw_size is None else raw_size)
+        * get_text_scale_factor(layer),
         2,
     )
 
