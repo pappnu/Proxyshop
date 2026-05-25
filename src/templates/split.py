@@ -118,9 +118,9 @@ class SplitMod(BaseTemplate):
         return methods
 
     @cached_property
-    def post_text_methods(self) -> list[Callable[[], None]]:
+    def hooks(self) -> list[Callable[[], None]]:
         """Rotate card sideways."""
-        methods = super().post_text_methods
+        methods = super().hooks
         if self.is_split:
             methods.append(psd.rotate_counter_clockwise)
         return methods

@@ -323,7 +323,8 @@ def process_card_data(data: ScryfallCard, card: CardDetails) -> ScryfallCard:
             if "Planeswalker" in card_face.type_line:
                 data.layout = (
                     LayoutScryfall.PlaneswalkerTransform
-                    if data.layout == LayoutScryfall.Transform
+                    if data.layout
+                    in (LayoutScryfall.Transform, LayoutScryfall.PlaneswalkerTransform)
                     else LayoutScryfall.PlaneswalkerMDFC
                 )
             # Transform Saga layout

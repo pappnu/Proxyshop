@@ -552,6 +552,11 @@ class BaseTemplate:
         return psd.getLayer(LAYERS.ARTIST, self.legal_group)
 
     @cached_property
+    def text_layer_set(self) -> ArtLayer | None:
+        """Card set text layer."""
+        return psd.getLayer(LAYERS.SET, self.legal_group)
+
+    @cached_property
     def text_layer_creator(self) -> ArtLayer | None:
         """Optional[ArtLayer]: Proxy creator name text layer."""
         return psd.getLayer(LAYERS.CREATOR, self.legal_group)
@@ -916,8 +921,7 @@ class BaseTemplate:
         """Called to generate basic collector info."""
 
         # Collector layers
-        set_layer = psd.getLayer(LAYERS.SET, self.legal_group)
-        set_TI = set_layer.textItem if set_layer else None
+        set_TI = self.text_layer_set.textItem if self.text_layer_set else None
 
         # Correct color for non-black border
         if self.border_color != BorderColor.Black:
@@ -927,12 +931,12 @@ class BaseTemplate:
                 self.text_layer_artist.textItem.color = self.RGB_BLACK
 
         # Fill optional collector star
-        if set_layer and self.is_collector_promo:
-            psd.replace_text(set_layer, "•", MagicIcons.COLLECTOR_STAR)
+        if self.text_layer_set and self.is_collector_promo:
+            psd.replace_text(self.text_layer_set, "•", MagicIcons.COLLECTOR_STAR)
 
         # Fill language, artist, and set
-        if set_layer and self.layout.lang != "en":
-            psd.replace_text(set_layer, "EN", self.layout.lang.upper())
+        if self.text_layer_set and self.layout.lang != "en":
+            psd.replace_text(self.text_layer_set, "EN", self.layout.lang.upper())
 
         if self.text_layer_artist:
             psd.replace_text(self.text_layer_artist, "Artist", self.layout.artist)
@@ -946,8 +950,8 @@ class BaseTemplate:
         # Hide basic layers
         if self.text_layer_artist:
             self.text_layer_artist.visible = False
-        if layer := psd.getLayer(LAYERS.SET, self.legal_group):
-            layer.visible = False
+        if self.text_layer_set:
+            self.text_layer_set.visible = False
 
         # Get the collector layers
         group = psd.getLayerSet(LAYERS.COLLECTOR, self.legal_group)
@@ -982,8 +986,8 @@ class BaseTemplate:
         """Called to generate 'Artist Only' collector info."""
 
         # Collector layers
-        if layer := psd.getLayer(LAYERS.SET, self.legal_group):
-            layer.visible = False
+        if self.text_layer_set:
+            self.text_layer_set.visible = False
 
         # Correct color for non-black border
         if self.text_layer_artist and self.border_color != BorderColor.Black:
@@ -995,7 +999,7 @@ class BaseTemplate:
 
     def collector_info_custom(self) -> None:
         """Formats collector layers according to configured custom format."""
-        if layer_a := psd.getLayer(LAYERS.SET, self.legal_group):
+        if layer_a := self.text_layer_set:
             layer_a_ti = layer_a.textItem
             font = layer_a_ti.font
             font_size = get_font_size(layer_a)
