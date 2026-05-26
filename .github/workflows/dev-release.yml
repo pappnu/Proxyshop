@@ -25,6 +25,15 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: "true"
 
+      - name: Update lockfile
+        run: uv lock --upgrade
+
+      - name: Install dependencies
+        run: uv sync --group build
+
+      - name: Run tests
+        run: uv run pytest ./tests
+
       - name: Set datetime environment variables
         shell: pwsh
         run: |
@@ -36,15 +45,6 @@ jobs:
 
       - name: Set release archive name as env variable
         run: echo "ARCHIVE_NAME=Proxyshop-dev_${{ env.NOW_PATH }}_${{ env.SHORT_SHA }}.zip" >> $env:GITHUB_ENV
-
-      - name: Update lockfile
-        run: uv lock --upgrade
-
-      - name: Install dependencies
-        run: uv sync --group build
-
-      - name: Run tests
-        run: uv run pytest ./tests
 
       - name: Define app version
         run: echo "version='${{ env.APP_VERSION }}.dev'" > __VERSION__.py
