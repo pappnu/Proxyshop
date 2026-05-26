@@ -95,7 +95,7 @@ jobs:
 
             This is an unofficial development release of Proxyshop. While some testing is usually conducted on the changes that are integrated to the release, bugs might still slip through. If you encounter problems, you may [open an issue](https://github.com/pappnu/Proxyshop/issues).
 
-            After updating from an earlier release make sure to check that your PSD files (via **Updater** in app) and plugins (via the way you acquired it, e.g. the plugin's GitHub page, if it has one) are up to date as well.
+            After updating from an earlier release make sure to check that your PSD files (via **Updater** in app) and plugins (via the way you acquired them, e.g. the plugins' GitHub pages) are up to date as well.
           prerelease: true
           files: ${{ env.ARCHIVE_NAME }}
           tag_name: ${{ env.NOW_PATH }}
