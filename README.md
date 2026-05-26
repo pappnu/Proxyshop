@@ -385,6 +385,7 @@ In your proxyshop directory, look for a folder named `logs`, inside that folder 
     - iDerp
     - Tupinambá (Pedro Neves)
 - Andrew Gioia for his various font projects which have been of use for Proxyshop in the past.
+- AmProsius for additional Proxyglyph adjustments.
 - John Prime, Haven King, and members of [CCGHQ](https://www.slightlymagic.net/forum/viewtopic.php?f=15&t=7010) for providing expansion symbol SVG's.
 - Hal and the other contributors over at [Photoshop Python API](https://github.com/loonghao/photoshop-python-api).
 - Wizards of the Coast and all the talented artists who make Magic the Gathering a reality.
