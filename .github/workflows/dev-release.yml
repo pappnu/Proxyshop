@@ -43,6 +43,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --group build
 
+      - name: Run tests
+        run: uv run pytest ./tests
+
       - name: Define app version
         run: echo "version='${{ env.APP_VERSION }}.dev'" > __VERSION__.py
 
