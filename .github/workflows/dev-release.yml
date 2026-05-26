@@ -26,6 +26,7 @@ jobs:
           enable-cache: "true"
 
       - name: Set datetime environment variables
+        shell: pwsh
         run: |
           $now = [datetime]::UtcNow
           echo "NOW=$($now.ToString('yyyy-MM-dd HH:mm:ss')) UTC" >> $env:GITHUB_ENV
@@ -82,7 +83,7 @@ jobs:
           git push origin ${{ env.NOW_PATH }}
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: "${{ env.NOW }} ${{ env.SHORT_SHA }}"
           body: |
