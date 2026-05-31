@@ -32,7 +32,7 @@ from src.enums.mtg import (
     layout_map_types,
     planeswalkers_tall,
 )
-from src.enums.settings import NicknameShorten, WatermarkMode
+from src.enums.settings import CollectorMode, NicknameShorten, WatermarkMode
 from src.frame_logic import (
     check_hybrid_mana_cost,
     get_frame_details,
@@ -634,8 +634,8 @@ class NormalLayout:
 
     @cached_property
     def collector_data(self) -> str:
-        """str: Formatted collector info line, e.g. 050/230 M."""
-        if self.card_count:
+        """str: Formatted collector info line, e.g. '050/230 M' or 'M 0050'."""
+        if self.card_count and self.config.collector_mode == CollectorMode.Normal:
             return f"{str(self.collector_number).zfill(3)}/{str(self.card_count).zfill(3)} {self.rarity_letter}"
         if self.collector_number_raw:
             return f"{self.rarity_letter} {str(self.collector_number).zfill(4)}"
