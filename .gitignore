@@ -11,6 +11,7 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+dist_js/
 downloads/
 eggs/
 .eggs/
@@ -160,6 +161,8 @@ node_modules/
 /art
 # Render output folder
 /out
+# Temporary files
+/tmp
 # Temporary logging directory
 /logs
 # For personal testing

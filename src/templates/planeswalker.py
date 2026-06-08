@@ -14,6 +14,7 @@ import src.helpers as psd
 import src.text_layers as text_classes
 from src.enums.layers import LAYERS
 from src.helpers import scale_text_layers_to_height
+from src.helpers.text import clear_reference_vertical_multi
 from src.layouts import NormalLayout, PlaneswalkerAbility, PlaneswalkerLayout
 from src.templates._core import StarterTemplate
 from src.templates._cosmetic import BorderlessMod, FullartMod
@@ -222,6 +223,11 @@ class PlaneswalkerMod(FullartMod, StarterTemplate):
         """ArtLayer: Reference used to check ability layer collision with the loyalty box."""
         return psd.get_reference_layer(LAYERS.LOYALTY_REFERENCE, self.loyalty_group)
 
+    @cached_property
+    def textbox_overflow_reference(self) -> ReferenceLayer | None:
+        """Rules text is not allowed to go below the top edge of this reference."""
+        return None
+
     """
     * Methods
     """
@@ -295,15 +301,15 @@ class PlaneswalkerMod(FullartMod, StarterTemplate):
 
             # Adjust text to avoid loyalty badge
             if self.layout.loyalty and self.loyalty_reference:
-                psd.clear_reference_vertical_multi(
+                clear_reference_vertical_multi(
                     text_layers=self.ability_layers,
                     ref=self.textbox_reference,
                     loyalty_ref=self.loyalty_reference,
                     space=spacing,
                     uniform_gap=uniform_gap,
                     font_size=font_size,
-                    docref=self.docref,
                     docsel=self.doc_selection,
+                    bottom_ref=self.textbox_overflow_reference,
                 )
 
             # Align colons and shields to respective text layers

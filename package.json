@@ -1,0 +1,14 @@
+{
+  "type": "module",
+  "scripts": {
+    "build": "tsc && node --experimental-transform-types scripts_js/build.ts",
+    "type-check": "pyright ./plugins/** ./src/** ./tests/** ./scripts/** && tsc --noEmit && npx tsc --project tsconfig.tools.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/photoshop": "^25.0.4",
+    "prettier": "^3.8.3",
+    "pyright": "^1.1.409",
+    "typescript": "^6.0.3"
+  }
+}

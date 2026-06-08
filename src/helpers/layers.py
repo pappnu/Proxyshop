@@ -3,7 +3,10 @@
 """
 
 from collections.abc import Iterable, Sequence
+from contextlib import AbstractContextManager
 from logging import getLogger
+from types import TracebackType
+from typing import TypedDict
 
 from photoshop.api import ActionDescriptor, ActionReference
 from photoshop.api._artlayer import ArtLayer
@@ -526,3 +529,50 @@ def select_no_layers() -> None:
     APP.instance.executeAction(
         APP.instance.sID("selectNoLayers"), d1, DialogModes.DisplayNoDialogs
     )
+
+
+class LayerVisibleContext(AbstractContextManager[None]):
+    def __init__(self, layer: ArtLayer | LayerSet) -> None:
+        self._layer = layer
+        self._initial_visibility: bool
+
+    def __enter__(self) -> None:
+        self._initial_visibility = self._layer.visible
+        self._layer.visible = False
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self._layer.visible = self._initial_visibility
+
+
+class StrokeDetails(TypedDict):
+    size: int
+
+
+def get_stroke_details(layer: ArtLayer | LayerSet) -> StrokeDetails | None:
+    with LayerVisibleContext(layer):
+        APP.instance.activeDocument.activeLayer = layer
+
+        ref = ActionReference()
+        ref.putEnumerated(
+            APP.instance.cID("Lyr "), APP.instance.cID("Ordn"), APP.instance.cID("Trgt")
+        )
+        desc: ActionDescriptor = APP.instance.executeActionGet(ref)
+
+        layer_effects_id = APP.instance.sID("layerEffects")
+        if not desc.hasKey(layer_effects_id):
+            return
+
+        layer_effects: ActionDescriptor = desc.getObjectValue(layer_effects_id)
+
+        frame_fx_id = APP.instance.sID("frameFX")
+        if not layer_effects.hasKey(frame_fx_id):
+            return
+
+        frame_fx: ActionDescriptor = layer_effects.getObjectValue(frame_fx_id)
+
+        return {"size": frame_fx.getInteger(APP.instance.sID("size"))}

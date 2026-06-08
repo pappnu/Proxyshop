@@ -342,20 +342,24 @@ class PhotoshopHandler(ApplicationHandler):
     * Version Checks
     """
 
-    @cache
+    @cached_property
     def supports_target_text_replace(self) -> bool:
         """bool: Checks if Photoshop version supports targeted text replacement."""
         return self.version_meets_requirement("22.0.0")
 
-    @cache
+    @cached_property
     def supports_webp(self) -> bool:
         """bool: Checks if Photoshop version supports WEBP files."""
         return self.version_meets_requirement("23.2.0")
 
-    @cache
+    @cached_property
     def supports_generative_fill(self) -> bool:
         """Checks if Photoshop version supports Generative Fill."""
         return self.version_meets_requirement("24.6.0")
+
+    @cached_property
+    def supports_uxp_scripts(self) -> bool:
+        return self.version_meets_requirement("23.5.0")
 
     def version_meets_requirement(self, value: str) -> bool:
         """Checks if Photoshop version meets or exceeds required value.

@@ -4,13 +4,15 @@
 
 from collections.abc import Iterable, Sequence
 from logging import getLogger
+from math import fabs
 from typing import Literal, overload
 
 from photoshop.api import ActionDescriptor, ActionList, ActionReference, SolidColor
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
-from photoshop.api.enumerations import DialogModes, LayerKind
+from photoshop.api._selection import Selection
+from photoshop.api.enumerations import DialogModes, ElementPlacement, LayerKind
 from photoshop.api.text_item import TextItem
 
 from src import APP
@@ -28,7 +30,16 @@ from src.helpers.descriptors import (
     set_or_copy_unit_double,
 )
 from src.helpers.document import pixels_to_points
-from src.utils.adobe import PS_EXCEPTIONS
+from src.helpers.position import (
+    RefSide,
+    check_bounds_overlap,
+    check_reference_overlap,
+    spread_layers_over_reference,
+)
+from src.helpers.shapes import create_shape_layer
+from src.utils.adobe import PS_EXCEPTIONS, ReferenceLayer
+from src.utils.uxp.shape import ShapeOperation, merge_shapes
+from src.utils.uxp.text import create_text_layer_with_path
 
 _logger = getLogger(__name__)
 
@@ -194,7 +205,7 @@ def replace_text_legacy(
             "checkAll"
         ),  # Targeted replace doesn't work on old PS versions
         False
-        if targeted_replace and APP.instance.supports_target_text_replace()
+        if targeted_replace and APP.instance.supports_target_text_replace
         else True,
     )
     desc32.putBoolean(APP.instance.sID("forward"), True)
@@ -468,7 +479,7 @@ def override_text_style_ranges(
 * Text Item Size
 """
 
-ScaleAxis = Literal["xx", "yy"]
+ScaleAxis = Literal["tx", "ty", "xx", "yy", "xy", "yx"]
 
 
 @overload
@@ -488,7 +499,7 @@ def get_text_scale_factor(
     axis: ScaleAxis | list[ScaleAxis] = "yy",
     text_key: ActionDescriptor | None = None,
 ) -> float | list[float]:
-    """Get the scale factor of the document for changing text size.
+    """Gets a transform value from text layer.
 
     Args:
         layer: The layer to make active and run the check on.
@@ -516,6 +527,26 @@ def get_text_scale_factor(
     if isinstance(axis, list):
         return [1.0] * len(axis)
     return 1.0
+
+
+def get_text_click_point(
+    layer: ArtLayer,
+    document_width: float | None = None,
+    document_height: float | None = None,
+    text_key: ActionDescriptor | None = None,
+) -> tuple[float, float]:
+    if not text_key:
+        text_key = get_text_key(layer)
+    if document_width is None or document_height is None:
+        doc = APP.instance.activeDocument
+        document_width = doc.width
+        document_height = doc.height
+    id_text_click_point = APP.instance.sID("textClickPoint")
+    desc = text_key.getObjectValue(id_text_click_point)
+    return (
+        desc.getUnitDoubleValue(APP.instance.sID("horizontal")) / 100 * document_width,
+        desc.getUnitDoubleValue(APP.instance.sID("vertical")) / 100 * document_height,
+    )
 
 
 """
@@ -751,14 +782,19 @@ def ensure_visible_reference(reference: ArtLayer) -> TextItem | None:
 
 
 def scale_text_right_overlap(
-    layer: ArtLayer, reference: ArtLayer, gap: int = 30
+    layer: ArtLayer,
+    reference: ArtLayer,
+    reference_side: RefSide,
+    step_sizes: Sequence[float] | None = None,
+    gap: float = 30,
 ) -> None:
-    """Scales a text layer down (in 0.2 pt increments) until its right bound
-    has a 30 px~ (based on DPI) clearance from a reference layer's left bound.
+    """Scales a text layer down (in 0.2 pt increments) until it
+    doesn't overlap with the reference layer's `reference_side` bound.
 
     Args:
         layer: The text item layer to scale.
         reference: Reference layer we need to avoid.
+        reference_side: Which side of reference to check overlap with.
         gap: Minimum gap to ensure between the layer and reference (DPI adjusted).
     """
     # Ensure a valid and visible reference layer
@@ -768,35 +804,55 @@ def scale_text_right_overlap(
 
     # Set starting variables
     font_size = old_size = get_font_size(layer)
-    ref_left_bound = reference.bounds[0] - APP.instance.scale_by_dpi(gap)
-    step, half_step = 0.4, 0.2
+    scaled_gap = APP.instance.scale_by_dpi(gap)
+    ref_bounds = reference.bounds
+    ref_bounds = (
+        ref_bounds[0] - scaled_gap,
+        ref_bounds[1] - scaled_gap,
+        ref_bounds[2] + scaled_gap,
+        ref_bounds[3] + scaled_gap,
+    )
+    layer_bounds = layer.bounds
+    step_sizes = step_sizes or (0.4, 0.2)
 
     # Guard against reference being left of the layer
-    if ref_left_bound < layer.bounds[0]:
+    if (
+        ref_bounds[0] < layer_bounds[0]
+        if reference_side == RefSide.LEFT
+        else ref_bounds[1] < layer_bounds[1]
+        if reference_side == RefSide.TOP
+        else ref_bounds[2] > layer_bounds[2]
+        if reference_side == RefSide.RIGHT
+        else ref_bounds[3] > layer_bounds[3]
+    ):
         # Reset reference
         if ref_TI:
             ref_TI.contents = ""
         return
 
-    # Make our first check if scaling is necessary
-    if continue_scaling := bool(layer.bounds[2] > ref_left_bound):
-        # Step down the font till it clears the reference
-        while continue_scaling:
-            font_size -= step
-            set_text_size(layer, font_size)
-            continue_scaling = bool(layer.bounds[2] > ref_left_bound)
+    uneven_round = False
+    # Adjust text size down and up in decreasing steps
+    for idx, step_size in enumerate(step_sizes):
+        uneven_round = bool(idx % 2)
 
-        # Go up a half step
-        font_size += half_step
+        # Check overlap
+        while check_bounds_overlap(layer_bounds, ref_bounds, reference_side):
+            if uneven_round:
+                font_size += step_size
+            else:
+                font_size -= step_size
+
+            set_text_size(layer, font_size)
+
+            layer_bounds = layer.bounds
+
+    # If the last round was uneven we have to go one step down
+    if uneven_round:
+        font_size -= step_sizes[-1]
         set_text_size(layer, font_size)
 
-        # If out of bounds, revert half step
-        if layer.bounds[2] > ref_left_bound:
-            font_size -= half_step
-            set_text_size(layer, font_size)
-
-        # Shift baseline up to keep text centered vertically
-        layer.textItem.baselineShift = (old_size * 0.3) - (font_size * 0.3)
+    # Shift baseline up to keep text centered vertically
+    layer.textItem.baselineShift = (old_size * 0.3) - (font_size * 0.3)
 
     # Fix corrected reference layer
     if ref_TI:
@@ -911,7 +967,7 @@ def scale_text_to_height(
     step: float = 0.4,
     font_size: float | None = None,
 ) -> float | None:
-    """Resize a given text layer's font size/leading until it fits inside a reference width.
+    """Resize a given text layer's font size/leading until it fits inside a reference height.
 
     Args:
         layer: Text layer to scale.
@@ -1027,3 +1083,159 @@ def scale_text_layers_to_height(
             set_text_size_and_leading(layer, font_size, font_size)
 
     return font_size
+
+
+def clear_reference_vertical_multi(
+    text_layers: list[ArtLayer],
+    ref: ReferenceLayer,
+    loyalty_ref: ReferenceLayer,
+    space: int | float,
+    uniform_gap: bool = False,
+    font_size: float | None = None,
+    step: float = 0.2,
+    docsel: Selection | None = None,
+    bottom_ref: ReferenceLayer | None = None,
+) -> None:
+    """Shift or resize multiple text layers to prevent vertical collision with a reference area.
+
+    Note:
+        Used on Planeswalker cards to allow multiple text abilities to clear the loyalty box.
+
+    Args:
+        text_layers: Ability text layers to nudge or resize.
+        ref: Reference area ability text layers must fit inside.
+        loyalty_ref: Reference area that covers the loyalty box.
+        space: Minimum space between planeswalker abilities.
+        uniform_gap: Whether the gap between abilities should be the same between each ability.
+        font_size: The current font size of the text layers, if known. Otherwise, calculate automatically.
+        step: The amount of font size and leading to step down each iteration.
+        docsel: Selection object, pull from document if not provided (improves performance).
+        bottom_ref: Reference layer used to check text overflow at bottom.
+    """
+    # Return if adjustments weren't provided
+    if not loyalty_ref:
+        return
+
+    # Establish fresh data
+    if font_size is None:
+        font_size = get_font_size(text_layers[0])
+    layers = text_layers.copy()
+    movable = len(layers) - 1
+
+    # Calculate inside gap
+    total_space = ref.dims["height"] - sum(
+        [get_layer_height(layer) for layer in text_layers]
+    )
+    if not uniform_gap:
+        inside_gap = (
+            (total_space - space) - (ref.bounds[3] - layers[-1].bounds[1])
+        ) / movable
+    else:
+        inside_gap = total_space / (len(layers) + 1)
+    leftover = (inside_gap - space) * movable
+
+    # Does the bottom layer overlap with the loyalty box?
+    delta = check_reference_overlap(
+        layer=layers[-1], ref_bounds=loyalty_ref.bounds, docsel=docsel
+    )
+    if delta >= 0:
+        return
+
+    if APP.instance.supports_uxp_scripts and bottom_ref:
+        keep_adjusting: bool = True
+
+        while keep_adjusting:
+            # Avoid overlapping the loyalty box using a shaped text layer
+            bot_layer = text_layers[-1]
+            bot_layer_bounds = bot_layer.bounds
+            bottom_ref_bounds = bottom_ref.bounds
+            # TODO Get the "actual" transform x and y, which are visible in Photoshop UI,
+            # in order to precisely align the shaped text layer with the others. The current
+            # implementation uses text click point which seems to precisely match the x value
+            # but not the y value. Bounds and boundsNoEffects don't give the transform values
+            # and as such can't be used here.
+            x, _ = get_text_click_point(bot_layer)
+            base_shape = create_shape_layer(
+                (
+                    {"x": x, "y": bot_layer_bounds[1]},
+                    {"x": bot_layer_bounds[2], "y": bot_layer_bounds[1]},
+                    {"x": bot_layer_bounds[2], "y": bottom_ref_bounds[3] + 500},
+                    {"x": x, "y": bottom_ref_bounds[3] + 500},
+                ),
+                relative_layer=bot_layer,
+                placement=ElementPlacement.PlaceBefore,
+            )
+            loyalty_box_cutout = loyalty_ref.duplicate(
+                base_shape, ElementPlacement.PlaceBefore
+            )
+            merged_shape = merge_shapes(
+                loyalty_box_cutout, base_shape, operation=ShapeOperation.SubtractFront
+            )
+            shaped_text = create_text_layer_with_path(
+                reference_path=merged_shape,
+                reference_text=bot_layer,
+                size=font_size,
+                leading=font_size,
+            )
+            shaped_text.textItem.contents = bot_layer.textItem.contents
+            bot_layer.visible = False
+            text_layers[-1] = shaped_text
+
+            spread_layers_over_reference(
+                layers=text_layers,
+                ref=ref,
+                gap=space if not uniform_gap else 0,
+                outside_matching=False,
+            )
+
+            if keep_adjusting := text_layers[-1].bounds[3] >= bottom_ref_bounds[1]:
+                font_size -= step
+                for lyr in text_layers:
+                    set_text_size_and_leading(
+                        layer=lyr, size=font_size, leading=font_size
+                    )
+
+                spread_layers_over_reference(
+                    layers=text_layers,
+                    ref=ref,
+                    gap=space if not uniform_gap else 0,
+                    outside_matching=False,
+                )
+    else:
+        # Calculate the total distance needing to be covered
+        total_move = 0
+        layers.pop(0)
+        for n, lyr in enumerate(layers):
+            total_move += fabs(delta) * ((len(layers) - n) / len(layers))
+
+        # Text layers can just be shifted upwards
+        if total_move < leftover:
+            layers.reverse()
+            for n, lyr in enumerate(layers):
+                move_y = delta * ((len(layers) - n) / len(layers))
+                lyr.translate(0, move_y)
+            return
+
+        # Layer gap would be too small, need to resize text then shift upward
+        font_size -= step
+        for lyr in text_layers:
+            set_text_size_and_leading(layer=lyr, size=font_size, leading=font_size)
+
+        # Space apart planeswalker text evenly
+        spread_layers_over_reference(
+            layers=text_layers,
+            ref=ref,
+            gap=space if not uniform_gap else 0,
+            outside_matching=False,
+        )
+
+        # Check for another iteration
+        clear_reference_vertical_multi(
+            text_layers=text_layers,
+            ref=ref,
+            loyalty_ref=loyalty_ref,
+            space=space,
+            uniform_gap=uniform_gap,
+            font_size=font_size,
+            docsel=docsel,
+        )

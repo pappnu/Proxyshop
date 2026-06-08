@@ -3,7 +3,7 @@
 """
 
 from _ctypes import COMError
-from contextlib import suppress
+from collections.abc import Sequence
 from functools import cached_property
 from logging import getLogger
 from re import Match
@@ -35,7 +35,11 @@ from src.enums.mtg import CardFonts, CardTextPatterns
 from src.helpers import select_layer
 from src.helpers.bounds import LayerDimensions, get_layer_dimensions, get_layer_width
 from src.helpers.colors import apply_color, rgb_black
-from src.helpers.position import clear_reference_vertical, position_between_layers
+from src.helpers.position import (
+    RefSide,
+    clear_reference_vertical,
+    position_between_layers,
+)
 from src.helpers.selection import select_layer_bounds, select_layer_pixels
 from src.helpers.text import (
     get_text_scale_factor,
@@ -226,7 +230,7 @@ class TextField:
     @cached_property
     def font(self) -> str:
         """Font provided, or fallback on global constant."""
-        return self.kw_font or CON.font_title
+        return self.kw_font or self.TI.font
 
     @cached_property
     def replace_characters_in_title_font(self) -> bool:
@@ -244,14 +248,6 @@ class TextField:
             # Layer is valid, select and show it
             select_layer(self.layer, True)
             return True
-        with suppress(Exception):
-            # Layer provided doesn't exist or isn't a text layer
-            name = self.layer.name if self.layer else "[Non-Layer]"
-            print(
-                f"Text Field class: {self.__class__.__name__}\n"
-                f"Invalid layer provided: {name}"
-            )
-            self.layer.visible = False
         return False
 
     def execute(self):
@@ -284,7 +280,7 @@ class TextField:
             self.TI.color = self.color
 
         # Update font manually if mismatch detected
-        if self.font != CardFonts.TITLES:
+        if self.font != self.TI.font:
             self.TI.font = self.font
 
         # Change to English formatting if needed
@@ -293,15 +289,33 @@ class TextField:
 
 
 class ScaledTextField(TextField):
-    """A TextField which automatically scales down its font size until the right bound
-    no longer overlaps with the `reference` layer's left bound."""
+    """A TextField which automatically scales down its font size until it
+    no longer overlaps with the `reference` layer's `reference_side` bound."""
+
+    @cached_property
+    def step_sizes(self) -> Sequence[float]:
+        return (0.4, 0.2)
+
+    @cached_property
+    def gap(self) -> float:
+        return 30
+
+    @cached_property
+    def reference_side(self) -> RefSide:
+        return RefSide.LEFT
 
     def execute(self):
         super().execute()
 
         # Scale down the text layer until it doesn't overlap with a reference layer
         if self.reference:
-            scale_text_right_overlap(self.layer, self.reference)
+            scale_text_right_overlap(
+                self.layer,
+                self.reference,
+                reference_side=self.reference_side,
+                step_sizes=self.step_sizes,
+                gap=self.gap,
+            )
 
 
 class ScaledTextFieldLeft(TextField):
@@ -319,13 +333,6 @@ class ScaledTextFieldLeft(TextField):
 class ScaledWidthTextField(TextField):
     """A TextField which automatically scales down its font size until the width of the
     layer is within the horizontal bound of a reference layer."""
-
-    FONT = CardFonts.RULES
-
-    @cached_property
-    def font(self) -> str:
-        """str: Font provided, or fallback on global constant."""
-        return self.kw_font or CON.font_rules_text
 
     @cached_property
     def reference_width(self) -> float | int | None:
@@ -355,8 +362,6 @@ class FormattedTextField(TextField):
     * Formats any modal/bullet point sections in the text.
     * Formats any italicized or bolded text, as well as line breaks.
     """
-
-    FONT = CardFonts.RULES
 
     def __init__(
         self, layer: ArtLayer, contents: str = "", **kwargs: Unpack[TextFieldKwargs]
@@ -509,11 +514,6 @@ class FormattedTextField(TextField):
     """
     * Fonts
     """
-
-    @cached_property
-    def font(self) -> str:
-        """Font provided, or fallback on global constant."""
-        return self.kw_font or CON.font_rules_text
 
     @cached_property
     def font_mana(self) -> str:

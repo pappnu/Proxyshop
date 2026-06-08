@@ -98,7 +98,6 @@ class BaseTemplate:
         # Setup manual properties
         self.layout = layout
         self.config = layout.config
-        self._text: list[FormattedTextLayer] = []
 
     """
     * Enabled Method Lists
@@ -514,6 +513,10 @@ class BaseTemplate:
         return self.docref.layerSets[LAYERS.LEGAL]
 
     @cached_property
+    def collector_group(self) -> LayerSet | None:
+        return psd.getLayerSet(LAYERS.COLLECTOR, self.legal_group)
+
+    @cached_property
     def border_group(self) -> LayerSet | None:
         """Optional[Union[LayerSet, ArtLayer]]: Group, or sometimes a layer, containing the card border."""
         if group := psd.getLayerSet(LAYERS.BORDER, self.docref):
@@ -557,6 +560,14 @@ class BaseTemplate:
         return psd.getLayer(LAYERS.SET, self.legal_group)
 
     @cached_property
+    def text_layer_collector_first(self) -> ArtLayer | None:
+        return psd.getLayer(LAYERS.TOP, self.collector_group)
+
+    @cached_property
+    def text_layer_collector_second(self) -> ArtLayer | None:
+        return psd.getLayer(LAYERS.BOTTOM, self.collector_group)
+
+    @cached_property
     def text_layer_creator(self) -> ArtLayer | None:
         """Optional[ArtLayer]: Proxy creator name text layer."""
         return psd.getLayer(LAYERS.CREATOR, self.legal_group)
@@ -565,10 +576,12 @@ class BaseTemplate:
     def text_layer_name(self) -> ArtLayer | None:
         """Optional[ArtLayer]: Card name text layer."""
         layer = psd.getLayer(LAYERS.NAME, self.text_group)
-        if layer and self.is_name_shifted:
-            layer.visible = False
-            if shift_layer := psd.getLayer(LAYERS.NAME_SHIFT, self.text_group):
-                shift_layer.visible = True
+        if self.is_name_shifted and (
+            shift_layer := psd.getLayer(LAYERS.NAME_SHIFT, self.text_group)
+        ):
+            if layer:
+                layer.visible = False
+            shift_layer.visible = True
             return shift_layer
         return layer
 
@@ -953,34 +966,41 @@ class BaseTemplate:
         if self.text_layer_set:
             self.text_layer_set.visible = False
 
+        if self.collector_group:
+            self.collector_group.visible = True
+
         # Get the collector layers
-        group = psd.getLayerSet(LAYERS.COLLECTOR, self.legal_group)
-        if group:
-            group.visible = True
-            top = layer.textItem if (layer := psd.getLayer(LAYERS.TOP, group)) else None
-            bottom = psd.getLayer(LAYERS.BOTTOM, group)
+        if self.text_layer_collector_first:
+            first = self.text_layer_collector_first.textItem
 
             # Correct color for non-black border
             if self.border_color != "black":
-                if top:
-                    top.color = self.RGB_BLACK
-                if bottom:
-                    bottom.textItem.color = self.RGB_BLACK
-
-            # Fill in language if needed
-            if bottom and self.layout.lang != "en":
-                psd.replace_text(bottom, "EN", self.layout.lang.upper())
-
-            # Fill optional collector star
-            if bottom and self.is_collector_promo:
-                psd.replace_text(bottom, "•", MagicIcons.COLLECTOR_STAR)
+                first.color = self.RGB_BLACK
 
             # Apply the collector info
-            if top:
-                top.contents = self.layout.collector_data
-            if bottom:
-                psd.replace_text(bottom, "SET", self.layout.set)
-                psd.replace_text(bottom, "Artist", self.layout.artist)
+            first.contents = self.layout.collector_data
+
+        if self.text_layer_collector_second and self.text_layer_collector_second:
+            # Fill in language if needed
+            if self.layout.lang != "en":
+                psd.replace_text(
+                    self.text_layer_collector_second, "EN", self.layout.lang.upper()
+                )
+
+            # Fill optional collector star
+            if self.is_collector_promo:
+                psd.replace_text(
+                    self.text_layer_collector_second, "•", MagicIcons.COLLECTOR_STAR
+                )
+
+            # Correct color for non-black border
+            if self.border_color != "black":
+                self.text_layer_collector_second.textItem.color = self.RGB_BLACK
+
+            psd.replace_text(self.text_layer_collector_second, "SET", self.layout.set)
+            psd.replace_text(
+                self.text_layer_collector_second, "Artist", self.layout.artist
+            )
 
     def collector_info_artist_only(self) -> None:
         """Called to generate 'Artist Only' collector info."""
@@ -1294,15 +1314,10 @@ class BaseTemplate:
     * Formatted Text Layers
     """
 
-    @property
+    @cached_property
     def text(self) -> list[FormattedTextLayer]:
         """List of text layer objects to execute."""
-        return self._text
-
-    @text.setter
-    def text(self, value: list[FormattedTextLayer]):
-        """Add text layer to execute."""
-        self._text = value
+        return []
 
     def format_text_layers(self) -> None:
         """Validate and execute each formatted text layer."""

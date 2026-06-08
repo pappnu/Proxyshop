@@ -2,8 +2,8 @@
 * Helpers: Positioning
 """
 
-import math
 from collections.abc import Sequence
+from enum import Enum
 from typing import Literal
 
 from photoshop.api._artlayer import ArtLayer
@@ -27,7 +27,6 @@ from src.helpers.selection import (
     select_bounds,
     select_overlapping,
 )
-from src.helpers.text import get_font_size, set_text_size_and_leading
 from src.utils.adobe import ReferenceLayer
 
 # Positioning
@@ -267,8 +266,10 @@ def frame_panorama(
     # Get layer and full reference dimensions
     art_dim: LayerDimensions = get_layer_dimensions(layer)
     ref_dim = get_card_dimensions(document)
-    panorama_dim = (ref_dim["width"] * panorama_size[0],
-                    ref_dim["height"] * panorama_size[1])
+    panorama_dim = (
+        ref_dim["width"] * panorama_size[0],
+        ref_dim["height"] * panorama_size[1],
+    )
 
     # Scale the layer to fit either the largest dimension
     scale = 100 * max(
@@ -379,11 +380,34 @@ def frame_layer_by_width(
 """
 
 
+class RefSide(Enum):
+    LEFT = 1
+    TOP = 2
+    RIGHT = 3
+    BOTTOM = 4
+
+
+def check_bounds_overlap(
+    bounds: tuple[float, float, float, float],
+    ref_bounds: tuple[float, float, float, float],
+    ref_side: RefSide,
+) -> bool:
+    if ref_side == RefSide.LEFT:
+        return bounds[2] > ref_bounds[0]
+    elif ref_side == RefSide.TOP:
+        return bounds[3] > ref_bounds[1]
+    elif ref_side == RefSide.RIGHT:
+        return bounds[0] < ref_bounds[2]
+    else:
+        return bounds[1] < ref_bounds[3]
+
+
 def check_reference_overlap(
     layer: ArtLayer,
     ref_bounds: tuple[float, float, float, float],
+    ref_side: RefSide = RefSide.TOP,
     docsel: Selection | None = None,
-):
+) -> float:
     """Checks if a layer is overlapping with given set of bounds.
 
     Args:
@@ -392,14 +416,21 @@ def check_reference_overlap(
         docsel: Selection object, pull from document if not provided.
 
     Returns:
-        Bounds if overlap exists, otherwise None.
+        Amount of overlap between `ref_side` and the opposing side of `layer`.
     """
     selection = docsel or APP.instance.activeDocument.selection
     select_bounds(ref_bounds, selection=selection)
     select_overlapping(layer)
     if bounds := check_selection_bounds(selection):
         selection.deselect()
-        return ref_bounds[1] - bounds[3]
+        if ref_side == RefSide.LEFT:
+            return ref_bounds[0] - bounds[2]
+        if ref_side == RefSide.TOP:
+            return ref_bounds[1] - bounds[3]
+        if ref_side == RefSide.RIGHT:
+            return ref_bounds[2] - bounds[0]
+        else:
+            return ref_bounds[3] - bounds[1]
     return 0
 
 
@@ -425,99 +456,3 @@ def clear_reference_vertical(
         layer.translate(0, delta)
         return delta
     return 0
-
-
-def clear_reference_vertical_multi(
-    text_layers: list[ArtLayer],
-    ref: ReferenceLayer,
-    loyalty_ref: ReferenceLayer,
-    space: int | float,
-    uniform_gap: bool = False,
-    font_size: float | None = None,
-    step: float = 0.2,
-    docref: Document | None = None,
-    docsel: Selection | None = None,
-) -> None:
-    """Shift or resize multiple text layers to prevent vertical collision with a reference area.
-
-    Note:
-        Used on Planeswalker cards to allow multiple text abilities to clear the loyalty box.
-
-    Args:
-        text_layers: Ability text layers to nudge or resize.
-        ref: Reference area ability text layers must fit inside.
-        loyalty_ref: Reference area that covers the loyalty box.
-        space: Minimum space between planeswalker abilities.
-        uniform_gap: Whether the gap between abilities should be the same between each ability.
-        font_size: The current font size of the text layers, if known. Otherwise, calculate automatically.
-        step: The amount of font size and leading to step down each iteration.
-        docref: Reference document, use active if not provided (improves performance).
-        docsel: Selection object, pull from document if not provided (improves performance).
-    """
-    # Return if adjustments weren't provided
-    if not loyalty_ref:
-        return
-
-    # Establish fresh data
-    if font_size is None:
-        font_size = get_font_size(text_layers[0])
-    layers = text_layers.copy()
-    movable = len(layers) - 1
-
-    # Calculate inside gap
-    total_space = ref.dims["height"] - sum(
-        [get_layer_height(layer) for layer in text_layers]
-    )
-    if not uniform_gap:
-        inside_gap = (
-            (total_space - space) - (ref.bounds[3] - layers[-1].bounds[1])
-        ) / movable
-    else:
-        inside_gap = total_space / (len(layers) + 1)
-    leftover = (inside_gap - space) * movable
-
-    # Does the bottom layer overlap with the loyalty box?
-    delta = check_reference_overlap(
-        layer=layers[-1], ref_bounds=loyalty_ref.bounds, docsel=docsel
-    )
-    if delta >= 0:
-        return
-
-    # Calculate the total distance needing to be covered
-    total_move = 0
-    layers.pop(0)
-    for n, lyr in enumerate(layers):
-        total_move += math.fabs(delta) * ((len(layers) - n) / len(layers))
-
-    # Text layers can just be shifted upwards
-    if total_move < leftover:
-        layers.reverse()
-        for n, lyr in enumerate(layers):
-            move_y = delta * ((len(layers) - n) / len(layers))
-            lyr.translate(0, move_y)
-        return
-
-    # Layer gap would be too small, need to resize text then shift upward
-    font_size -= step
-    for lyr in text_layers:
-        set_text_size_and_leading(layer=lyr, size=font_size, leading=font_size)
-
-    # Space apart planeswalker text evenly
-    spread_layers_over_reference(
-        layers=text_layers,
-        ref=ref,
-        gap=space if not uniform_gap else 0,
-        outside_matching=False,
-    )
-
-    # Check for another iteration
-    clear_reference_vertical_multi(
-        text_layers=text_layers,
-        ref=ref,
-        loyalty_ref=loyalty_ref,
-        space=space,
-        uniform_gap=uniform_gap,
-        font_size=font_size,
-        docref=docref,
-        docsel=docsel,
-    )

@@ -19,7 +19,7 @@ If you need help with this app or wish to troubleshoot an issue, [please join ou
 </div>
 
 # 🛠️ Requirements
-- Photoshop (2017-2026 Supported)
+- Photoshop (23.5 or newer recommended but earlier versions down to 18.0 might work)
 - Windows (currently incompatible with Mac/Linux)
 - [The Photoshop templates](https://drive.google.com/drive/u/1/folders/1moEdGmpAJloW4htqhrdWZlleyIop_z1W) (Can be downloaded in the app, which is recommended over manual download)
 - Required fonts (included in `fonts/`):
@@ -184,25 +184,28 @@ You may supply Proxyshop with image and JSON pairs to render cards with custom s
 
 - **Transform images**: Allows re-encoding and downscaling chosen images. Completed transformations are saved to `compressed/` next to the input image.
 
-# 🐍 Setup Guide (Python Environment)
-Setting up the Python environment for Proxyshop is intended for advanced users, contributors, and anyone who wants to 
-get their hands dirty making a plugin or custom template for the app!
-1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/)
-2. If you don't have Python installed yet, you may install it with uv. See `pyproject.toml` for supported Python versions.
-   ```bash
-    uv python install 3.14
-    ```
-3. Clone Proxyshop somewhere on your system, we'll call this the ***root directory***.
+# 🐍 Setup Guide
+Setting up the Python & Node.js environments for Proxyshop is intended for advanced users, contributors, and anyone who wants to get their hands dirty making a plugin or custom template for the app!
+1. Install requirements:
+  - [uv](https://docs.astral.sh/uv/getting-started/installation/)
+  - Python. See `pyproject.toml` for supported versions. E.g., you may install Python with uv:
+     ```bash
+     uv python install 3.14
+     ```
+  - Node.js
+  - Fonts included in the `fonts/` folder
+2. Clone Proxyshop somewhere on your system, we'll call this the ***root directory***.
     ```bash
     git clone https://github.com/MrTeferi/Proxyshop.git
     ```
-4. Navigate to the **root directory** and install the project environment.
+3. Navigate to the **root directory** and install the project environment.
     ```bash
     cd proxyshop
     uv sync
+    npm install
+    npm run build
     ```
-5. Install the fonts included in the `fonts/` folder.
-6. Run the app.
+4. Run the app.
     ```bash
     # OPTION 1) Activate the virtual environment and run the app's entrypoint with Python
     ./.venv/Scripts/Activate
@@ -211,7 +214,7 @@ get their hands dirty making a plugin or custom template for the app!
     # OPTION 2) Execute via uv
     uv run main.py
     ```
-7. Refer to the [usage guide](#-using-the-proxyshop-gui) for navigating the GUI.
+5. Refer to the [usage guide](#-using-the-proxyshop-gui) for navigating the GUI.
 
 # 🖥 Development Environment
 
@@ -236,7 +239,7 @@ Predefined template test render cases may be run via the _Tests_ menu in the GUI
 
 ## Automatic tests
 
-Automatic tests are defined under the `/tests` directory. All of them can run with the command:
+Automatic tests are defined under the `/tests` directory. All of them can be run with the command:
 ```bash
 pytest ./tests
 ```
@@ -254,6 +257,7 @@ pyinstaller -n Proxyshop --onefile --icon "./src/img/favicon.ico" --distpath "./
 ```
 
 Additionally the following directories and their contents should be distributed alongside the executable:
+- /dist_js
 - /fonts
 - /plugins
 - /templates

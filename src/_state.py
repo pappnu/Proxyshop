@@ -91,10 +91,12 @@ class PATH(DefinedPaths):
     # Root Level Directories
     SRC = CWD / "src"
     OUT = CWD / "out"
+    TMP = CWD / "tmp"
     LOGS = CWD / "logs"
     FONTS = CWD / "fonts"
     PLUGINS = CWD / "plugins"
     TEMPLATES = CWD / "templates"
+    JS_SCRIPTS = CWD / "dist_js"
     PROJECT_FILE = CWD / "pyproject.toml"
 
     # Source Level Directories
