@@ -62,7 +62,7 @@ jobs:
           uv run pyinstaller -n Proxyshop --onefile --icon "./src/img/favicon.ico" --distpath "./dist" --console --add-data "src/gui/qml:src/gui/qml" --add-data "src/img/favicon.ico:src/img/favicon.ico" main.py
 
       - name: Copy JS scripts
-        run: cp -Path "./dist_js" -Destination "./dist_js" -Recurse -Force
+        run: cp -Path "./dist_js" -Destination "./dist" -Recurse -Force
 
       - name: Copy fonts
         run: cp -Path "./fonts" -Destination "./dist" -Recurse -Force
