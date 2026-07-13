@@ -14,6 +14,7 @@ from src.cards import (
     get_card_data,
     parse_card_info,
 )
+from src.enums.mtg import CardTextPatterns
 from src.render_spec import parse_render_spec
 from src.utils.data_structures import find_index, find_item
 from src.utils.scryfall import CardIdentifier, ScryfallCard
@@ -44,7 +45,11 @@ def match_images_with_data_files(
     def add_card(card: CardDetails) -> None:
         card_name = card["name"]
 
-        idx = find_index(data_files, lambda item: item.stem == card_name)
+        idx = find_index(
+            data_files,
+            lambda item: CardTextPatterns.PATH_SPLIT.split(item.stem)[0].strip()
+            == card_name,
+        )
         if idx > -1:
             data_file = data_files.pop(idx)
             try:
