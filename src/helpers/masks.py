@@ -89,11 +89,19 @@ def copy_vector_mask(
 """
 
 
-def apply_mask_to_layer_fx(layer: ArtLayer | LayerSet | None = None) -> None:
+def apply_mask_to_layer_fx(
+    layer: ArtLayer | LayerSet | None = None,
+    apply: bool = True,
+    raster: bool = True,
+    vector: bool = False,
+) -> None:
     """Sets the layer mask to apply to layer effects in blending options.
 
     Args:
         layer: ArtLayer or LayerSet object.
+        apply: Whether to apply or not apply the mask to layer effects.
+        raster: Apply the setting to raster layer mask.
+        vector: Apply the setting to vector layer mask.
     """
     if not layer:
         layer = APP.instance.activeDocument.activeLayer
@@ -101,7 +109,10 @@ def apply_mask_to_layer_fx(layer: ArtLayer | LayerSet | None = None) -> None:
     ref.putIdentifier(APP.instance.sID("layer"), layer.id)
     desc = APP.instance.executeActionGet(ref)
     layer_fx = desc.getObjectValue(APP.instance.sID("layerEffects"))
-    layer_fx.putBoolean(APP.instance.sID("layerMaskAsGlobalMask"), True)
+    if raster:
+        layer_fx.putBoolean(APP.instance.sID("layerMaskAsGlobalMask"), apply)
+    if vector:
+        layer_fx.putBoolean(APP.instance.sID("vectorMaskAsGlobalMask"), apply)
     desc = ActionDescriptor()
     desc.putReference(APP.instance.sID("target"), ref)
     desc.putObject(APP.instance.sID("to"), APP.instance.sID("layer"), layer_fx)

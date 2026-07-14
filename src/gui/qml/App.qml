@@ -251,6 +251,45 @@ ApplicationWindow {
                     onObjectRemoved: (index, object) => quickTestAllLayoutsSubMenu.removeItem(object)
                 }
             }
+            CustomMenu {
+                id: testAllWithSpecificTestCaseSubMenu
+
+                systemPalette: systemPalette
+                title: "Test all with test case"
+
+                Instantiator {
+                    model: testRendersModel.layout_categories
+
+                    delegate: CustomMenu {
+                        id: testAllWithSpecificLayoutTestCaseSubMenu
+
+                        required property int index
+                        required property string modelData
+
+                        systemPalette: systemPalette
+                        title: modelData
+
+                        Instantiator {
+                            model: testRendersModel.get_test_cases_for_layout(testAllWithSpecificLayoutTestCaseSubMenu.modelData)
+
+                            delegate: CustomMenuItem {
+                                required property int index
+                                required property string modelData
+
+                                systemPalette: systemPalette
+                                text: modelData
+                                onTriggered: testRendersModel.test_all(testAllWithSpecificLayoutTestCaseSubMenu.modelData, false, modelData)
+                            }
+
+                            onObjectAdded: (index, object) => testAllWithSpecificLayoutTestCaseSubMenu.insertItem(index, object)
+                            onObjectRemoved: (index, object) => testAllWithSpecificLayoutTestCaseSubMenu.removeItem(object)
+                        }
+                    }
+
+                    onObjectAdded: (index, object) => testAllWithSpecificTestCaseSubMenu.insertMenu(index, object)
+                    onObjectRemoved: (index, object) => testAllWithSpecificTestCaseSubMenu.removeMenu(object)
+                }
+            }
 
             MenuSeparator {}
 
@@ -305,6 +344,45 @@ ApplicationWindow {
 
                     onObjectAdded: (index, object) => selectedTemplateQuickLayoutsSubMenu.insertItem(index, object)
                     onObjectRemoved: (index, object) => selectedTemplateQuickLayoutsSubMenu.removeItem(object)
+                }
+            }
+            CustomMenu {
+                id: selectedTemplateSpecificTestCaseSubMenu
+
+                systemPalette: systemPalette
+                title: "Test selected template(s) with test case"
+
+                Instantiator {
+                    model: testRendersModel.layout_categories
+
+                    delegate: CustomMenu {
+                        id: selectedTemplateSpecificLayoutTestCaseSubMenu
+
+                        required property int index
+                        required property string modelData
+
+                        systemPalette: systemPalette
+                        title: modelData
+
+                        Instantiator {
+                            model: testRendersModel.get_test_cases_for_layout(selectedTemplateSpecificLayoutTestCaseSubMenu.modelData)
+
+                            delegate: CustomMenuItem {
+                                required property int index
+                                required property string modelData
+
+                                systemPalette: systemPalette
+                                text: modelData
+                                onTriggered: appWindow.currentRenderingModel.test_render(selectedTemplateSpecificLayoutTestCaseSubMenu.modelData, false, modelData)
+                            }
+
+                            onObjectAdded: (index, object) => selectedTemplateSpecificLayoutTestCaseSubMenu.insertItem(index, object)
+                            onObjectRemoved: (index, object) => selectedTemplateSpecificLayoutTestCaseSubMenu.removeItem(object)
+                        }
+                    }
+
+                    onObjectAdded: (index, object) => selectedTemplateSpecificTestCaseSubMenu.insertMenu(index, object)
+                    onObjectRemoved: (index, object) => selectedTemplateSpecificTestCaseSubMenu.removeMenu(object)
                 }
             }
         }

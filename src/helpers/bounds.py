@@ -13,7 +13,7 @@ from src import APP
 from src.helpers.descriptors import get_layer_action_descriptor
 from src.helpers.document import undo_action
 from src.helpers.layers import duplicate_group
-from src.utils.adobe import PS_EXCEPTIONS, LayerBounds
+from src.utils.adobe import LayerBounds
 
 """
 * Types
@@ -147,7 +147,9 @@ def get_card_dimensions(document: Document) -> LayerDimensions:
     bleed = int(document.resolution / 8)
     doc_width: float = int(document.width)
     doc_height: float = int(document.height)
-    return get_dimensions_from_bounds((bleed, bleed, doc_width - bleed, doc_height - bleed))
+    return get_dimensions_from_bounds(
+        (bleed, bleed, doc_width - bleed, doc_height - bleed)
+    )
 
 
 """
@@ -164,22 +166,15 @@ def get_bounds_no_effects(layer: ArtLayer | LayerSet) -> LayerBounds:
     Returns:
         list: Pixel location top left, top right, bottom left, bottom right.
     """
-    with suppress(Exception):
-        d = get_layer_action_descriptor(layer)
-        try:
-            # Try getting bounds no effects
-            bounds = d.getObjectValue(APP.instance.sID("boundsNoEffects"))
-        except PS_EXCEPTIONS:
-            # Try getting bounds
-            bounds = d.getObjectValue(APP.instance.sID("bounds"))
-        return (
-            bounds.getInteger(APP.instance.sID("left")),
-            bounds.getInteger(APP.instance.sID("top")),
-            bounds.getInteger(APP.instance.sID("right")),
-            bounds.getInteger(APP.instance.sID("bottom")),
-        )
-    # Fallback to layer object bounds property
-    return layer.bounds
+    d = get_layer_action_descriptor(layer)
+    # Try getting bounds no effects
+    bounds = d.getObjectValue(APP.instance.sID("boundsNoEffects"))
+    return (
+        bounds.getInteger(APP.instance.sID("left")),
+        bounds.getInteger(APP.instance.sID("top")),
+        bounds.getInteger(APP.instance.sID("right")),
+        bounds.getInteger(APP.instance.sID("bottom")),
+    )
 
 
 def get_dimensions_no_effects(layer: ArtLayer | LayerSet) -> LayerDimensions:

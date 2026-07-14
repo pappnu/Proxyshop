@@ -243,7 +243,10 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
             )
 
     @Slot(str, bool)
-    def test_render(self, layout: str | None = None, quick: bool = False) -> None:
+    @Slot(str, bool, str)
+    def test_render(
+        self, layout: str | None = None, quick: bool = False, case: str | None = None
+    ) -> None:
         async def action() -> None:
             layout_category = LayoutCategory(layout) if layout else None
 
@@ -279,7 +282,7 @@ class BatchRenderingModel(PydanticQListModel[LayoutCategoryItem]):
                 }tests for batch mode selections."
             )
 
-            await self._test_renders_model.test_renders(conf, quick)
+            await self._test_renders_model.test_renders(conf, quick, case=case)
 
         cancel_with_render(ensure_future(action()), self._render_queue)
 

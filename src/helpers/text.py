@@ -1135,34 +1135,38 @@ def clear_reference_vertical_multi(
     leftover = (inside_gap - space) * movable
 
     # Does the bottom layer overlap with the loyalty box?
-    delta = check_reference_overlap(
-        layer=layers[-1], ref_bounds=loyalty_ref.bounds, docsel=docsel
-    )
+    delta = check_reference_overlap(layer=layers[-1], ref=loyalty_ref, docsel=docsel)
     if delta >= 0:
         return
 
+    outer_gap = space if not uniform_gap else 0
+
     if APP.instance.supports_uxp_scripts and bottom_ref:
         keep_adjusting: bool = True
+        ref_right = ref.bounds[2]
+        bottom_ref_bounds = bottom_ref.bounds
+        bottom_layer = text_layers[-1]
+        bottom_layer_top = bottom_layer.bounds[1]
+        bottom_layer_contents = bottom_layer.textItem.contents
+        x, _ = get_text_click_point(bottom_layer)
+        min_inside_gap = outer_gap
 
         while keep_adjusting:
             # Avoid overlapping the loyalty box using a shaped text layer
-            bot_layer = text_layers[-1]
-            bot_layer_bounds = bot_layer.bounds
-            bottom_ref_bounds = bottom_ref.bounds
+            bottom_layer = text_layers[-1]
             # TODO Get the "actual" transform x and y, which are visible in Photoshop UI,
             # in order to precisely align the shaped text layer with the others. The current
             # implementation uses text click point which seems to precisely match the x value
             # but not the y value. Bounds and boundsNoEffects don't give the transform values
             # and as such can't be used here.
-            x, _ = get_text_click_point(bot_layer)
             base_shape = create_shape_layer(
                 (
-                    {"x": x, "y": bot_layer_bounds[1]},
-                    {"x": bot_layer_bounds[2], "y": bot_layer_bounds[1]},
-                    {"x": bot_layer_bounds[2], "y": bottom_ref_bounds[3] + 500},
+                    {"x": x, "y": bottom_layer_top},
+                    {"x": ref_right, "y": bottom_layer_top},
+                    {"x": ref_right, "y": bottom_ref_bounds[3] + 500},
                     {"x": x, "y": bottom_ref_bounds[3] + 500},
                 ),
-                relative_layer=bot_layer,
+                relative_layer=bottom_layer,
                 placement=ElementPlacement.PlaceBefore,
             )
             loyalty_box_cutout = loyalty_ref.duplicate(
@@ -1173,22 +1177,24 @@ def clear_reference_vertical_multi(
             )
             shaped_text = create_text_layer_with_path(
                 reference_path=merged_shape,
-                reference_text=bot_layer,
+                reference_text=bottom_layer,
                 size=font_size,
                 leading=font_size,
             )
-            shaped_text.textItem.contents = bot_layer.textItem.contents
-            bot_layer.visible = False
+            shaped_text.textItem.contents = bottom_layer_contents
+            bottom_layer.visible = False
             text_layers[-1] = shaped_text
 
-            spread_layers_over_reference(
+            inside_gap = spread_layers_over_reference(
                 layers=text_layers,
                 ref=ref,
-                gap=space if not uniform_gap else 0,
-                outside_matching=False,
+                gap=outer_gap,
+                outside_matching=True,
             )
 
-            if keep_adjusting := text_layers[-1].bounds[3] >= bottom_ref_bounds[1]:
+            if keep_adjusting := inside_gap < min_inside_gap or (
+                text_layers[-1].bounds[3] >= bottom_ref_bounds[1]
+            ):
                 font_size -= step
                 for lyr in text_layers:
                     set_text_size_and_leading(
@@ -1198,8 +1204,15 @@ def clear_reference_vertical_multi(
                 spread_layers_over_reference(
                     layers=text_layers,
                     ref=ref,
-                    gap=space if not uniform_gap else 0,
-                    outside_matching=False,
+                    gap=outer_gap,
+                    outside_matching=True,
+                )
+            else:
+                # Ensure uniform gaps between pinlines and all text layers
+                spread_layers_over_reference(
+                    layers=text_layers,
+                    ref=ref,
+                    outside_matching=True,
                 )
     else:
         # Calculate the total distance needing to be covered
@@ -1225,7 +1238,7 @@ def clear_reference_vertical_multi(
         spread_layers_over_reference(
             layers=text_layers,
             ref=ref,
-            gap=space if not uniform_gap else 0,
+            gap=outer_gap,
             outside_matching=False,
         )
 

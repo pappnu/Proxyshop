@@ -15,7 +15,10 @@ FileDialog {
     fileMode: dialogModel.file_mode
     nameFilters: dialogModel.name_filters
     onAccepted: {
-        settings.setValue(dialogId, fileDialog.currentFolder);
+        const currFold = fileDialog.currentFolder.toString();
+        if (!currFold.startsWith("data:")) {
+            settings.setValue(dialogId, currFold);
+        }
         dialogModel.on_accepted(fileDialog.selectedFiles);
     }
     onRejected: dialogModel.on_rejected()
@@ -25,7 +28,10 @@ FileDialog {
         target: fileDialog.dialogModel
 
         function onSelectFiles(): void {
-            fileDialog.currentFolder = fileDialog.settings.value(fileDialog.dialogId, fileDialog.dialogModel.current_folder);
+            const saved = fileDialog.settings.value(fileDialog.dialogId, undefined);
+            if (saved) {
+                fileDialog.currentFolder = saved;
+            }
             fileDialog.open();
         }
     }

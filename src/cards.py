@@ -115,7 +115,12 @@ def get_card_data(
 
     # Format our query data
     name, code = card.get("name", ""), card.get("set", "")
-    number = card.get("number", "").lstrip("0 ") if card.get("number") != "0" else "0"
+    if "collector_number" in card:
+        number = card["collector_number"]
+    else:
+        number = (
+            card.get("number", "").lstrip("0 ") if card.get("number") != "0" else "0"
+        )
 
     # Establish kwarg search terms
     kwargs = (

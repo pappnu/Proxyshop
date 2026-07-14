@@ -116,7 +116,7 @@ def assign_layout(
         _logger.error(f"Scryfall search failed for <i>{name_failed}</i>")
         return
 
-    if not scryfall_override and CFG.manually_edit_card_data:
+    if CFG.manually_edit_card_data:
         try:
             scryfall = manually_modify_model(scryfall, CFG.manual_text_editor)
         except Exception:

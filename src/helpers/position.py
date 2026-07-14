@@ -24,7 +24,7 @@ from src.helpers.bounds import (
 )
 from src.helpers.selection import (
     check_selection_bounds,
-    select_bounds,
+    select_layer_pixels,
     select_overlapping,
 )
 from src.utils.adobe import ReferenceLayer
@@ -190,7 +190,7 @@ def spread_layers_over_reference(
     gap: float = 0,
     inside_gap: float = 0,
     outside_matching: bool = True,
-) -> None:
+) -> float:
     """Spread layers apart across a reference layer.
 
     Args:
@@ -199,6 +199,9 @@ def spread_layers_over_reference(
         gap: Gap between the top of the reference and the first layer, or between all layers if not provided.
         inside_gap: Gap between each layer, calculated using leftover space if not provided.
         outside_matching: If enabled, will enforce top and bottom gap to match.
+
+    Returns:
+        Calculated or given inside gap
     """
     # Get reference dimensions if not provided
     height = ref.dims["height"]
@@ -230,6 +233,8 @@ def spread_layers_over_reference(
 
     # Position the bottom layers relative to the top
     space_layers_apart(layers, inside_gap)
+
+    return inside_gap
 
 
 def space_layers_apart(layers: Sequence[ArtLayer | LayerSet], gap: int | float) -> None:
@@ -404,7 +409,7 @@ def check_bounds_overlap(
 
 def check_reference_overlap(
     layer: ArtLayer,
-    ref_bounds: tuple[float, float, float, float],
+    ref: ArtLayer,
     ref_side: RefSide = RefSide.TOP,
     docsel: Selection | None = None,
 ) -> float:
@@ -419,10 +424,11 @@ def check_reference_overlap(
         Amount of overlap between `ref_side` and the opposing side of `layer`.
     """
     selection = docsel or APP.instance.activeDocument.selection
-    select_bounds(ref_bounds, selection=selection)
+    select_layer_pixels(ref)
     select_overlapping(layer)
     if bounds := check_selection_bounds(selection):
         selection.deselect()
+        ref_bounds = ref.bounds
         if ref_side == RefSide.LEFT:
             return ref_bounds[0] - bounds[2]
         if ref_side == RefSide.TOP:
@@ -449,7 +455,7 @@ def clear_reference_vertical(
     """
     # Use active layer if not provided
     docsel = docsel or APP.instance.activeDocument.selection
-    delta = check_reference_overlap(layer=layer, ref_bounds=ref.bounds, docsel=docsel)
+    delta = check_reference_overlap(layer=layer, ref=ref, docsel=docsel)
 
     # Check if selection is empty, if not translate our layer to clear the reference
     if delta < 0:

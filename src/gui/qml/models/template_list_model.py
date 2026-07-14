@@ -201,7 +201,10 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
             )
 
     @Slot(str, bool)
-    def test_render(self, layout: str | None = None, quick: bool = False) -> None:
+    @Slot(str, bool, str)
+    def test_render(
+        self, layout: str | None = None, quick: bool = False, case: str | None = None
+    ) -> None:
         async def action() -> None:
             layout_category = LayoutCategory(layout) if layout else None
 
@@ -224,6 +227,7 @@ class TemplateListModel(PydanticQListModel[TemplateData]):
                 if layout_category
                 else {category: (template,) for category in template.layout_categories},
                 quick,
+                case=case,
             )
 
         cancel_with_render(ensure_future(action()), self._render_queue)

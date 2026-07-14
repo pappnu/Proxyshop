@@ -598,12 +598,13 @@ class SagaVectorTemplate(
     """
 
     def enable_transform_layers(self):
+        super().enable_transform_layers()
+
         # Must enable Transform Icon group
         if self.transform_icon_layer and isinstance(
             (parent := self.transform_icon_layer.parent), LayerSet
         ):
             parent.visible = True
-            self.transform_icon_layer.visible = True
 
     """
     * Transform Text Layer Methods

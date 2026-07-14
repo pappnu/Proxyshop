@@ -599,7 +599,7 @@ class BaseTemplate:
             if typeline := psd.getLayer(LAYERS.TYPE_LINE_SHIFT, self.text_group):
                 typeline.visible = True
             return typeline
-        return psd.getLayer(LAYERS.TYPE_LINE, self.text_group)
+        return layer
 
     @cached_property
     def text_layer_rules(self) -> ArtLayer | None:

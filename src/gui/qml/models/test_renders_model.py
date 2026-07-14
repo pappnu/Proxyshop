@@ -57,6 +57,16 @@ class TestRendersModel(QObject):
     def layout_categories(self) -> list[LayoutCategory]:
         return self._layout_categories
 
+    @Slot(str, result=list)
+    def get_test_cases_for_layout(self, layout: str) -> list[str]:
+        layout_category = LayoutCategory(layout)
+        all_cases: list[str] = []
+        for layout_type in layout_map_category.get(layout_category, []):
+            all_cases.extend(
+                self.template_render_test_cases.get(layout_type, {}).keys()
+            )
+        return all_cases
+
     async def _run_action_per_layout_test_case(
         self,
         callback: Callable[
@@ -64,6 +74,7 @@ class TestRendersModel(QObject):
         ],
         layout_categories: Iterable[LayoutCategory],
         quick: bool,
+        case: str | None = None,
     ) -> None:
         cards: list[CardDetails] = []
         for layout_category in layout_categories:
@@ -73,9 +84,13 @@ class TestRendersModel(QObject):
                     for idx, test_case in enumerate(test_cases):
                         if quick and idx > 0:
                             break
+                        if case is not None and test_case != case:
+                            continue
                         cards.append(
                             parse_card_info(PATH.SRC_IMG_TEST, name_override=test_case)
                         )
+                        if case:
+                            break
         await get_cards_from_details(cards, callback, self._app_config)
 
     def _collect_categories(
@@ -92,12 +107,14 @@ class TestRendersModel(QObject):
         templates: dict[LayoutCategory, Iterable[AssembledTemplate] | None]
         | None = None,
         quick: bool = False,
+        case: str | None = None,
     ) -> None:
         """Queues test renders.
 
         Args:
-            templates: The layout categories and templates to queue tests for. Falsy value means that all tests should be queued. A falsy list of templates means that all applicable templates should be tested.
-            quick: Queue only the first test for each layout category and template combination."""
+            templates: The layout categories and templates to queue tests for. Falsy value means that all tests should be queued. A falsy iterable of templates means that all applicable templates should be tested.
+            quick: Queue only the first test for each layout category and template combination.
+            case: Test only a specific case."""
         if templates:
             layout_categories_to_test: Iterable[LayoutCategory] = templates.keys()
             for layout_category, test_templates in templates.items():
@@ -159,11 +176,14 @@ class TestRendersModel(QObject):
             await gather(*operations)
 
         await self._run_action_per_layout_test_case(
-            queue_test_render, layout_categories_to_test, quick
+            queue_test_render, layout_categories_to_test, quick, case=case
         )
 
     @Slot(str, bool)
-    def test_all(self, layout: str | None = None, quick: bool = False) -> None:
+    @Slot(str, bool, str)
+    def test_all(
+        self, layout: str | None = None, quick: bool = False, case: str | None = None
+    ) -> None:
         _logger.info(
             f"Queueing {'quick' if quick else 'all'} test renders{
                 f' for layout {layout}' if layout else ''
@@ -172,7 +192,7 @@ class TestRendersModel(QObject):
         cancel_with_render(
             ensure_future(
                 self.test_renders(
-                    {LayoutCategory(layout): None} if layout else None, quick
+                    {LayoutCategory(layout): None} if layout else None, quick, case=case
                 )
             ),
             self._render_queue,
