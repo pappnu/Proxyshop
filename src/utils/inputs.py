@@ -30,7 +30,7 @@ def match_images_with_data_files(
     Raises:
         Pydantic.ValidationError: if some of the data files don't conform to the data model
     """
-    data_files = [pth for pth in paths if pth.suffix == ".json"]
+    data_files = [parse_card_info(pth) for pth in paths if pth.suffix == ".json"]
     render_specs = [pth for pth in paths if pth.suffix in (".yaml", ".yml")]
     image_files = [pth for pth in paths if pth.suffix not in (".json", ".yaml", ".yml")]
 
@@ -44,18 +44,20 @@ def match_images_with_data_files(
     def add_card(card: CardDetails) -> None:
         card_name = card["name"]
 
-        idx = find_index(data_files, lambda item: item.stem == card_name)
+        idx = find_index(data_files, lambda item: item["name"] == card_name)
         if idx > -1:
             data_file = data_files.pop(idx)
             try:
                 results.append(
                     (
                         card,
-                        ScryfallCard.model_validate_json(data_file.read_bytes()),
+                        ScryfallCard.model_validate_json(
+                            data_file["file"].read_bytes()
+                        ),
                     )
                 )
             except ValidationError:
-                log_data_exception(data_file)
+                log_data_exception(data_file["file"])
                 raise
         else:
             results.append(card)
