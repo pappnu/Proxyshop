@@ -9,3 +9,9 @@ proxyshop-plugin-warpdandy-pappnu:
   author: WarpDandy
   github_author: pappnu
   github_repo: proxyshop-plugin-warpdandy
+
+proxyshop-plugin-torres-pappnu:
+  name: Torres
+  author: Torres
+  github_author: pappnu
+  github_repo: proxyshop-plugin-torres
