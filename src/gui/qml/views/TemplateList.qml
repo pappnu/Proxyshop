@@ -76,6 +76,7 @@ ListView {
         required property int index
         required property string name
         required property string plugin
+        required property string plugin_id
         required property bool is_installed
         required property bool has_config
         required property list<string> card_layouts
@@ -122,7 +123,7 @@ ListView {
                 systemPalette: templateList.systemPalette
                 implicitWidth: 32
                 text: "⚙️"
-                onClicked: templateList.openSettings(templateListDelegate.name, undefined, templateListDelegate.plugin)
+                onClicked: templateList.openSettings(templateListDelegate.name, undefined, templateListDelegate.plugin_id)
             }
             CustomButton {
                 systemPalette: templateList.systemPalette
