@@ -100,6 +100,7 @@ ApplicationWindow {
             delegate: TreeViewDelegate {
                 id: settingsSectionDelegate
 
+                required property string id
                 required property string name
                 required property bool has_config
 

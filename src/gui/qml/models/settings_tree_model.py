@@ -19,6 +19,7 @@ _logger = getLogger(__name__)
 
 
 class SettingSectionItem(BaseModel):
+    id: str
     name: str
     config: ConfigHandler | None = None
     has_config: bool = True
@@ -58,35 +59,40 @@ class SettingsTreeModel(PydanticQItemModel[SettingSectionItem]):
     def _prepare_items(self) -> None:
         template_library = self._plugin_library.template_library
 
-        self._root = TreeItem(data=SettingSectionItem(name="root"))
+        self._root = TreeItem(data=SettingSectionItem(id="root", name="root"))
         self._app_leaf: TreeItem[SettingSectionItem] = TreeItem(
             data=SettingSectionItem(
-                name="Application", config=self._app_config.app_config
+                id="application", name="Application", config=self._app_config.app_config
             ),
             parent=self._root,
         )
         _template_defaults_leaf: TreeItem[SettingSectionItem] = TreeItem(
             data=SettingSectionItem(
-                name="Template defaults", config=self._app_config.base_config
+                id="template_defaults",
+                name="Template defaults",
+                config=self._app_config.base_config,
             ),
             parent=self._root,
         )
 
         templates_branch: TreeItem[SettingSectionItem] = TreeItem(
-            data=SettingSectionItem(name="Templates"), parent=self._root
+            data=SettingSectionItem(id="templates", name="Templates"), parent=self._root
         )
         self._built_in_templates_branch: TreeItem[SettingSectionItem] = TreeItem(
-            data=SettingSectionItem(name="Built-in"), parent=templates_branch
+            data=SettingSectionItem(id="built-in", name="Built-in"),
+            parent=templates_branch,
         )
         self._construct_template_branch(
             self._built_in_templates_branch, template_library.built_in_templates_by_name
         )
         self._plugin_templates_branch: TreeItem[SettingSectionItem] = TreeItem(
-            data=SettingSectionItem(name="Plugins"), parent=templates_branch
+            data=SettingSectionItem(id="plugins", name="Plugins"),
+            parent=templates_branch,
         )
-        for plugin_name, templates in template_library.plugin_templates_by_name.items():
+        for plugin_id, templates in template_library.plugin_templates_by_name.items():
+            plugin = self._plugin_library.plugins[plugin_id]
             plugin_branch = TreeItem(
-                data=SettingSectionItem(name=plugin_name),
+                data=SettingSectionItem(id=plugin_id, name=plugin.name),
                 parent=self._plugin_templates_branch,
             )
             self._construct_template_branch(plugin_branch, templates)
@@ -98,7 +104,7 @@ class SettingsTreeModel(PydanticQItemModel[SettingSectionItem]):
     ) -> None:
         for name, template in templates.items():
             assembled_branch: TreeItem[SettingSectionItem] = TreeItem(
-                data=SettingSectionItem(name=name), parent=root
+                data=SettingSectionItem(id=name, name=name), parent=root
             )
             duplicate_check: set[ConfigHandler] = set()
             for named_template in template.templates:
@@ -110,6 +116,7 @@ class SettingsTreeModel(PydanticQItemModel[SettingSectionItem]):
                     if conf not in duplicate_check:
                         tree_item = TreeItem(
                             data=SettingSectionItem(
+                                id=template_class_name,
                                 name=template_class_name,
                                 config=conf,
                                 has_config=conf.has_config,
@@ -180,7 +187,7 @@ class SettingsTreeModel(PydanticQItemModel[SettingSectionItem]):
         templates_root: TreeItem[SettingSectionItem] | None = None
         if plugin:
             for tree_item in self._plugin_templates_branch.children:
-                if plugin == tree_item.data.name:
+                if plugin == tree_item.data.id:
                     templates_root = tree_item
                     break
             if not templates_root:
@@ -193,12 +200,12 @@ class SettingsTreeModel(PydanticQItemModel[SettingSectionItem]):
 
         matched_item: TreeItem[SettingSectionItem] | None = None
         for tree_item in templates_root.children:
-            if template_name == tree_item.data.name:
+            if template_name == tree_item.data.id:
                 if not class_name:
                     matched_item = tree_item.children[0]
                 else:
                     for class_item in tree_item.children:
-                        if class_name == class_item.data.name:
+                        if class_name == class_item.data.id:
                             matched_item = class_item
                             break
                 break
