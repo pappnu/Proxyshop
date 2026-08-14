@@ -5,13 +5,8 @@ from time import perf_counter
 from typing import TYPE_CHECKING, TypedDict
 
 from src import CON, ENV
-from src._config import AppConfig
-from src._loader import (
-    ConfigHandler,
-    RenderableTemplate,
-    TemplateLibrary,
-    get_template_class,
-)
+from src._config import AppConfig, ConfigHandler
+from src._loader import RenderableTemplate, TemplateLibrary, get_template_class
 from src.cards import CardDetails
 from src.enums.mtg import LayoutCategory
 from src.layouts import NormalLayout, assign_layout, join_dual_card_layouts

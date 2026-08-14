@@ -14,6 +14,7 @@ from omnitils.rate_limit import rate_limit
 from pydantic import BaseModel, RootModel
 from requests import RequestException, get
 
+from src import DEFAULT_HEADERS
 from src.utils.logging import log_on_exception
 
 _logger = getLogger(__name__)
@@ -23,7 +24,7 @@ _rate_limit_storage = MemoryStorage()
 _rate_limiter = MovingWindowRateLimiter(_rate_limit_storage)
 _rate_limit = RateLimitItemPerHour(60)
 
-_headers = {"accept": "application/vnd.github+json"}
+_headers = {**DEFAULT_HEADERS, "accept": "application/vnd.github+json"}
 
 GITHUB_API_BASE_URL = "https://api.github.com/"
 GITHUB_API_REPO_URL = GITHUB_API_BASE_URL + "repos/{repo}"
@@ -151,7 +152,9 @@ def download_github_repository_archive_zip(
     download_file(
         url=GITHUB_API_REPOSITORY_ARCHIVE_ZIP_URL.format(repo=repository, ref=ref),
         path=path,
+        header=DEFAULT_HEADERS,
     )
+
 
 @github_request_wrapper
 def get_github_file_contents(repository: str, path: str) -> bytes:

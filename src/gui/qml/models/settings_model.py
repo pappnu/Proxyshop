@@ -12,7 +12,7 @@ from PySide6.QtCore import (
     Slot,
 )
 
-from src._loader import (
+from src._config import (
     BoolSetting,
     ConfigHandler,
     FloatSetting,

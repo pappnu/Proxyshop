@@ -21,9 +21,9 @@ from omnitils.rate_limit import rate_limit
 from pydantic import BaseModel, Field, HttpUrl, ValidationError
 from requests.exceptions import RequestException
 
+from src import DEFAULT_HEADERS
 from src._state import PATH
 from src.enums.mtg import LayoutScryfall
-from src.utils.download import HEADERS
 
 if TYPE_CHECKING:
     from urllib.parse import (
@@ -372,7 +372,7 @@ _scryfall_rate_limit = MovingWindowRateLimiter(_rate_limit_storage)
 _rate_limit = RateLimitItemPerSecond(2)
 
 # Scryfall HTTP header
-scryfall_http_header = HEADERS.Default.copy()
+_scryfall_http_header = DEFAULT_HEADERS
 
 """
 * Scryfall Error Handling
@@ -510,7 +510,7 @@ def _get_scryfall_exception(
 
 @scryfall_request_wrapper()
 def get_card_via_url(url: str) -> ScryfallCard:
-    res = requests.get(url=url, headers=scryfall_http_header)
+    res = requests.get(url=url, headers=_scryfall_http_header)
 
     try:
         card = ScryfallCard.model_validate_json(res.content)
@@ -555,7 +555,7 @@ def get_card_unique(card_set: str, card_number: str, lang: str = "en") -> Scryfa
     )
 
     # Request the data
-    res = requests.get(url=url, headers=scryfall_http_header)
+    res = requests.get(url=url, headers=_scryfall_http_header)
 
     try:
         card = ScryfallCard.model_validate_json(res.content)
@@ -633,7 +633,7 @@ def get_card_search(
                 **kwargs,
             }
         ),
-        headers=scryfall_http_header,
+        headers=_scryfall_http_header,
     )
 
     try:
@@ -693,7 +693,9 @@ def get_cards_paged(
     )
 
     # Query Scryfall
-    res = requests.get(url=str(_cards_search_url(kwargs)), headers=scryfall_http_header)
+    res = requests.get(
+        url=str(_cards_search_url(kwargs)), headers=_scryfall_http_header
+    )
 
     try:
         list_data = ScryfallCardList.model_validate_json(res.content)
@@ -794,7 +796,7 @@ def get_cards_collection(
     res = requests.post(
         url=_cards_collection_url,
         json={"identifiers": identifiers},
-        headers=scryfall_http_header,
+        headers=_scryfall_http_header,
     )
 
     try:
@@ -832,7 +834,7 @@ def get_set(card_set: str) -> ScryfallSet | None:
         Scryfall set dict or empty dict.
     """
     # Make the request
-    res = requests.get(_sets_url(card_set.upper()), headers=scryfall_http_header)
+    res = requests.get(_sets_url(card_set.upper()), headers=_scryfall_http_header)
 
     try:
         return ScryfallSet.model_validate_json(res.content)
@@ -872,7 +874,7 @@ def get_card_scan(img_url: str) -> Path | None:
     Raises:
         RequestException: If image couldn't be retrieved.
     """
-    res = requests.get(img_url, stream=True)
+    res = requests.get(img_url, stream=True, headers=DEFAULT_HEADERS)
     if res.status_code != 200:
         _logger.warning(
             f"Couldn't retrieve image from scryfall. {res.status_code}<br>{res.text}"

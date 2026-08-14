@@ -17,6 +17,7 @@ from pydantic import BaseModel, RootModel, computed_field
 from pydantic_core import Url
 from PySide6.QtCore import Property, QModelIndex, QObject, Signal, Slot
 
+from src import DEFAULT_HEADERS
 from src._loader import (
     AppPlugin,
     PluginLibrary,
@@ -374,7 +375,10 @@ class PluginUpdaterModel(PydanticQListModel[PluginItem]):
                         break
 
                     if self._download_and_extract_archive(
-                        lambda path: download_file(url, path), dest, item, rel.tag_name
+                        lambda path: download_file(url, path, header=DEFAULT_HEADERS),
+                        dest,
+                        item,
+                        rel.tag_name,
                     ):
                         return True
                     else:

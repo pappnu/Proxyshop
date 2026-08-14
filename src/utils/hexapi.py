@@ -24,10 +24,9 @@ from omnitils.files import dump_data_file
 from omnitils.rate_limit import rate_limit
 from requests import RequestException, get
 
-from src import CON, ENV
+from src import CON, DEFAULT_HEADERS, ENV
 from src._loader import SymbolsManifest, get_symbols_manifest
 from src._state import PATH, AppEnvironment, HexproofSet, HexproofSets
-from src.utils.download import HEADERS
 from src.utils.github import GitHubReleaseAsset, get_github_releases
 
 _logger = getLogger(__name__)
@@ -42,7 +41,7 @@ _hexproof_rate_limit = MovingWindowRateLimiter(_rate_limit_storage)
 _rate_limit = RateLimitItemPerSecond(20)
 
 # Hexproof.io HTTP header
-hexproof_http_header = HEADERS.Default.copy()
+_hexproof_http_headers = DEFAULT_HEADERS
 
 """
 * Error Handling
@@ -95,7 +94,7 @@ def get_api_key(key: str) -> str:
         RequestException if request was unsuccessful.
     """
     url = HexURL.API.Keys.All / key
-    res = requests.get(str(url), headers=hexproof_http_header, timeout=(3, 3))
+    res = requests.get(str(url), headers=_hexproof_http_headers, timeout=(3, 3))
     if res.status_code == 200:
         return res.json().get("key", "")
     raise RequestException(
@@ -143,7 +142,7 @@ def get_metadata() -> dict[str, Meta]:
         RequestException if request was unsuccessful.
     """
     res = requests.get(
-        str(HexURL.API.Meta.All), headers=hexproof_http_header, timeout=(3, 3)
+        str(HexURL.API.Meta.All), headers=_hexproof_http_headers, timeout=(3, 3)
     )
     if res.status_code == 200:
         return {k: Meta(**v) for k, v in res.json().items()}
@@ -166,7 +165,7 @@ def get_sets() -> dict[str, HexproofSet]:
         RequestException if request was unsuccessful.
     """
     res = requests.get(
-        str(HexURL.API.Sets.All), headers=hexproof_http_header, timeout=(5, 5)
+        str(HexURL.API.Sets.All), headers=_hexproof_http_headers, timeout=(5, 5)
     )
     if res.status_code == 200:
         return HexproofSets.model_validate_json(res.content).root

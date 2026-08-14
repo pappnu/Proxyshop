@@ -5,14 +5,8 @@ from typing import override
 from pydantic import BaseModel
 from PySide6.QtCore import Property, QModelIndex, QObject, Signal, Slot
 
-from src._config import AppConfig
-from src._loader import (
-    AppPlugin,
-    AssembledTemplate,
-    ConfigHandler,
-    PluginLibrary,
-    TemplateLibrary,
-)
+from src._config import AppConfig, ConfigHandler
+from src._loader import AppPlugin, AssembledTemplate, PluginLibrary, TemplateLibrary
 from src.gui.qml.models.pydantic_q_list_model import PydanticQItemModel, TreeItem
 
 _logger = getLogger(__name__)

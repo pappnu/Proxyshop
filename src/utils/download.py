@@ -4,7 +4,6 @@
 
 import shutil
 from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
 
 import requests
@@ -13,21 +12,7 @@ from omnitils.fetch import download_file
 from omnitils.files import get_temporary_file
 from omnitils.files.archive import unpack_archive
 
-
-@dataclass
-class HEADERS:
-    """Stores defined HTTP request headers."""
-
-    Default = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/39.0.2171.95 Safari/537.36"
-    }
-
-
-"""
-* Download Utils
-"""
+from src import DEFAULT_HEADERS
 
 
 def download_cloudfront(
@@ -48,7 +33,9 @@ def download_cloudfront(
 
     # Start the download
     try:
-        download_file(url=url, path=temp_path, callback=callback)
+        download_file(
+            url=url, path=temp_path, callback=callback, header=DEFAULT_HEADERS
+        )
         shutil.move(temp_path, path)
         unpack_archive(path)
     except requests.RequestException, FileExistsError, FileNotFoundError:
