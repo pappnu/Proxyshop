@@ -813,6 +813,11 @@ class NormalLayout:
         return "Artifact" in self.type_line_raw
 
     @cached_property
+    def is_enchantment(self) -> bool:
+        """True if card is an Enchantment."""
+        return "Enchantment" in self.type_line_raw
+
+    @cached_property
     def is_vehicle(self) -> bool:
         """True if card is a Vehicle."""
         return "Vehicle" in self.type_line_raw
@@ -836,7 +841,7 @@ class NormalLayout:
     @cached_property
     def is_alt_lang(self) -> bool:
         """True if language selected isn't English."""
-        return self.config.use_printed_texts or bool(self.lang != "EN")
+        return self.config.use_printed_texts or self.lang != "EN"
 
     """
     * Cosmetic Bool
@@ -845,18 +850,18 @@ class NormalLayout:
     @cached_property
     def is_token(self) -> bool:
         """bool: True if card is a Token or Emblem."""
-        return bool("Token" in self.type_line_raw or self.is_emblem)
+        return "Token" in self.type_line_raw or self.is_emblem
 
     @cached_property
     def is_emblem(self) -> bool:
         """bool: True on card is an Emblem."""
-        return bool("Emblem" in self.type_line_raw)
+        return "Emblem" in self.type_line_raw
 
     @cached_property
     def is_nyx(self) -> bool:
         """True if card has Nyx enchantment background texture."""
         # Check for 'Enchantment Creature'
-        return bool(self.is_creature and "Enchantment" in self.type_line_raw)
+        return self.is_creature and self.is_enchantment
 
     @cached_property
     def is_companion(self) -> bool:
@@ -866,12 +871,12 @@ class NormalLayout:
     @cached_property
     def is_miracle(self) -> bool:
         """True if card is a 'Miracle' card."""
-        return bool("miracle" in self.frame_effects)
+        return "miracle" in self.frame_effects
 
     @cached_property
     def is_snow(self) -> bool:
         """True if card is a 'Snow' card."""
-        return bool("Snow" in self.type_line_raw)
+        return "Snow" in self.type_line_raw
 
     """
     * Frame Details
