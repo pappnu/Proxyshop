@@ -399,9 +399,9 @@ class ClassVectorTemplate(VectorNyxMod, ClassMod, VectorTemplate):
         return super().border_shape
 
     @cached_property
-    def pinlines_shapes(self) -> list[LayerSet]:
+    def pinlines_shapes(self) -> list[ArtLayer | LayerSet | None]:
         """Support front and back face Transform pinlines, and optional Legendary pinline shape."""
-        shapes: list[LayerSet] = []
+        shapes: list[ArtLayer | LayerSet | None] = []
         if self.is_legendary and (
             group := psd.getLayerSet(
                 LAYERS.LEGENDARY, [self.pinlines_group, LAYERS.SHAPE]
@@ -454,7 +454,13 @@ class ClassVectorTemplate(VectorNyxMod, ClassMod, VectorTemplate):
     @cached_property
     def pinlines_mask(
         self,
-    ) -> tuple[ArtLayer | LayerSet, ArtLayer | LayerSet] | None:
+    ) -> (
+        MaskAction
+        | tuple[ArtLayer | LayerSet, ArtLayer | LayerSet]
+        | ArtLayer
+        | LayerSet
+        | None
+    ):
         """Mask hiding pinlines effects inside textbox and art frame."""
         if (
             layer := psd.getLayer(
@@ -485,12 +491,7 @@ class ClassVectorTemplate(VectorNyxMod, ClassMod, VectorTemplate):
 
     def enable_frame_layers(self) -> None:
         super().enable_frame_layers()
-
-        # Merge the textbox and shift it to right half
-        psd.merge_group(self.textbox_group)
-        psd.align_horizontal(
-            layer=self.active_layer, ref=self.textbox_position_reference
-        )
+        self.align_class_textbox()
 
     """
     * Class Frame Layer Methods
@@ -506,6 +507,13 @@ class ClassVectorTemplate(VectorNyxMod, ClassMod, VectorTemplate):
         # Disable Saga banner
         if layer := psd.getLayerSet("Banner Top"):
             layer.visible = False
+
+    def align_class_textbox(self) -> None:
+        # Merge the textbox and shift it to right half
+        psd.merge_group(self.textbox_group)
+        psd.align_horizontal(
+            layer=self.active_layer, ref=self.textbox_position_reference
+        )
 
 
 class UniversesBeyondClassTemplate(ClassVectorTemplate):
