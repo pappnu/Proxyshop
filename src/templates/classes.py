@@ -12,6 +12,7 @@ import src.helpers as psd
 from src.enums.layers import LAYERS
 from src.helpers.bounds import get_dimensions_from_bounds
 from src.helpers.layers import get_reference_layer
+from src.helpers.position import RefSide, check_bounds_overlap
 from src.layouts import ClassLayout, NormalLayout
 from src.schema.colors import ColorObject, GradientConfig, pinlines_color_map
 from src.templates._core import NormalTemplate
@@ -192,7 +193,6 @@ class ClassMod(NormalTemplate):
 
     def frame_layers_classes(self) -> None:
         """Enable frame layers required by Class cards. None by default."""
-        pass
 
     """
     * Class Positioning Methods
@@ -211,18 +211,24 @@ class ClassMod(NormalTemplate):
                     divider_dims = psd.get_layer_dimensions(self.class_reminder_divider)
                     reminder_end += divider_dims["height"]
 
+                # Offset ability text from reminder text if they could otherwise overlap
                 textbox_ref_bounds = self.textbox_reference.bounds
-                new_bounds = (
-                    textbox_ref_bounds[0],
-                    max(textbox_ref_bounds[1], reminder_end),
-                    textbox_ref_bounds[2],
-                    textbox_ref_bounds[3],
-                )
-                # Override the cached bounds with modified bounds.
-                # It is assumed that bounds without effects aren't needed,
-                # so they aren't overridden.
-                self.textbox_reference.bounds = new_bounds
-                self.textbox_reference.dims = get_dimensions_from_bounds(new_bounds)
+                if check_bounds_overlap(
+                    self.class_text_layer_reminder.bounds,
+                    textbox_ref_bounds,
+                    RefSide.ANY,
+                ):
+                    new_bounds = (
+                        textbox_ref_bounds[0],
+                        max(textbox_ref_bounds[1], reminder_end),
+                        textbox_ref_bounds[2],
+                        textbox_ref_bounds[3],
+                    )
+                    # Override the cached bounds with modified bounds.
+                    # It is assumed that bounds without effects aren't needed,
+                    # so they aren't overridden.
+                    self.textbox_reference.bounds = new_bounds
+                    self.textbox_reference.dims = get_dimensions_from_bounds(new_bounds)
 
             # Core vars
             spacing = self.app.scale_by_dpi(80)
