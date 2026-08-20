@@ -318,7 +318,8 @@ ApplicationWindow {
                             },
                             {
                                 name: selectedUpdaterItemDetails.selectedItem?.url ? `<a href="${selectedUpdaterItemDetails.selectedItem.url}">${selectedUpdaterItemDetails.selectedItem.url}</a>` : "Not available",
-                                isTitle: false
+                                isTitle: false,
+                                wrap: Text.WrapAnywhere
                             },
                             {
                                 name: "Installed version:",
@@ -326,7 +327,8 @@ ApplicationWindow {
                             },
                             {
                                 name: selectedUpdaterItemDetails.selectedItem?.installed_version || "Not installed",
-                                isTitle: false
+                                isTitle: false,
+                                wrap: Text.WrapAnywhere
                             },
                             {
                                 name: "Available version:",
@@ -334,7 +336,8 @@ ApplicationWindow {
                             },
                             {
                                 name: selectedUpdaterItemDetails.selectedItem?.available_version || "Not available",
-                                isTitle: false
+                                isTitle: false,
+                                wrap: Text.WrapAnywhere
                             },
                             {
                                 name: "Path:",
