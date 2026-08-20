@@ -87,7 +87,7 @@ class PluginUpdaterModel(PydanticQListModel[PluginItem]):
         con: AppConstants,
         plugin_library: PluginLibrary,
         parent: QObject | None = None,
-        items: list[PluginItem] = [],
+        items: list[PluginItem] | None = None,
         selected_index: int = -1,
     ) -> None:
         self._app_env = app_env
@@ -281,8 +281,7 @@ class PluginUpdaterModel(PydanticQListModel[PluginItem]):
             repo = url.split(":git@github.com:")[-1]
         else:
             return None
-        if repo.endswith(".git"):
-            repo = repo[: -len(".git")]
+        repo = repo.removesuffix(".git")
         parts = repo.split("/")
         return (repo, parts[0], parts[1])
 
@@ -375,7 +374,9 @@ class PluginUpdaterModel(PydanticQListModel[PluginItem]):
                         break
 
                     if self._download_and_extract_archive(
-                        lambda path: download_file(url, path, header=DEFAULT_HEADERS),
+                        lambda path, download_url=url: download_file(
+                            download_url, path, header=DEFAULT_HEADERS
+                        ),
                         dest,
                         item,
                         rel.tag_name,
@@ -461,9 +462,9 @@ class PluginUpdaterModel(PydanticQListModel[PluginItem]):
 
             dest = PATH.PLUGINS / item.id
 
-            if self._download_from_github(source, dest, item):
-                self._plugin_versions[item.id] = item.installed_version or ""
-            elif self._clone_git_source(source, dest, item):
+            if self._download_from_github(source, dest, item) or self._clone_git_source(
+                source, dest, item
+            ):
                 self._plugin_versions[item.id] = item.installed_version or ""
             else:
                 return

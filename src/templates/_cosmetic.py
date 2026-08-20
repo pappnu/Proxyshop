@@ -133,9 +133,8 @@ class NyxMod(BaseTemplate):
     @cached_property
     def background_layer(self) -> ArtLayer | None:
         """Try finding a Nyx background layer if the card is a 'Nyxtouched' frame."""
-        if self.is_nyx:
-            if layer := psd.getLayer(self.background, LAYERS.NYX):
-                return layer
+        if self.is_nyx and (layer := psd.getLayer(self.background, LAYERS.NYX)):
+            return layer
         return super().background_layer
 
 
@@ -153,9 +152,8 @@ class VectorNyxMod(NyxMod, VectorTemplate):
     @cached_property
     def background_group(self) -> LayerSet | None:
         """Optional[LayerSet]: Try finding a Nyx background group if the card is a 'Nyxtouched' frame."""
-        if self.is_nyx:
-            if layer := psd.getLayerSet(LAYERS.NYX):
-                return layer
+        if self.is_nyx and (layer := psd.getLayerSet(LAYERS.NYX)):
+            return layer
         return super().background_group
 
 
@@ -316,9 +314,10 @@ class NicknameMod(BaseTemplate):
         _shape_group = psd.getLayerSet(LAYERS.SHAPE, self.nickname_group)
 
         # Check for a legendary-specific nickname shape
-        if self.is_legendary:
-            if _layer := psd.get_reference_layer(LAYERS.LEGENDARY, _shape_group):
-                return _layer
+        if self.is_legendary and (
+            _layer := psd.get_reference_layer(LAYERS.LEGENDARY, _shape_group)
+        ):
+            return _layer
         return psd.get_reference_layer(LAYERS.NORMAL, _shape_group)
 
     """

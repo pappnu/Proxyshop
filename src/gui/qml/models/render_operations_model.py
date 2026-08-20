@@ -32,7 +32,7 @@ class RenderOperationsModel(PydanticQListModel[RenderOperationDetails]):
         render_queue: RenderQueue,
         render_message_dialog_model: MessageDialogContentModel,
         parent: QObject | None = None,
-        items: list[RenderOperationDetails] = [],
+        items: list[RenderOperationDetails] | None = None,
         selected_index: int = -1,
     ) -> None:
         super().__init__(parent, items, selected_index)

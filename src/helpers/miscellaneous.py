@@ -28,6 +28,8 @@ from src import APP
 from src._loader import AppTemplate
 from src.schema.colors import ColorObject
 
+_logger = logging.getLogger(__name__)
+
 # Reference Box colors
 ORANGE = [255, 172, 64]
 TANG = [255, 97, 11]
@@ -154,10 +156,7 @@ def check_if_needed(key: str, keys_stored: Iterable[str]):
     Returns:
         True if needed, False if skipped.
     """
-    if "double" in keys_stored:
-        if key in ["largeInt", "int"]:
-            return False
-    return True
+    return not ("double" in keys_stored and key in ["largeInt", "int"])
 
 
 def try_all_getters(desc: ActionDescriptor, type_id: int) -> dict[str, Any]:
@@ -445,7 +444,7 @@ def create_color_shape(layer: ArtLayer, color: ColorObject) -> ArtLayer:
     dims = (dims["width"], dims["height"])
     new_dims = psd.get_layer_dimensions(docref.activeLayer)
     new_dims = (new_dims["width"], new_dims["height"])
-    if not dims == new_dims:
+    if dims != new_dims:
         print("DIMS CHANGED:", layer_name)
         print("Before:", dims)
         print("After:", new_dims)
@@ -455,7 +454,7 @@ def create_color_shape(layer: ArtLayer, color: ColorObject) -> ArtLayer:
 
     created_layer = docref.activeLayer
     if not isinstance(created_layer, ArtLayer):
-        raise ValueError("Created color shape layer isn't the active layer as expected")
+        raise TypeError("Created color shape layer isn't the active layer as expected")
 
     return created_layer
 
@@ -498,11 +497,9 @@ def log_all_template_fonts(templates: Iterable[AppTemplate]) -> dict[str, list[s
     current = 1
     total = len(docs)
 
-    # Check each document
-    logging.basicConfig(level=logging.INFO)
     for f, temp_name in docs.items():
         # Alert the user
-        logging.info(f"READING FONTS — {temp_name} [{f.name}] [{current}/{total}]")
+        _logger.info(f"READING FONTS — {temp_name} [{f.name}] [{current}/{total}]")
         current += 1
 
         # Open document, get fonts, close document

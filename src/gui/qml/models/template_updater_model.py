@@ -45,7 +45,7 @@ class TemplateUpdaterModel(PydanticQListModel[DownloadableTemplateDetails]):
         app_env: AppEnvironment,
         plugin_library: PluginLibrary,
         parent: QObject | None = None,
-        items: list[DownloadableTemplateDetails] = [],
+        items: list[DownloadableTemplateDetails] | None = None,
         selected_index: int = -1,
     ) -> None:
         self._app_env = app_env

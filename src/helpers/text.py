@@ -204,9 +204,7 @@ def replace_text_legacy(
         APP.instance.sID(
             "checkAll"
         ),  # Targeted replace doesn't work on old PS versions
-        False
-        if targeted_replace and APP.instance.supports_target_text_replace
-        else True,
+        not (targeted_replace and APP.instance.supports_target_text_replace),
     )
     desc32.putBoolean(APP.instance.sID("forward"), True)
     desc32.putBoolean(APP.instance.sID("caseSensitive"), True)
@@ -412,7 +410,7 @@ def override_text_style_ranges(
     style_ranges = text_key.getList(text_style_range_id)
 
     # Collect all split positions
-    positions = set([0, text_len])
+    positions = {0, text_len}
     for start, end in ranges:
         positions.add(max(0, start))
         positions.add(min(text_len, end))
@@ -610,7 +608,7 @@ def align_text_center(action_list: ActionList, start: int, end: int) -> None:
 """
 
 
-def set_space_after(space: int | float) -> None:
+def set_space_after(space: float) -> None:
     """Manually assign the 'space after' property for a paragraph text layer.
 
     Args:
@@ -636,7 +634,7 @@ def set_space_after(space: int | float) -> None:
     )
 
 
-def set_text_leading(layer: ArtLayer, leading: float | int) -> None:
+def set_text_leading(layer: ArtLayer, leading: float) -> None:
     """Manually assign font leading to a text layer using action descriptors.
 
     Args:
@@ -658,7 +656,7 @@ def set_text_leading(layer: ArtLayer, leading: float | int) -> None:
     )
 
 
-def set_text_size(layer: ArtLayer, size: float | int) -> None:
+def set_text_size(layer: ArtLayer, size: float) -> None:
     """Manually assign font size to a text layer using action descriptors.
 
     Args:
@@ -679,9 +677,7 @@ def set_text_size(layer: ArtLayer, size: float | int) -> None:
     )
 
 
-def set_text_size_and_leading(
-    layer: ArtLayer, size: int | float, leading: int | float
-) -> None:
+def set_text_size_and_leading(layer: ArtLayer, size: float, leading: float) -> None:
     """Manually assign font size and leading space to a text layer using action descriptors.
 
     Args:
@@ -773,11 +769,10 @@ def ensure_visible_reference(reference: ArtLayer) -> TextItem | None:
     """
     if isinstance(reference, LayerSet):
         return None
-    if reference.kind is LayerKind.TextLayer:
-        if reference.bounds == (0, 0, 0, 0):
-            TI = reference.textItem
-            TI.contents = "."
-            return TI
+    if (reference.kind is LayerKind.TextLayer) and reference.bounds == (0, 0, 0, 0):
+        TI = reference.textItem
+        TI.contents = "."
+        return TI
     return None
 
 
@@ -915,7 +910,7 @@ def scale_text_left_overlap(
 
 def scale_text_to_width(
     layer: ArtLayer,
-    width: int | float,
+    width: float,
     spacing: int = 64,
     step: float = 0.4,
     font_size: float | None = None,
@@ -1030,7 +1025,7 @@ def scale_text_to_width_textbox(
 
 def scale_text_layers_to_height(
     text_layers: list[ArtLayer],
-    ref_height: int | float,
+    ref_height: float,
     font_size: float | None = None,
     step_sizes: Sequence[float] | None = None,
 ) -> float | None:
@@ -1089,7 +1084,7 @@ def clear_reference_vertical_multi(
     text_layers: list[ArtLayer],
     ref: ReferenceLayer,
     loyalty_ref: ReferenceLayer,
-    space: int | float,
+    space: float,
     uniform_gap: bool = False,
     font_size: float | None = None,
     step: float = 0.2,

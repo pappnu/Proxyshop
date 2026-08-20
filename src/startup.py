@@ -23,7 +23,7 @@ _logger = getLogger(__name__)
 def photoshop_checks(app: PhotoshopHandler) -> None:
     # Check Photoshop connection
     result = app.refresh_app()
-    if isinstance(result, OSError):
+    if result:
         # Photoshop test failed
         _logger.exception(
             "Photoshop connection failed. Can't test fonts without Photoshop.",

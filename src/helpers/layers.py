@@ -237,7 +237,7 @@ def merge_layers(
 
     active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, ArtLayer):
-        raise ValueError(
+        raise TypeError(
             "Failed to merge layers. Active layer is unexpectedly not an ArtLayer."
         )
 
@@ -306,7 +306,7 @@ def duplicate_layer(
     )
 
     if not isinstance((duplicate := target_doc.activeLayer), ArtLayer):
-        raise ValueError(
+        raise TypeError(
             "Failed to duplicate ArtLayer. The active layer in the target document is unexpectedly not an ArtLayer."
         )
 
@@ -363,7 +363,7 @@ def group_layers(
 
     active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, LayerSet):
-        raise ValueError(
+        raise TypeError(
             "Failed to group layers. Active layer is unexpectedly not a LayerSet."
         )
 
@@ -397,7 +397,7 @@ def duplicate_group(group: LayerSet, name: str) -> LayerSet:
 
     active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, LayerSet):
-        raise ValueError(
+        raise TypeError(
             "Failed to duplicate group. Active layer is unexpectedly not a LayerSet."
         )
 
@@ -440,7 +440,7 @@ def smart_layer(
 
     active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, ArtLayer):
-        raise ValueError(
+        raise TypeError(
             "Failed to convert layer to smart layer. Active layer is unexpectedly not an ArtLayer."
         )
 

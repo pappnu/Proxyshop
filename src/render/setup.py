@@ -166,17 +166,19 @@ def prepare_render_operations(
         template_to_use: RenderableTemplate | None = None
 
         if template_name := card["kwargs"].get("tmpl"):
-            if builtin_template := template_library.built_in_templates_by_name.get(
-                template_name, None
-            ):
-                if layout.category in builtin_template.layout_categories:
-                    template_to_use = builtin_template
+            if (
+                builtin_template := template_library.built_in_templates_by_name.get(
+                    template_name, None
+                )
+            ) and layout.category in builtin_template.layout_categories:
+                template_to_use = builtin_template
             if template_to_use is None:
                 for templates in template_library.plugin_templates_by_name.values():
-                    if plugin_template := templates.get(template_name, None):
-                        if layout.category in plugin_template.layout_categories:
-                            template_to_use = plugin_template
-                            break
+                    if (
+                        plugin_template := templates.get(template_name, None)
+                    ) and layout.category in plugin_template.layout_categories:
+                        template_to_use = plugin_template
+                        break
 
         if template_to_use is None:
             if isinstance(template_choices, Mapping):

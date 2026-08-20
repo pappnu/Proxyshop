@@ -133,7 +133,7 @@ def assign_layout(
             layout = layout_map[scryfall.layout](scryfall, card, CFG)
         except Exception:
             # Couldn't instantiate layout object
-            _logger.error(f"Layout generation failed for <i>{name_failed}</i>")
+            _logger.exception(f"Layout generation failed for <i>{name_failed}</i>")
             return
         return layout
     # Couldn't find an appropriate layout
@@ -829,9 +829,7 @@ class NormalLayout:
             return True
         if self.set_type == "promo":
             return True
-        if self.promo_types:
-            return True
-        return False
+        return bool(self.promo_types)
 
     @cached_property
     def is_front(self) -> bool:

@@ -133,7 +133,7 @@ class PlaneswalkerMod(FullartMod, StarterTemplate):
     def planeswalker_group(self) -> LayerSet | None:
         """The main Planeswalker layer group, sized according to number of abilities."""
         if isinstance(self.layout, PlaneswalkerLayout) and (
-            group := psd.getLayerSet(f"pw-{str(self.layout.pw_size)}")
+            group := psd.getLayerSet(f"pw-{self.layout.pw_size!s}")
         ):
             group.visible = True
             return group
@@ -288,11 +288,7 @@ class PlaneswalkerMod(FullartMod, StarterTemplate):
             )
 
             # Space abilities evenly apart
-            uniform_gap = (
-                True
-                if len(self.ability_layers) < 3 or not self.layout.loyalty
-                else False
-            )
+            uniform_gap = len(self.ability_layers) < 3 or not self.layout.loyalty
             psd.spread_layers_over_reference(
                 layers=self.ability_layers,
                 ref=self.textbox_reference,
@@ -383,7 +379,7 @@ class PlaneswalkerMod(FullartMod, StarterTemplate):
             ability: Planeswalker ability data.
         """
         # Create an icon and colon if this isn't a static ability
-        static = False if ability.get("icon") and ability.get("cost") else True
+        static = not (ability.get("icon") and ability.get("cost"))
         icon = (
             None
             if static
@@ -576,7 +572,6 @@ class PlaneswalkerTFTemplate(TransformMod, PlaneswalkerTemplate):
 
     def text_layers_transform(self):
         """No text changes needed."""
-        pass
 
 
 class PlaneswalkerTFBorderlessTemplate(TransformMod, PlaneswalkerBorderlessTemplate):
@@ -613,4 +608,3 @@ class PlaneswalkerTFBorderlessTemplate(TransformMod, PlaneswalkerBorderlessTempl
 
     def text_layers_transform(self):
         """No text changes needed."""
-        pass

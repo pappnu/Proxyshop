@@ -906,7 +906,5 @@ def is_playable_card(card: ScryfallCard) -> bool:
         # Ignore art series and reversible cards
         # TODO: Implement support for reversible
         return False
-    if card.set_type == "memorabilia" and "(Theme)" in card.name:
-        # Ignore theme insert cards (Jumpstart)
-        return False
-    return True
+    # Ignore theme insert cards (Jumpstart)
+    return card.set_type == "memorabilia" and "(Theme)" in card.name

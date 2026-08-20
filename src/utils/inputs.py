@@ -124,7 +124,9 @@ async def get_cards_from_details(
     for input in inputs:
         if isinstance(input, dict):
             identifier = card_details_to_scryfall_identifier(input)
-            if existing := find_item(active_list, lambda item: item[0] == identifier):
+            if existing := find_item(
+                active_list, lambda item, iden=identifier: item[0] == iden
+            ):
                 existing[1].append(input)
             else:
                 active_list.append((identifier, [input]))

@@ -247,9 +247,7 @@ def check_textbox_overflow(layer: ArtLayer) -> bool:
     layer.textItem.height = 1000
     dif = get_layer_dimensions(layer)["height"] - height
     undo_action()
-    if dif > 0:
-        return True
-    return False
+    return dif > 0
 
 
 def get_textbox_bounds(layer: ArtLayer) -> LayerBounds:

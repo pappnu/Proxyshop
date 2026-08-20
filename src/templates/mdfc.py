@@ -98,11 +98,9 @@ class MDFCMod(BaseTemplate):
 
     def enable_mdfc_layers_front(self) -> None:
         """Enable front side MDFC layers."""
-        pass
 
     def enable_mdfc_layers_back(self) -> None:
         """Enable back side MDFC layers."""
-        pass
 
     """
     * MDFC Text Layer Methods
@@ -135,11 +133,9 @@ class MDFCMod(BaseTemplate):
 
     def text_layers_mdfc_front(self) -> None:
         """Add or modify front side MDFC tex layers."""
-        pass
 
     def text_layers_mdfc_back(self) -> None:
         """Add or modify back side MDFC text layers."""
-        pass
 
 
 class VectorMDFCMod(MDFCMod, VectorTemplate):

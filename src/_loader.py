@@ -10,7 +10,6 @@ from logging import getLogger
 from pathlib import Path
 from shutil import rmtree
 from threading import Lock
-from traceback import print_exc
 from types import ModuleType
 from typing import Annotated, Any, Literal, NotRequired, Protocol, TypedDict
 
@@ -347,7 +346,7 @@ class AppPlugin:
                 # Load Plugin metadata
                 templates: dict[str, Any] | None = load(f)
                 if not isinstance(templates, dict):
-                    raise ValueError("Plugin manifest isn't a dictionary")
+                    raise TypeError("Plugin manifest isn't a dictionary")
                 manifest = PluginManifest(plugin=templates.pop("PLUGIN", {}), files={})
         except Exception as e:
             raise ValueError(f"Manifest file contains invalid data: {path}") from e
@@ -473,7 +472,7 @@ def get_all_plugins(
             )
             plugins[plugin.id] = plugin
         except Exception:
-            print_exc()
+            _logger.exception(f"Failed to load plugin at path: {folder}")
     return dict(sorted(plugins.items()))
 
 
@@ -815,7 +814,7 @@ class AppTemplate:
     @cached_property
     def all_names(self) -> list[str]:
         """All display names used by this template."""
-        return list({name for name in self.manifest_map.keys()})
+        return list({name for name in self.manifest_map})
 
     @cached_property
     def all_classes(self) -> list[str]:
@@ -824,7 +823,7 @@ class AppTemplate:
             {
                 cls_name
                 for class_map in self.manifest_map.values()
-                for cls_name in class_map.keys()
+                for cls_name in class_map
             }
         )
 
@@ -862,7 +861,7 @@ class AppTemplate:
         cats: set[str] = set()
         for cat, types in layout_map_display_condition_dual.items():
             # Add both face types
-            if all([n in supported for n in types]):
+            if all(n in supported for n in types):
                 [supported.remove(n) for n in types]
                 cats.add(cat)
         for cat, t in layout_map_display_condition.items():
@@ -906,13 +905,10 @@ class AppTemplate:
         self._validate_version()
         if not self.version:
             return True
-        if self.update_version and normalize_ver(self.version) == normalize_ver(
+        return not (
             self.update_version
-        ):
-            return False
-
-        # Template needs an update
-        return True
+            and normalize_ver(self.version) == normalize_ver(self.update_version)
+        )
 
     def _validate_version(self) -> None:
         """Checks the current on-file version of this template and if the template is installed,
@@ -1070,9 +1066,11 @@ class AssembledTemplate(RenderableTemplate):
         self.template_installed: SubscribableEvent[AssembledTemplateInstalledArgs] = (
             SubscribableEvent()
         )
-        for parent_template in set([templ.parent for templ in templates]):
+        for parent_template in {templ.parent for templ in templates}:
             parent_template.template_installed.add_listener(
-                lambda _: self._on_child_template_installed(parent_template)
+                lambda _, parent=parent_template: self._on_child_template_installed(
+                    parent
+                )
             )
 
         self.config_state_changed: SubscribableEvent[
@@ -1084,13 +1082,13 @@ class AssembledTemplate(RenderableTemplate):
                 confs_for_classes.setdefault(template_details["config"], class_name)
         for config, class_name in confs_for_classes.items():
             config.config_added.add_listener(
-                lambda _: self._on_config_state_changed(
-                    class_name=class_name, config=config, has_config=True
+                lambda _, c_name=class_name, conf=config: self._on_config_state_changed(
+                    class_name=c_name, config=conf, has_config=True
                 )
             )
             config.config_deleted.add_listener(
-                lambda _: self._on_config_state_changed(
-                    class_name=class_name, config=config, has_config=False
+                lambda _, c_name=class_name, conf=config: self._on_config_state_changed(
+                    class_name=c_name, config=conf, has_config=False
                 )
             )
 
@@ -1105,7 +1103,7 @@ class AssembledTemplate(RenderableTemplate):
     def installed_template_files(self) -> list[str]:
         return [
             parent_template.file_name
-            for parent_template in set([templ.parent for templ in self.templates])
+            for parent_template in {templ.parent for templ in self.templates}
             if parent_template.is_installed
         ]
 
@@ -1113,7 +1111,7 @@ class AssembledTemplate(RenderableTemplate):
     def missing_template_files(self) -> list[str]:
         return [
             parent_template.file_name
-            for parent_template in set([templ.parent for templ in self.templates])
+            for parent_template in {templ.parent for templ in self.templates}
             if not parent_template.is_installed
         ]
 

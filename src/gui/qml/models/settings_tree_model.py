@@ -140,7 +140,7 @@ class SettingsTreeModel(PydanticQItemModel[SettingSectionItem]):
         item: TreeItem[SettingSectionItem] | None = value.internalPointer()
 
         if not item or not item.data.config:
-            return None
+            return
 
         super()._set_selected_model_index(value)
 

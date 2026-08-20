@@ -180,7 +180,7 @@ def get_batch_of_cards(
                                 human_readable_card_details(card[1][0])
                                 if (
                                     card := find_item(
-                                        batch, lambda item: item[0] == ide
+                                        batch, lambda item, iden=ide: item[0] == iden
                                     )
                                 )
                                 else None
@@ -299,7 +299,7 @@ def process_card_data(data: ScryfallCard, card: CardDetails) -> ScryfallCard:
 
                 # Add meld transform icon if none provided
                 if not data.frame_effects or not any(
-                    [bool(n in TransformIcons) for n in data.frame_effects]
+                    bool(n in TransformIcons) for n in data.frame_effects
                 ):
                     data.frame_effects = ["meld"]
                 data.layout = LayoutScryfall.Transform

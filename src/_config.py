@@ -303,9 +303,7 @@ class ConfigHandler:
         values = self._initial_setting_values.model_dump()
         return values
 
-    def set_value(
-        self, section: str, key: str, value: int | float | str | bool
-    ) -> bool:
+    def set_value(self, section: str, key: str, value: float | str | bool) -> bool:
         if section in self.setting_values and key in self.setting_values[section]:
             self.setting_values[section][key] = value
             return True
@@ -342,7 +340,7 @@ class ConfigHandler:
         self,
         section: str,
         key: str,
-        default: int | float | str | bool | None = None,
+        default: float | str | bool | None = None,
     ) -> int | float | str | bool | None:
         if sect := self.setting_values.get(section, None):
             return sect.get(key, default)
@@ -732,11 +730,10 @@ class AppConfig:
         Returns:
             Value or default
         """
-        if self.file.has_section(section):
-            if self.file.has_option(section, key):
-                if is_bool:
-                    return self.file.getboolean(section, key, fallback=default)
-                return self.file[section].get(key, fallback=default)
+        if self.file.has_section(section) and self.file.has_option(section, key):
+            if is_bool:
+                return self.file.getboolean(section, key, fallback=default)
+            return self.file[section].get(key, fallback=default)
         return default
 
     @overload

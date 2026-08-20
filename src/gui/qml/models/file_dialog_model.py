@@ -1,4 +1,5 @@
 from asyncio import Future, get_running_loop
+from collections.abc import Iterable
 from enum import IntEnum
 from os import PathLike
 from pathlib import Path
@@ -28,7 +29,6 @@ class FileDialogModel(BaseDialogModel):
         self, parent: QObject | None = None, *, objectName: str | None = None
     ) -> None:
         super().__init__(parent, objectName=objectName)
-        setattr(type(self), "instance", self)
         self._response_future: Future[list[QUrl]] | None = None
         self._current_folder: QUrl = QUrl.fromLocalFile(str(PATH.CWD))
         self._file_mode = FileMode.OpenFile
@@ -109,7 +109,7 @@ class FileDialogModel(BaseDialogModel):
         title: str = "",
         initial_dir: str | PathLike[str] = PATH.CWD,
         file_mode: FileMode = FileMode.OpenFiles,
-        filters: list[str] = [],
+        filters: Iterable[str] = (),
         modality: Qt.WindowModality = Qt.WindowModality.WindowModal,
         dialog_id: str = "default",
     ) -> list[QUrl]:
@@ -119,7 +119,7 @@ class FileDialogModel(BaseDialogModel):
         self.title = title  # pyright: ignore[reportAttributeAccessIssue]
         self.current_folder = QUrl.fromLocalFile(initial_dir)  # pyright: ignore[reportAttributeAccessIssue]
         self.file_mode = file_mode  # pyright: ignore[reportAttributeAccessIssue]
-        self.name_filters = filters  # pyright: ignore[reportAttributeAccessIssue]
+        self.name_filters = list(filters)  # pyright: ignore[reportAttributeAccessIssue]
         self.modality = modality  # pyright: ignore[reportAttributeAccessIssue]
         self.dialog_id = dialog_id  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -132,7 +132,7 @@ class FileDialogModel(BaseDialogModel):
         self,
         title: str = "Select images",
         initial_dir: str | PathLike[str] = PATH.CWD,
-        filters: list[str] = [IMAGES_FILTER, ALL_FILTER],
+        filters: Iterable[str] = (IMAGES_FILTER, ALL_FILTER),
         dialog_id: str = "default",
     ) -> list[Path]:
         return [

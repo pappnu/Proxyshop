@@ -322,7 +322,7 @@ def create_text_layer_with_path(
 
     created_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(created_layer, ArtLayer):
-        raise ValueError(
+        raise TypeError(
             "Failed to create shaped text layer. Active layer is unexpectedly not an ArtLayer."
         )
     created_layer.name = f"{reference_text.name} - Path"

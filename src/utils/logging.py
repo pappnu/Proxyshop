@@ -16,8 +16,8 @@ def log_on_exception[**P, T, E: Exception](
             try:
                 return func(*args, **kwargs)
             except exception_type as e:
-                logger.exception(msg if isinstance(msg, str) else msg(e))
-                raise e
+                logger.exception(msg if isinstance(msg, str) else msg(e))  # noqa: TRY401
+                raise
 
         return wrapper
 
