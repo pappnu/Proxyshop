@@ -94,7 +94,7 @@ class PluginUpdaterModel(PydanticQListModel[PluginItem]):
         self._con = con
         self._plugin_library = plugin_library
         self._fetching_data = False
-        self._predefined: RemotePluginDefinitions | None = None
+        self._predefined: RemotePluginDefinitions = self._read_predefined_plugins()
         super().__init__(parent, items, selected_index)
 
     @cached_property
@@ -181,7 +181,7 @@ class PluginUpdaterModel(PydanticQListModel[PluginItem]):
         try:
             self.fetching_data = True  # pyright: ignore[reportAttributeAccessIssue]
 
-            predefined_plugins = self._read_predefined_plugins().root
+            predefined_plugins = self._predefined.root
             installed_plugins = self._plugin_library.plugins.copy()
 
             items: list[PluginItem] = []
@@ -489,6 +489,18 @@ class PluginUpdaterModel(PydanticQListModel[PluginItem]):
     def add_plugin(self, url: str) -> None:
         ensure_future(to_thread(self._handle_add_plugin, url))
 
+    def _check_existing_plugin_definition(
+        self, plugin_id: str, plugin_url: str
+    ) -> bool:
+        if existing_plugin := self._predefined.root.get(
+            plugin_id
+        ) or self._added_plugins.get(plugin_id):
+            _logger.warning(
+                f"Plugin at <b>{plugin_url}</b> is already registered to the system with the name <b>{existing_plugin.name}</b>."
+            )
+            return True
+        return False
+
     def _handle_add_plugin(self, url: str) -> None:
         if not url:
             return
@@ -499,6 +511,11 @@ class PluginUpdaterModel(PydanticQListModel[PluginItem]):
 
                 if github_repo := self._parse_github_repository(url):
                     repo, author, name = github_repo
+                    plugin_id = f"{name}-{author}"
+
+                    if self._check_existing_plugin_definition(plugin_id, url):
+                        return
+
                     try:
                         data = get_github_file_contents(repo, "manifest.yml")
                         manifest = PluginManifest.model_validate(yaml.safe_load(data))
@@ -508,7 +525,6 @@ class PluginUpdaterModel(PydanticQListModel[PluginItem]):
                         )
                         return
 
-                    plugin_id = f"{name}-{author}"
                     plugin_definition = RemoteGithubPluginDefinition(
                         name=manifest.plugin.name or name,
                         author=manifest.plugin.author or author,
@@ -517,6 +533,11 @@ class PluginUpdaterModel(PydanticQListModel[PluginItem]):
                     )
                     self._save_added_plugins()
                 elif self._git_is_available:
+                    plugin_id = sanitize_filename(url, replacement_text="-")
+
+                    if self._check_existing_plugin_definition(plugin_id, url):
+                        return
+
                     subprocess.run(
                         (
                             "git",
@@ -556,7 +577,6 @@ class PluginUpdaterModel(PydanticQListModel[PluginItem]):
 
                     manifest = parse_model(repo_dir / "manifest.yml", PluginManifest)
 
-                    plugin_id = sanitize_filename(url, replacement_text="-")
                     plugin_definition = RemoteGitPluginDefinition(
                         name=manifest.plugin.name or plugin_id,
                         author=manifest.plugin.author or "Unknown",
