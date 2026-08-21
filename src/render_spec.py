@@ -137,18 +137,14 @@ def parse_render_spec(render_spec_path: Path) -> RenderSpec:
         if path is not None:
             if "art" not in card_info["kwargs"]:
                 card_info["kwargs"]["art"] = str(path)
-            if "dir" not in card_info["kwargs"]:
-                if parent_dir in path.parents:
-                    rel_dir = path.relative_to(parent_dir).parent
-                    card_info["kwargs"]["dir"] = str(rel_dir)
+            if "dir" not in card_info["kwargs"] and parent_dir in path.parents:
+                rel_dir = path.relative_to(parent_dir).parent
+                card_info["kwargs"]["dir"] = str(rel_dir)
 
         cards.append(card_info)
 
     def append_configs(card: CardSpec, card_configs: list[str]) -> CardSpec:
-        resolved_configs = [
-            render_spec_data.configs[c] if c in render_spec_data.configs else c
-            for c in card_configs
-        ]
+        resolved_configs = [render_spec_data.configs.get(c, c) for c in card_configs]
         config = " ".join(resolved_configs)
         return CardSpec(
             f"{card.spec} {config}",

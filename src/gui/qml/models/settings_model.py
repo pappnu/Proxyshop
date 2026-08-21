@@ -12,7 +12,7 @@ from PySide6.QtCore import (
     Slot,
 )
 
-from src._loader import (
+from src._config import (
     BoolSetting,
     ConfigHandler,
     FloatSetting,
@@ -49,7 +49,7 @@ class SettingsModel(PydanticQListModel[HybridSettingItem]):
         self,
         settings_tree_model: SettingsTreeModel,
         parent: QObject | None = None,
-        items: list[HybridSettingItem] = [],
+        items: list[HybridSettingItem] | None = None,
         selected_index: int = -1,
     ) -> None:
         super().__init__(parent, items, selected_index)
@@ -88,7 +88,7 @@ class SettingsModel(PydanticQListModel[HybridSettingItem]):
     def setData(
         self,
         index: QModelIndex | QPersistentModelIndex,
-        value: int | float | str | bool,
+        value: float | str | bool,
         /,
         role: int = Qt.ItemDataRole.EditRole,
     ) -> bool:
@@ -163,7 +163,7 @@ class SettingsModel(PydanticQListModel[HybridSettingItem]):
             self.current_config_handler = None
             self.endRemoveRows()
 
-    def _set_value(self, index: int, value: bool | str | int | float) -> None:
+    def _set_value(self, index: int, value: bool | str | float) -> None:
         self.setData(self.createIndex(index, 0), value)
 
     @Slot(int, bool)

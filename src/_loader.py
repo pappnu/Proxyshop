@@ -3,17 +3,15 @@
 """
 
 from collections.abc import Callable
-from configparser import RawConfigParser
 from contextlib import suppress
-from enum import Enum
 from functools import cached_property
 from json import load
 from logging import getLogger
 from pathlib import Path
+from shutil import rmtree
 from threading import Lock
-from traceback import print_exc
 from types import ModuleType
-from typing import Annotated, Any, Literal, NotRequired, Protocol, TypedDict, overload
+from typing import Annotated, Any, Literal, NotRequired, Protocol, TypedDict
 
 import yarl
 from omnitils.api.gdrive import gdrive_download_file, gdrive_get_metadata
@@ -26,11 +24,12 @@ from pydantic import (
     Field,
     RootModel,
     ValidationError,
-    WrapValidator,
-    create_model,
     model_validator,
 )
+from pydantic_core import Url
 
+from src import DEFAULT_HEADERS
+from src._config import ConfigHandler
 from src._state import PATH, AppConstants, AppEnvironment
 from src.enums.mtg import (
     LayoutCategory,
@@ -67,127 +66,6 @@ class TemplateDetails(TypedDict):
 
 ManifestTemplateMap = dict[str, dict[str, list[LayoutType]]]
 """Dictionary which maps a template's displayed names to classes, and classes to template types."""
-
-
-class BaseConfig(BaseModel):
-    prefix: str
-
-
-class BaseSection(BaseModel):
-    title: str
-
-
-class SectionTitle(BaseSection):
-    type: Literal["title"] = "title"
-
-
-class BaseSetting(BaseSection):
-    desc: str = ""
-    key: str = ""
-    section: str = ""
-
-
-class BoolSetting(BaseSetting):
-    type: Literal["bool"]
-    default: bool = False
-
-
-class StringSetting(BaseSetting):
-    type: Literal["string"]
-    default: str = ""
-
-
-class NumericSetting(BaseSetting):
-    type: Literal["numeric"]
-    default: int | float = 0
-
-
-class FloatSetting(BaseSetting):
-    type: Literal["float"]
-    default: float = 0
-
-
-class IntSetting(BaseSetting):
-    type: Literal["int"]
-    default: int = 0
-
-
-class OptionsSetting(BaseSetting):
-    type: Literal["options"]
-    options: list[str] = []
-    default: str
-
-
-TypedSetting = (
-    BoolSetting
-    | StringSetting
-    | NumericSetting
-    | FloatSetting
-    | IntSetting
-    | OptionsSetting
-)
-
-_SomeSetting = RootModel[TypedSetting]
-
-
-class ConfigSection(BaseSection):
-    settings: dict[str, TypedSetting] = Field(default={}, exclude=True)
-
-    @model_validator(mode="before")
-    @classmethod
-    def extra_validator(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            for key, value in data.items():  # pyright: ignore[reportUnknownVariableType]
-                if not isinstance(key, str) or key in cls.model_fields:
-                    continue
-                data[key] = _SomeSetting.model_validate(value).root
-        return data  # pyright: ignore[reportUnknownVariableType]
-
-    @model_validator(mode="after")
-    def post_validate(self) -> ConfigSection:
-        if self.model_extra:
-            self.settings = self.model_extra
-        return self
-
-    model_config = ConfigDict(extra="allow")
-
-
-class FormattedSettingsConfig(RootModel[list[SectionTitle | TypedSetting]]):
-    root: list[SectionTitle | TypedSetting] = []
-
-
-class SettingsConfig(BaseModel):
-    config: Annotated[BaseConfig | None, Field(alias="__CONFIG__")] = None
-    sections: Annotated[
-        FormattedSettingsConfig,
-        Field(exclude=True, default_factory=FormattedSettingsConfig),
-    ]
-
-    @model_validator(mode="before")
-    @classmethod
-    def extra_validator(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            exclude_keys = [*cls.model_fields.keys(), "__CONFIG__"]
-            for key, value in data.items():  # pyright: ignore[reportUnknownVariableType]
-                if not isinstance(key, str) or key in exclude_keys:
-                    continue
-                data[key] = ConfigSection.model_validate(value)
-        return data  # pyright: ignore[reportUnknownVariableType]
-
-    @model_validator(mode="after")
-    def post_validate(self) -> SettingsConfig:
-        if self.model_extra:
-            sections: dict[str, ConfigSection] = self.model_extra
-            prefix = self.config.prefix if self.config else None
-            for section, data in sections.items():
-                self.sections.root.append(SectionTitle(title=data.title))
-                for key, setting in data.settings.items():
-                    setting.key = key
-                    setting.section = f"{prefix}.{section}" if prefix else section
-                    self.sections.root.append(setting)
-        return self
-
-    model_config = ConfigDict(extra="allow")
 
 
 SymbolRarity = Literal["80", "B", "C", "H", "M", "R", "S", "T", "U", "WM"]
@@ -264,284 +142,28 @@ class PluginManifest(BaseModel):
 
 # endregion Types
 
-# region Configs
-
-
-class CustomConfigParser(RawConfigParser):
-    def optionxform(self, optionstr: str) -> str:
-        return optionstr
-
-
-def parse_settings_config(data_path: Path) -> FormattedSettingsConfig:
-    """
-    Tries to parse the settings config from a file at data_path.
-
-    Raises:
-        OSError: If reading of the file at data_path fails.
-        ValidationError: If the data in file at data_path is invalid.
-    """
-    return parse_model(data_path, SettingsConfig).sections
-
-
-_setting_to_python_type = {
-    "bool": bool,
-    "string": str,
-    "numeric": int | float,
-    "int": int,
-    "float": float,
-    "options": str,
-}
-
-
-def configparser_to_dict(parser: RawConfigParser) -> dict[str, dict[str, str]]:
-    return {
-        section: {key: value for key, value in content.items()}
-        for section, content in parser.items()
-    }
-
-
-class ConfigHandler:
-    """Handler for combined config schema and its saved values."""
-
-    def __init__(
-        self, base_schema_path: Path, schema_path: Path | None, ini_path: Path
-    ) -> None:
-        self.base_schema_path = base_schema_path
-        self.schema_path = schema_path
-        self.ini_path = ini_path
-
-        self.ini_path.parent.mkdir(parents=True, exist_ok=True)
-
-        self.config_added: SubscribableEvent[ConfigHandler] = SubscribableEvent()
-        self.config_reset: SubscribableEvent[ConfigHandler] = SubscribableEvent()
-        self.config_deleted: SubscribableEvent[ConfigHandler] = SubscribableEvent()
-
-    @cached_property
-    def id(self) -> str:
-        return str(self.ini_path)
-
-    @cached_property
-    def has_config(self) -> bool:
-        return self.ini_path.is_file()
-
-    @cached_property
-    def base_schema(self) -> FormattedSettingsConfig:
-        return parse_settings_config(self.base_schema_path)
-
-    @cached_property
-    def schema(self) -> FormattedSettingsConfig | None:
-        return parse_settings_config(self.schema_path) if self.schema_path else None
-
-    @cached_property
-    def ini_schema(self) -> type[BaseModel]:
-        sections: dict[str, dict[str, Any]] = {}
-        for schema in (
-            (self.base_schema.root, self.schema.root)
-            if self.schema
-            else (self.base_schema.root,)
-        ):
-            for entry in schema:
-                if not isinstance(entry, SectionTitle):
-                    sections.setdefault(entry.section, {})
-
-                    # Early bind entry's value to avoid using the last value of
-                    # the loop within each function
-                    def validator_factory(item: TypedSetting = entry):
-                        # Set invalid settings to their default value
-                        def validator(v: Any, handler: Callable[[Any], Any]) -> Any:
-                            try:
-                                return handler(v)
-                            except ValidationError:
-                                return item.default
-
-                        return validator
-
-                    sections[entry.section][entry.key] = Annotated[
-                        _setting_to_python_type[entry.type] | None,
-                        Field(default=entry.default),
-                        WrapValidator(validator_factory()),
-                    ]
-
-        root_fields: dict[str, Any] = {}
-        for key, item in sections.items():
-            model = create_model(key, **item)
-
-            def factory(modl: type[BaseModel] = model):
-                def validator(v: Any, handler: Callable[[Any], Any]) -> Any:
-                    try:
-                        return handler(v)
-                    except ValidationError:
-                        return modl()
-
-                return validator
-
-            root_fields[key] = Annotated[
-                model, Field(default_factory=model), WrapValidator(factory())
-            ]
-
-        return create_model(
-            "ConfigINISchema",
-            **root_fields,
-        )
-
-    @cached_property
-    def _parser(self) -> RawConfigParser:
-        parser = CustomConfigParser(default_section="", allow_no_value=True)
-        if self.ini_path.is_file():
-            parser.read_string(self.ini_path.read_text(encoding="utf-8"))
-        return parser
-
-    @property
-    def parser(self) -> RawConfigParser:
-        vals = self.setting_values
-        self._parser.clear()
-        self._parser.read_dict(vals)
-        return self._parser
-
-    @cached_property
-    def _initial_setting_values(self) -> BaseModel | None:
-        return None
-
-    @cached_property
-    def setting_values(self) -> dict[str, dict[str, int | float | str | bool]]:
-        """Use `set_value` to change values. Otherwise the GUI might end up showing incorrect state
-        about the config being set or not."""
-        self._initial_setting_values = self.ini_schema.model_validate(
-            configparser_to_dict(self._parser)
-        )
-        values = self._initial_setting_values.model_dump()
-        return values
-
-    def set_value(
-        self, section: str, key: str, value: int | float | str | bool
-    ) -> bool:
-        if section in self.setting_values and key in self.setting_values[section]:
-            self.setting_values[section][key] = value
-            return True
-        return False
-
-    def save(
-        self,
-        force: bool = False,
-    ) -> None:
-        # Save only if something has changed
-        if force or (
-            self._initial_setting_values
-            and self._initial_setting_values
-            != self.ini_schema.model_validate(self.setting_values)
-        ):
-            parser = self.parser
-            with open(self.ini_path, "w", encoding="utf-8") as f:
-                parser.write(f)
-            self.has_config = True
-            self.config_added.trigger(self)
-
-    def reset(self) -> None:
-        self.setting_values = self.ini_schema().model_dump()
-        self.config_reset.trigger(self)
-
-    def delete(self, notify: bool = True) -> None:
-        self.ini_path.unlink(missing_ok=True)
-        if notify:
-            self.config_deleted.trigger(self)
-
-    # region Config getters
-
-    def get_setting(
-        self,
-        section: str,
-        key: str,
-        default: int | float | str | bool | None = None,
-    ) -> int | float | str | bool | None:
-        if sect := self.setting_values.get(section, None):
-            return sect.get(key, default)
-        return default
-
-    @overload
-    def get_bool_setting(self, section: str, key: str, default: bool) -> bool: ...
-
-    @overload
-    def get_bool_setting(
-        self, section: str, key: str, default: bool | None = None
-    ) -> bool | None: ...
-
-    def get_bool_setting(
-        self, section: str, key: str, default: bool | None = None
-    ) -> bool | None:
-        return bool(self.get_setting(section, key, default))
-
-    @overload
-    def get_int_setting(self, section: str, key: str, default: int) -> int: ...
-
-    @overload
-    def get_int_setting(
-        self, section: str, key: str, default: int | None = None
-    ) -> int | None: ...
-
-    def get_int_setting(
-        self, section: str, key: str, default: int | None = None
-    ) -> int | None:
-        setting = self.get_setting(section, key, None)
-        if setting is not None:
-            return int(setting)
-        return default
-
-    @overload
-    def get_float_setting(self, section: str, key: str, default: float) -> float: ...
-
-    @overload
-    def get_float_setting(
-        self, section: str, key: str, default: float | None = None
-    ) -> float | None: ...
-
-    def get_float_setting(
-        self, section: str, key: str, default: float | None = None
-    ) -> float | None:
-        setting = self.get_setting(section, key, None)
-        if setting is not None:
-            return float(setting)
-        return default
-
-    @overload
-    def get_str_setting(self, section: str, key: str, default: str) -> str: ...
-
-    @overload
-    def get_str_setting(
-        self, section: str, key: str, default: str | None = None
-    ) -> str | None: ...
-
-    def get_str_setting(
-        self, section: str, key: str, default: str | None = None
-    ) -> str | None:
-        setting = self.get_setting(section, key, None)
-        if setting is not None:
-            return str(setting)
-        return default
-
-    @overload
-    def get_enum_setting[T: Enum](
-        self, section: str, key: str, enum_type: type[T], default: T
-    ) -> T: ...
-
-    @overload
-    def get_enum_setting[T: Enum](
-        self, section: str, key: str, enum_type: type[T], default: T | None = None
-    ) -> T | None: ...
-
-    def get_enum_setting[T: Enum](
-        self, section: str, key: str, enum_type: type[T], default: T | None = None
-    ) -> T | None:
-        setting = self.get_setting(section, key, None)
-        if setting is not None:
-            return enum_type(setting)
-        return default
-
-    # endregion Config getters
-
-
-# endregion Configs
-
 # region Plugins
+
+
+class RemotePluginDefinitionBase(BaseModel):
+    name: str
+    author: str
+
+
+class RemoteGithubPluginDefinition(RemotePluginDefinitionBase):
+    github_author: str
+    github_repo: str
+
+
+class RemoteGitPluginDefinition(RemotePluginDefinitionBase):
+    git_repo: Url
+
+
+class RemotePluginDefinitions(
+    RootModel[dict[str, RemoteGithubPluginDefinition | RemoteGitPluginDefinition]]
+):
+    pass
+
 
 _template_import_lock = Lock()
 
@@ -659,9 +281,9 @@ class AppPlugin:
         return self._info.name if self._info.name is not None else self._root.stem
 
     @cached_property
-    def author(self) -> str:
+    def author(self) -> str | None:
         """str: Displayed name of the plugin's author. Fallback on name."""
-        return self._info.author if self._info.author is not None else self.name
+        return self._info.author if self._info.author is not None else None
 
     @cached_property
     def description(self) -> str | None:
@@ -724,7 +346,7 @@ class AppPlugin:
                 # Load Plugin metadata
                 templates: dict[str, Any] | None = load(f)
                 if not isinstance(templates, dict):
-                    raise ValueError("Plugin manifest isn't a dictionary")
+                    raise TypeError("Plugin manifest isn't a dictionary")
                 manifest = PluginManifest(plugin=templates.pop("PLUGIN", {}), files={})
         except Exception as e:
             raise ValueError(f"Manifest file contains invalid data: {path}") from e
@@ -819,6 +441,9 @@ class AppPlugin:
         """list[AppTemplate]: Returns a list of AppTemplate's pulled from this plugin."""
         return list(self.template_map.values())
 
+    def remove(self) -> None:
+        rmtree(self._root)
+
 
 def get_all_plugins(
     con: AppConstants, env: AppEnvironment, template_file_versions: dict[str, str]
@@ -830,7 +455,7 @@ def get_all_plugins(
         env: Global environment object.
 
     Returns:
-        A mapping of plugin names to their respective 'AppPlugin' object.
+        A mapping of plugin ids to their respective 'AppPlugin' object.
     """
     plugins: dict[str, AppPlugin] = {}
 
@@ -845,9 +470,9 @@ def get_all_plugins(
                 path=folder,
                 template_file_versions=template_file_versions,
             )
-            plugins[plugin.name] = plugin
+            plugins[plugin.id] = plugin
         except Exception:
-            print_exc()
+            _logger.exception(f"Failed to load plugin at path: {folder}")
     return dict(sorted(plugins.items()))
 
 
@@ -1189,7 +814,7 @@ class AppTemplate:
     @cached_property
     def all_names(self) -> list[str]:
         """All display names used by this template."""
-        return list({name for name in self.manifest_map.keys()})
+        return list({name for name in self.manifest_map})
 
     @cached_property
     def all_classes(self) -> list[str]:
@@ -1198,7 +823,7 @@ class AppTemplate:
             {
                 cls_name
                 for class_map in self.manifest_map.values()
-                for cls_name in class_map.keys()
+                for cls_name in class_map
             }
         )
 
@@ -1236,7 +861,7 @@ class AppTemplate:
         cats: set[str] = set()
         for cat, types in layout_map_display_condition_dual.items():
             # Add both face types
-            if all([n in supported for n in types]):
+            if all(n in supported for n in types):
                 [supported.remove(n) for n in types]
                 cats.add(cat)
         for cat, t in layout_map_display_condition.items():
@@ -1280,13 +905,10 @@ class AppTemplate:
         self._validate_version()
         if not self.version:
             return True
-        if self.update_version and normalize_ver(self.version) == normalize_ver(
+        return not (
             self.update_version
-        ):
-            return False
-
-        # Template needs an update
-        return True
+            and normalize_ver(self.version) == normalize_ver(self.update_version)
+        )
 
     def _validate_version(self) -> None:
         """Checks the current on-file version of this template and if the template is installed,
@@ -1329,6 +951,7 @@ class AppTemplate:
                             path=self.path_download,
                             path_cookies=PATH.LOGS_COOKIES,
                             callback=callback,
+                            headers={**DEFAULT_HEADERS},
                         )
                     )
 
@@ -1443,9 +1066,11 @@ class AssembledTemplate(RenderableTemplate):
         self.template_installed: SubscribableEvent[AssembledTemplateInstalledArgs] = (
             SubscribableEvent()
         )
-        for parent_template in set([templ.parent for templ in templates]):
+        for parent_template in {templ.parent for templ in templates}:
             parent_template.template_installed.add_listener(
-                lambda _: self._on_child_template_installed(parent_template)
+                lambda _, parent=parent_template: self._on_child_template_installed(
+                    parent
+                )
             )
 
         self.config_state_changed: SubscribableEvent[
@@ -1457,13 +1082,13 @@ class AssembledTemplate(RenderableTemplate):
                 confs_for_classes.setdefault(template_details["config"], class_name)
         for config, class_name in confs_for_classes.items():
             config.config_added.add_listener(
-                lambda _: self._on_config_state_changed(
-                    class_name=class_name, config=config, has_config=True
+                lambda _, c_name=class_name, conf=config: self._on_config_state_changed(
+                    class_name=c_name, config=conf, has_config=True
                 )
             )
             config.config_deleted.add_listener(
-                lambda _: self._on_config_state_changed(
-                    class_name=class_name, config=config, has_config=False
+                lambda _, c_name=class_name, conf=config: self._on_config_state_changed(
+                    class_name=c_name, config=conf, has_config=False
                 )
             )
 
@@ -1478,7 +1103,7 @@ class AssembledTemplate(RenderableTemplate):
     def installed_template_files(self) -> list[str]:
         return [
             parent_template.file_name
-            for parent_template in set([templ.parent for templ in self.templates])
+            for parent_template in {templ.parent for templ in self.templates}
             if parent_template.is_installed
         ]
 
@@ -1486,7 +1111,7 @@ class AssembledTemplate(RenderableTemplate):
     def missing_template_files(self) -> list[str]:
         return [
             parent_template.file_name
-            for parent_template in set([templ.parent for templ in self.templates])
+            for parent_template in {templ.parent for templ in self.templates}
             if not parent_template.is_installed
         ]
 
@@ -1608,6 +1233,72 @@ class TemplateLibrary:
             name: AssembledTemplate(name, templates, plugin)
             for name, templates in grouped.items()
         }
+
+
+class PluginLibrary:
+    def __init__(
+        self,
+        con: AppConstants,
+        env: AppEnvironment,
+        initial_template_file_versions: TemplateFileVersionsModel,
+    ) -> None:
+        self._con = con
+        self._env = env
+        self._initial_template_file_versions = initial_template_file_versions
+        self.plugins: dict[str, AppPlugin] = get_all_plugins(
+            con, env, initial_template_file_versions.root
+        )
+        self.plugins_changed: SubscribableEvent[dict[str, AppPlugin]] = (
+            SubscribableEvent()
+        )
+        self._template_library: TemplateLibrary | None = None
+        self.template_library_changed: SubscribableEvent[TemplateLibrary] = (
+            SubscribableEvent()
+        )
+
+    @property
+    def template_library(self) -> TemplateLibrary:
+        if self._template_library:
+            return self._template_library
+        return self.construct_template_library()
+
+    def construct_template_library(self) -> TemplateLibrary:
+        self._template_library = TemplateLibrary(
+            self._con,
+            self._env,
+            initial_template_file_versions=self._initial_template_file_versions,
+            template_file_versions=self._template_library.versions
+            if self._template_library
+            else self._initial_template_file_versions,
+            plugins=self.plugins,
+        )
+        self.template_library_changed.trigger(self._template_library)
+        return self._template_library
+
+    def add_plugin(self, path: Path) -> AppPlugin:
+        plugin = AppPlugin(
+            self._con,
+            self._env,
+            path,
+            self._template_library.versions.root
+            if self._template_library
+            else self._initial_template_file_versions.root,
+        )
+        self.plugins[plugin.id] = plugin
+        self.plugins_changed.trigger(self.plugins)
+        self.construct_template_library()
+        return plugin
+
+    def remove_plugin(self, plugin_id: str) -> AppPlugin | None:
+        try:
+            if plugin := self.plugins.get(plugin_id, None):
+                plugin.remove()
+                self.plugins.pop(plugin_id, None)
+                self.plugins_changed.trigger(self.plugins)
+                self.construct_template_library()
+                return plugin
+        except Exception:
+            _logger.exception(f"Failed to remove plugin '{plugin_id}'")
 
 
 def get_all_templates(

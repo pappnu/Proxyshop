@@ -8,7 +8,7 @@ from logging import getLogger
 from types import TracebackType
 from typing import TypedDict
 
-from photoshop.api import ActionDescriptor, ActionReference
+from photoshop.api import ActionDescriptor, ActionList, ActionReference
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
 from photoshop.api._layerSet import LayerSet
@@ -174,6 +174,13 @@ def get_reference_layer(
         )
 
 
+def get_layer_document(layer: ArtLayer | LayerSet) -> Document:
+    doc = layer
+    while not isinstance((doc := doc.parent), Document):
+        pass
+    return doc
+
+
 """
 * Creating Layers
 """
@@ -230,13 +237,86 @@ def merge_layers(
 
     active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, ArtLayer):
-        raise ValueError(
+        raise TypeError(
             "Failed to merge layers. Active layer is unexpectedly not an ArtLayer."
         )
 
     if name:
         active_layer.name = name
     return active_layer
+
+
+def duplicate_layer(
+    layer: ArtLayer | None = None,
+    name: str | None = None,
+    relative_to: Document | ArtLayer | LayerSet | None = None,
+    element_placement: ElementPlacement = ElementPlacement.PlaceBefore,
+) -> ArtLayer:
+    """Duplicates the given layer to a target open document and renames it."""
+    app = APP.instance
+    old_active_doc = app.activeDocument
+
+    if not layer:
+        doc = app.activeDocument
+        lyr = doc.activeLayer
+        if not isinstance(lyr, ArtLayer):
+            raise ValueError(
+                "Failed to duplicate layer. Active layer is not an ArtLayer and no target ArtLayer was provided."
+            )
+        doc.activeLayer = lyr
+        layer = lyr
+    else:
+        doc = get_layer_document(layer)
+        app.activeDocument = doc
+        doc.activeLayer = layer
+
+    target_doc = (
+        relative_to
+        if isinstance(relative_to, Document)
+        else get_layer_document(relative_to)
+        if relative_to
+        else old_active_doc
+    )
+
+    desc = ActionDescriptor()
+    source_ref = ActionReference()
+    dest_ref = ActionReference()
+    id_list = ActionList()
+
+    # Define the source target (the currently active layer)
+    source_ref.putEnumerated(
+        app.stringIDToTypeID("layer"),
+        app.stringIDToTypeID("ordinal"),
+        app.stringIDToTypeID("targetEnum"),
+    )
+    desc.putReference(app.stringIDToTypeID("null"), source_ref)
+
+    # Define the destination document target by its open filename
+    dest_ref.putName(app.stringIDToTypeID("document"), target_doc.name)
+    desc.putReference(app.stringIDToTypeID("to"), dest_ref)
+
+    # Define the new name for the layer in the target document
+    desc.putString(app.stringIDToTypeID("name"), name if name else layer.name)
+
+    # Attach required structural low-level placeholder
+    desc.putList(app.stringIDToTypeID("ID"), id_list)
+
+    app.executeAction(
+        app.stringIDToTypeID("duplicate"), desc, DialogModes.DisplayNoDialogs
+    )
+
+    if not isinstance((duplicate := target_doc.activeLayer), ArtLayer):
+        raise TypeError(
+            "Failed to duplicate ArtLayer. The active layer in the target document is unexpectedly not an ArtLayer."
+        )
+
+    if relative_to and not isinstance(relative_to, Document):
+        app.activeDocument = target_doc
+        duplicate.move(relative_to, element_placement)
+
+    app.activeDocument = old_active_doc
+
+    return duplicate
 
 
 """
@@ -283,7 +363,7 @@ def group_layers(
 
     active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, LayerSet):
-        raise ValueError(
+        raise TypeError(
             "Failed to group layers. Active layer is unexpectedly not a LayerSet."
         )
 
@@ -317,7 +397,7 @@ def duplicate_group(group: LayerSet, name: str) -> LayerSet:
 
     active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, LayerSet):
-        raise ValueError(
+        raise TypeError(
             "Failed to duplicate group. Active layer is unexpectedly not a LayerSet."
         )
 
@@ -360,7 +440,7 @@ def smart_layer(
 
     active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, ArtLayer):
-        raise ValueError(
+        raise TypeError(
             "Failed to convert layer to smart layer. Active layer is unexpectedly not an ArtLayer."
         )
 

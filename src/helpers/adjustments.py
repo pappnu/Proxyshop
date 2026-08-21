@@ -83,7 +83,7 @@ def create_color_layer(
     )
     layer = docref.activeLayer
     if not isinstance(layer, ArtLayer):
-        raise ValueError(
+        raise TypeError(
             "Failed to create a color layer. Active layer is unexpectedly not an ArtLayer."
         )
     if "blend_mode" in kwargs:
@@ -195,7 +195,7 @@ def create_gradient_layer(
     )
     layer = docref.activeLayer
     if not isinstance(layer, ArtLayer):
-        raise ValueError("Failed to create a gradient color layer")
+        raise TypeError("Failed to create a gradient color layer")
     if "blend_mode" in kwargs:
         layer.blendMode = kwargs["blend_mode"]
     return layer

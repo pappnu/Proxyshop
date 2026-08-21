@@ -244,7 +244,7 @@ def check_hybrid_color_card(
     """
     # Identify if the card is a two-color hybrid card with only hybrid mana
     if len(color_identity) == 2 and not any(
-        [symbol in mana_cost for symbol in mono_symbols]
+        symbol in mana_cost for symbol in mono_symbols
     ):
         # Hybrid empty mana case - Asmoranomardi[...]
         if mana_cost == "" and not is_dfc:
@@ -267,12 +267,11 @@ def check_hybrid_mana_cost(color_identity: str | list[str], mana_cost: str) -> b
         True if hybrid mana cost, otherwise False.
     """
     # Identify if the card is a two-color hybrid card with only hybrid mana
-    if len(color_identity) == 2 and not any(
-        [symbol in mana_cost for symbol in mono_symbols]
-    ):
-        if any([bool(sym in mana_cost) for sym in hybrid_symbols]):
-            return True
-    return False
+    return (
+        len(color_identity) == 2
+        and not any(symbol in mana_cost for symbol in mono_symbols)
+        and any(bool(sym in mana_cost) for sym in hybrid_symbols)
+    )
 
 
 """
@@ -388,7 +387,7 @@ def get_frame_details_land(card: ScryfallCard | ScryfallCardFace) -> FrameDetail
 
         # Check if the line adds one mana of any color
         if ("add" in line.lower() and "mana" in line) and any(
-            [t in line for t in ["color ", "colors ", "color.", "colors.", "any type"]]
+            t in line for t in ["color ", "colors ", "color.", "colors.", "any type"]
         ):
             # Probably Gold Land if it excludes the following cases
             cases = [

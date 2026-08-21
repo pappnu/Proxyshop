@@ -46,7 +46,7 @@ def create_shape_layer(
 
     layer = docref.activeLayer
     if not isinstance(layer, ArtLayer):
-        raise ValueError(
+        raise TypeError(
             "Failed to create shape layer. Active layer is unexpectedly not an ArtLayer."
         )
     if name:

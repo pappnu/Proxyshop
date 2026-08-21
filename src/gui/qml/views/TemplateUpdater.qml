@@ -14,9 +14,21 @@ ApplicationWindow {
     required property AbstractListModel updaterModel
     required property QtObject pathModel
 
-    DelegateModel {
-        id: updaterDelegateModel
+    SortFilterProxyModel {
+        id: sfProxyModel
         model: templateUpdaterWindow.updaterModel
+        sorters: [
+            StringSorter {
+                roleName: "plugin"
+            },
+            StringSorter {
+                roleName: "file_name"
+            }
+        ]
+    }
+
+    function getVisualModelIndex(idx: int): int {
+        return sfProxyModel.mapFromSource(updaterModel.index(idx, 0)).row;
     }
 
     // From https://stackoverflow.com/a/20732091
@@ -47,7 +59,7 @@ ApplicationWindow {
 
     Component.onCompleted: {
         updaterSplit.restoreState(settings.updaterSplitState);
-        if (updaterDelegateModel.count < 1)
+        if (updaterModel.rowCount() < 1)
             updaterModel.fetch_data();
     }
     Component.onDestruction: {
@@ -91,6 +103,8 @@ ApplicationWindow {
                 ListView {
                     id: availableTemplatesList
 
+                    property alias templatesList: availableTemplatesList
+
                     orientation: ListView.Vertical
                     boundsBehavior: Flickable.StopAtBounds
                     boundsMovement: Flickable.StopAtBounds
@@ -104,8 +118,8 @@ ApplicationWindow {
                         y: availableTemplatesList.currentItem?.y ?? 0
                     }
                     highlightFollowsCurrentItem: false
-                    currentIndex: templateUpdaterWindow.updaterModel.selected_index
-                    model: updaterDelegateModel
+                    currentIndex: templateUpdaterWindow.getVisualModelIndex(templateUpdaterWindow.updaterModel.selected_index)
+                    model: sfProxyModel
                     delegate: CustomItemDelegate {
                         id: availableTemplatesListDelegate
 
@@ -121,6 +135,7 @@ ApplicationWindow {
                         required property string available_version
                         required property int download_size
                         required property bool downloading
+                        readonly property int sourceIndex: sfProxyModel.mapToSource(sfProxyModel.index(index, 0)).row
 
                         property bool canDownload: !installed_version && available_version
                         property bool hasUpdateAvailable: available_version && installed_version && (installed_version !== available_version)
@@ -131,7 +146,7 @@ ApplicationWindow {
                         highlighted: false
 
                         onClicked: {
-                            templateUpdaterWindow.updaterModel.selected_index = index;
+                            templateUpdaterWindow.updaterModel.selected_index = sourceIndex;
                         }
 
                         contentItem: RowLayout {
@@ -143,7 +158,7 @@ ApplicationWindow {
                                 Layout.alignment: Qt.AlignLeft
 
                                 text: availableTemplatesListDelegate.file_name + (availableTemplatesListDelegate.plugin ? ` (${availableTemplatesListDelegate.plugin})` : "")
-                                color: availableTemplatesListDelegate.installed_version ? (templateUpdaterWindow.updaterModel.selected_index === availableTemplatesListDelegate.index ? templateUpdaterWindow.systemPalette.highlightedText : templateUpdaterWindow.systemPalette.text) : templateUpdaterWindow.systemPalette.placeholderText
+                                color: availableTemplatesListDelegate.installed_version ? (templateUpdaterWindow.updaterModel.selected_index === availableTemplatesListDelegate.sourceIndex ? templateUpdaterWindow.systemPalette.highlightedText : templateUpdaterWindow.systemPalette.text) : templateUpdaterWindow.systemPalette.placeholderText
                             }
                             CustomButton {
                                 id: downloadButton
@@ -168,7 +183,7 @@ ApplicationWindow {
                                 }
                                 enabled: !availableTemplatesListDelegate.downloading && (availableTemplatesListDelegate.canDownload || availableTemplatesListDelegate.hasUpdateAvailable)
                                 onClicked: {
-                                    templateUpdaterWindow.updaterModel.download_template(availableTemplatesListDelegate.index);
+                                    templateUpdaterWindow.updaterModel.download_template(availableTemplatesListDelegate.sourceIndex);
                                 }
                             }
                         }
@@ -183,7 +198,7 @@ ApplicationWindow {
             id: selectedUpdaterItemDetails
             orientation: Qt.Vertical
 
-            property var selectedItem: updaterDelegateModel.items.count ? updaterDelegateModel.items.get(templateUpdaterWindow.updaterModel.selected_index).model : undefined
+            property var selectedItem: listLoader.item?.templatesList?.currentItem
 
             SplitView.fillHeight: true
             SplitView.preferredWidth: 200
@@ -198,118 +213,106 @@ ApplicationWindow {
                 fillMode: Image.PreserveAspectFit
             }
 
-            ColumnLayout {
+            ListView {
+                id: detailsTextFields
+
                 SplitView.fillWidth: true
+                SplitView.fillHeight: true
 
-                SelectableText {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: true
+                spacing: 2
+                orientation: ListView.Vertical
+                boundsBehavior: Flickable.StopAtBounds
+                boundsMovement: Flickable.StopAtBounds
+                clip: true
+                highlightFollowsCurrentItem: false
+                currentIndex: -1
+                model: {
+                    return [
+                        {
+                            name: "File name:",
+                            isTitle: true
+                        },
+                        {
+                            name: selectedUpdaterItemDetails.selectedItem?.file_name ?? "",
+                            isTitle: false
+                        },
+                        {
+                            name: "Installed version:",
+                            isTitle: true
+                        },
+                        {
+                            name: selectedUpdaterItemDetails.selectedItem?.installed_version || "Not installed",
+                            isTitle: false
+                        },
+                        {
+                            name: "Available version:",
+                            isTitle: true
+                        },
+                        {
+                            name: selectedUpdaterItemDetails.selectedItem?.available_version || "Not available",
+                            isTitle: false
+                        },
+                        {
+                            name: "Download size:",
+                            isTitle: true
+                        },
+                        {
+                            name: templateUpdaterWindow.humanFileSize(selectedUpdaterItemDetails.selectedItem?.download_size ?? 0),
+                            isTitle: false
+                        },
+                        {
+                            name: "Template names:",
+                            isTitle: true
+                        },
+                        {
+                            name: selectedUpdaterItemDetails.selectedItem?.template_names.join(", ") ?? "",
+                            isTitle: false
+                        },
+                        {
+                            name: "Template layouts:",
+                            isTitle: true
+                        },
+                        {
+                            name: selectedUpdaterItemDetails.selectedItem?.layout_categories.join(", ") ?? "",
+                            isTitle: false
+                        },
+                        {
+                            name: "Template classes:",
+                            isTitle: true
+                        },
+                        {
+                            name: selectedUpdaterItemDetails.selectedItem?.template_classes.join(", ") ?? "",
+                            isTitle: false
+                        },
+                    ];
+                }
+                delegate: SelectableText {
+                    id: textFieldDelegate
 
-                    text: "<b>File name:</b>"
+                    required property int index
+                    property var item: detailsTextFields.model[index]
+                    property string name: item.name
+                    property bool isTitle: item.isTitle
+                    property bool isVisible: item.isVisible ?? true
+                    property int wrap: item.wrapMode ?? Text.WordWrap
+
+                    leftPadding: 5
+                    rightPadding: 5
+                    width: detailsTextFields.width
+                    text: name
                     color: templateUpdaterWindow.systemPalette.text
-                }
-                SelectableText {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: true
+                    font.bold: isTitle
+                    visible: isVisible
+                    wrapMode: wrap
 
-                    text: selectedUpdaterItemDetails.selectedItem?.file_name ?? ""
-                    color: templateUpdaterWindow.systemPalette.text
-                }
-
-                SelectableText {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: true
-
-                    text: "<b>Installed version:</b>"
-                    color: templateUpdaterWindow.systemPalette.text
-                }
-                SelectableText {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: true
-
-                    text: selectedUpdaterItemDetails.selectedItem?.installed_version || "Not installed"
-                    color: templateUpdaterWindow.systemPalette.text
+                    Component.onCompleted: {
+                        if (!isVisible) {
+                            textFieldDelegate.height = -detailsTextFields.spacing;
+                        }
+                    }
                 }
 
-                SelectableText {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: true
-
-                    text: "<b>Newest version:</b>"
-                    color: templateUpdaterWindow.systemPalette.text
-                }
-                SelectableText {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: true
-
-                    text: selectedUpdaterItemDetails.selectedItem?.available_version ?? "Not available"
-                    color: templateUpdaterWindow.systemPalette.text
-                }
-
-                SelectableText {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: true
-
-                    text: "<b>Download size:</b>"
-                    color: templateUpdaterWindow.systemPalette.text
-                }
-                SelectableText {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: true
-
-                    text: templateUpdaterWindow.humanFileSize(selectedUpdaterItemDetails.selectedItem?.download_size ?? 0)
-                    color: templateUpdaterWindow.systemPalette.text
-                }
-
-                SelectableText {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: true
-
-                    text: "<b>Template names:</b>"
-                    wrapMode: Text.WordWrap
-                    color: templateUpdaterWindow.systemPalette.text
-                }
-                SelectableText {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: true
-
-                    text: selectedUpdaterItemDetails.selectedItem?.template_names.join(", ") ?? ""
-                    color: templateUpdaterWindow.systemPalette.text
-                }
-
-                SelectableText {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: true
-
-                    text: "<b>Template layouts:</b>"
-                    color: templateUpdaterWindow.systemPalette.text
-                }
-                SelectableText {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: true
-
-                    text: selectedUpdaterItemDetails.selectedItem?.layout_categories.join(", ") ?? ""
-                    color: templateUpdaterWindow.systemPalette.text
-                }
-
-                SelectableText {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: true
-
-                    text: "<b>Template classes:</b>"
-                    color: templateUpdaterWindow.systemPalette.text
-                }
-                SelectableText {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.fillWidth: true
-
-                    text: selectedUpdaterItemDetails.selectedItem?.template_classes.join(", ") ?? ""
-                    color: templateUpdaterWindow.systemPalette.text
-                }
-
-                Item {
-                    Layout.fillHeight: true
-                }
+                ScrollBar.vertical: ScrollBar {}
             }
         }
     }

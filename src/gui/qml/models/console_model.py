@@ -48,7 +48,7 @@ class ConsoleModel(PydanticQListModel[LogEntry]):
     def __init__(
         self,
         parent: QObject | None = None,
-        items: list[LogEntry] = [],
+        items: list[LogEntry] | None = None,
         selected_index: int = 0,
     ) -> None:
         log_handler = CustomLogHandler(self._add_to_log, level=DEBUG)

@@ -101,7 +101,7 @@ class CustomLogHandler(Handler):
     def emit(self, record: LogRecord) -> None:
         try:
             self.on_log(self.format(record), MessageSeverity(record.levelno))
-        except Exception:
+        except Exception:  # noqa: BLE001
             self.handleError(record)
 
 

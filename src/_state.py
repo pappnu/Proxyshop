@@ -4,8 +4,7 @@
 
 import os
 import sys
-from contextlib import suppress
-from logging import INFO
+from logging import INFO, getLogger
 from pathlib import Path
 from threading import Lock
 from typing import TypedDict
@@ -13,7 +12,7 @@ from typing import TypedDict
 from hexproof.hexapi.schema.meta import Meta
 from omnitils.files import get_project_version
 from omnitils.properties import tracked_prop
-from pydantic import BaseModel, RootModel
+from pydantic import BaseModel, RootModel, ValidationError
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -26,6 +25,8 @@ from src.enums.mtg import CardFonts, mana_symbol_map
 from src.schema.colors import ColorObject, SymbolColorMap
 from src.utils.data_structures import parse_model
 from src.utils.mtg import get_symbol_colors
+
+_logger = getLogger(__name__)
 
 
 class HexproofSet(BaseModel):
@@ -117,6 +118,7 @@ class PATH(DefinedPaths):
     SRC_DATA_MANIFEST = SRC_DATA / "manifest.yml"
     SRC_DATA_HEXPROOF_SET = SRC_DATA_HEXPROOF / "set.json"
     SRC_DATA_HEXPROOF_META = SRC_DATA_HEXPROOF / "meta.json"
+    SRC_DATA_PREDEFINED_PLUGINS = SRC_DATA / "predefined_plugins.yml"
 
     # Test Data Files
     SRC_DATA_TEMPLATE_RENDER_TEST_CASES = SRC_DATA_TESTS / "template_renders.toml"
@@ -148,6 +150,9 @@ class PATH(DefinedPaths):
     # Generated user data files
     SRC_DATA_USER = SRC_DATA / "user.yml"
     SRC_DATA_VERSIONS = SRC_DATA / "versions.yml"
+    SRC_DATA_PLUGIN_VERSIONS = SRC_DATA / "plugin_versions.yml"
+    SRC_DATA_ADDED_PLUGINS = SRC_DATA / "added_plugins.yml"
+    SRC_DATA_PREVIOUS_UPDATE_CHECK = SRC_DATA / "previous_update_check.json"
 
 
 """
@@ -163,7 +168,7 @@ def _get_proj_version(path: Path) -> str:
         return str(__VERSION__.version)
     try:
         return get_project_version(path)
-    except Exception:
+    except Exception:  # noqa: BLE001
         return "0.0.0"
 
 
@@ -178,6 +183,7 @@ class AppEnvironment(BaseSettings):
     SYMBOL_UPDATES_REPO: str = ""
     FORCE_RELOAD: bool = False
     VERSION: str = _get_proj_version(PATH.PROJECT_FILE)
+    UPDATE_CHECK_INTERVAL: float = 2.0
 
     model_config = SettingsConfigDict(env_prefix="PROXYSHOP_")
 
@@ -230,14 +236,13 @@ class CustomUserDefinitions(BaseModel):
 class AppConstants:
     """Stores global constants that control app behavior."""
 
-    _changes: set[str] = set()
-
     # Thread locking handlers
     lock_decompress = Lock()
     lock_file_save = Lock()
 
     def __init__(self):
         """Load initial values."""
+        self._changes: set[str] = set()
         self.load_defaults()
 
     """
@@ -290,10 +295,14 @@ class AppConstants:
     @tracked_prop
     def watermarks(self) -> dict[str, WatermarkFormat]:
         """dict[str, dict]: Maps watermark names to defined formatting rules."""
-        with suppress():
+        try:
             # Ensure file exists
             if not PATH.SRC_DATA_WATERMARKS.is_file():
                 return parse_model(PATH.SRC_DATA_WATERMARKS, WatermarkFormats).root
+        except OSError, ValidationError:
+            pass
+        except Exception:
+            _logger.exception("Failed to get watermark mapping")
         return {}
 
     """
@@ -416,8 +425,11 @@ class AppConstants:
             return HexproofSets.model_validate_json(
                 PATH.SRC_DATA_HEXPROOF_SET.read_bytes()
             ).root
+        except OSError, ValidationError:
+            pass
         except Exception:
-            return {}
+            _logger.exception("Failed to load data from Hexproof set file")
+        return {}
 
     def get_meta_data(self) -> dict[str, Meta]:
         """Loaded data from the 'meta' data file."""
@@ -428,5 +440,8 @@ class AppConstants:
             return HexproofMetas.model_validate_json(
                 PATH.SRC_DATA_HEXPROOF_META.read_bytes()
             ).root
+        except OSError, ValidationError:
+            pass
         except Exception:
-            return {}
+            _logger.exception("Failed to load data from Hexproof meta file")
+        return {}

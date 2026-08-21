@@ -90,11 +90,9 @@ class TransformMod(BaseTemplate):
 
     def enable_transform_layers_front(self) -> None:
         """Enables layers that are required by front face transform cards."""
-        pass
 
     def enable_transform_layers_back(self) -> None:
         """Enables layers that are required by back face transform cards."""
-        pass
 
     """
     * Transform Text Layer Methods
@@ -249,4 +247,3 @@ class TransformTemplate(TransformMod, NormalTemplate):
 class IxalanTemplate(IxalanMod, NormalTemplate):
     """Template for the back face lands for transforming cards from Ixalan block."""
 
-    pass

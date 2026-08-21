@@ -46,7 +46,7 @@ def merge_shapes(*args: ArtLayer, operation: ShapeOperation) -> ArtLayer:
     batch_play(desc, comb_desc)
     active_layer = APP.instance.activeDocument.activeLayer
     if not isinstance(active_layer, ArtLayer):
-        raise ValueError(
+        raise TypeError(
             "Failed to merge shapes. Active layer is unexpectedly not an ArtLayer."
         )
     return active_layer

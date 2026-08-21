@@ -1,10 +1,11 @@
 from _ctypes import COMError
-from asyncio import EventLoop, Future, Task, run
+from asyncio import Future, Task
 from logging import getLogger
-from threading import Lock, Thread
+from threading import Lock
 from typing import TypedDict
 
 from src.render.setup import RenderOperation
+from src.utils.asynchronic import run_in_thread
 from src.utils.data_structures import find_last_index
 from src.utils.event import SubscribableEvent
 
@@ -151,15 +152,7 @@ class RenderQueue:
                 finally:
                     self._render_lock.release()
 
-        def target():
-            # Using asyncio.run without a factory starts another Qt loop, since
-            # Qt sets the global loop policy to it's own implementation.
-            # Starting another Qt loop fails, because the loop also tries to
-            # exec another Qt application. As a workaround, we have to specifically
-            # create an instance of the default non-Qt event loop.
-            run(loop_render(), loop_factory=EventLoop)
-
-        Thread(target=target).start()
+        run_in_thread(loop_render())
 
 
 def cancel_with_render[T](

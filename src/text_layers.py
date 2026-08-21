@@ -265,11 +265,9 @@ class TextField:
                 (CardTextPatterns.TEXT_WORD_END_K, "\ue00a"),
             ):
 
-                def replacer(match: Match[str]) -> str:
+                def replacer(match: Match[str], replacem: str = replacement) -> str:
                     after_char = match.group(1)
-                    return (
-                        replacement + after_char if isinstance(after_char, str) else ""
-                    )
+                    return replacem + after_char if isinstance(after_char, str) else ""
 
                 self.input = pattern.sub(replacer, self.input)
 
@@ -386,11 +384,7 @@ class FormattedTextField(TextField):
             # Don't italicize text between asterisk
             flavor_text_split = self.flavor_text.split("*")
             italic_text.extend(
-                [
-                    v
-                    for i, v in enumerate(flavor_text_split)
-                    if not i % 2 and not v == ""
-                ]
+                [v for i, v in enumerate(flavor_text_split) if not i % 2 and v != ""]
             )
             self.flavor_text = "".join(flavor_text_split)
         elif self.flavor_text:

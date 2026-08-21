@@ -139,10 +139,7 @@ def copy_directory(
         for name in names:
             # Ignore certain names and extensions
             p = Path(path, name)
-            if name in x_files or p.suffix in x_ext:
-                ignored.append(name)
-            # Ignore certain directories
-            elif (name in x_dirs or not recursive) and p.is_dir():
+            if name in x_files or p.suffix in x_ext or (name in x_dirs or not recursive) and p.is_dir():
                 ignored.append(name)
         return set(ignored)
 
@@ -156,19 +153,19 @@ def copy_app_files(config: DistConfig) -> None:
     Args:
         config: Config data from 'dist.yml'.
     """
-    for _, DIR in config.get("copy", {}).items():
+    for dir in config.get("copy", {}).values():
         # Copy directories
-        for path in DIR.get("paths", []):
+        for path in dir.get("paths", []):
             copy_directory(
                 src=Path(SRC, *path),
                 dst=Path(DST, *path),
-                x_files=DIR.get("exclude_files", []),
-                x_dirs=DIR.get("exclude_dirs", []),
-                x_ext=DIR.get("exclude_ext", []),
-                recursive=bool(DIR.get("recursive", True)),
+                x_files=dir.get("exclude_files", []),
+                x_dirs=dir.get("exclude_dirs", []),
+                x_ext=dir.get("exclude_ext", []),
+                recursive=bool(dir.get("recursive", True)),
             )
         # Copy files
-        for file in DIR.get("files", []):
+        for file in dir.get("files", []):
             copy2(src=Path(SRC, *file), dst=Path(DST, *file))
 
 
@@ -186,7 +183,7 @@ def clear_build_files(clear_dist: bool = True) -> None:
     # Run pyclean on main directory and venv
     run(("pyclean", "-v", "."), check=True)
     if (SRC / ".venv").is_dir():
-        run(("pyclean", "-v", ".venv"))
+        run(("pyclean", "-v", ".venv"), check=True)
 
     # Remove build directory
     with suppress(Exception):

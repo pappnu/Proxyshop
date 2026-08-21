@@ -77,4 +77,4 @@ def get_symbol_colors(
         return [color_map.colorless, color_map.primary]
 
     # Nothing matching found!
-    raise Exception(f"Encountered a symbol that I don't know how to color: {symbol}")
+    raise ValueError(f"Encountered a symbol that I don't know how to color: {symbol}")

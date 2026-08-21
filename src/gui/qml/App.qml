@@ -17,10 +17,10 @@ ApplicationWindow {
     width: 800
     height: 640
     visible: true
-    color: systemPalette.window
+    color: appSystemPalette.window
 
     SystemPalette {
-        id: systemPalette
+        id: appSystemPalette
     }
 
     FontLoader {
@@ -79,11 +79,6 @@ ApplicationWindow {
         templateUpdaterModel.save_versions();
     }
 
-    DelegateModel {
-        id: templateListDelegateModel
-        model: templateListModel
-    }
-
     function updateRenderQueueSize() {
         const rCount = renderOperationsModel.rowCount();
         if (rCount != renderOperationsConnections.renderQueueSize)
@@ -127,13 +122,13 @@ ApplicationWindow {
             topPadding: 7
             bottomPadding: 7
             background: Rectangle {
-                color: menuBarItem.down || menuBarItem.highlighted ? systemPalette.text : "transparent"
+                color: menuBarItem.down || menuBarItem.highlighted ? appSystemPalette.text : "transparent"
                 opacity: menuBarItem.down ? 0.1 : 0.05
             }
         }
 
         CustomMenu {
-            systemPalette: systemPalette
+            systemPalette: appSystemPalette
             title: "File"
 
             Action {
@@ -159,7 +154,7 @@ ApplicationWindow {
             }
         }
         CustomMenu {
-            systemPalette: systemPalette
+            systemPalette: appSystemPalette
             title: "Tools"
 
             Action {
@@ -194,7 +189,7 @@ ApplicationWindow {
             }
         }
         CustomMenu {
-            systemPalette: systemPalette
+            systemPalette: appSystemPalette
             title: "Tests"
             implicitWidth: 270
 
@@ -210,7 +205,7 @@ ApplicationWindow {
             CustomMenu {
                 id: testAllLayoutsSubMenu
 
-                systemPalette: systemPalette
+                systemPalette: appSystemPalette
                 title: "Test all with layout"
 
                 Instantiator {
@@ -220,7 +215,7 @@ ApplicationWindow {
                         required property int index
                         required property string modelData
 
-                        systemPalette: systemPalette
+                        systemPalette: appSystemPalette
                         text: modelData
                         onTriggered: testRendersModel.test_all(modelData, false)
                     }
@@ -232,7 +227,7 @@ ApplicationWindow {
             CustomMenu {
                 id: quickTestAllLayoutsSubMenu
 
-                systemPalette: systemPalette
+                systemPalette: appSystemPalette
                 title: "Quick test all with layout"
 
                 Instantiator {
@@ -242,7 +237,7 @@ ApplicationWindow {
                         required property int index
                         required property string modelData
 
-                        systemPalette: systemPalette
+                        systemPalette: appSystemPalette
                         text: modelData
                         onTriggered: testRendersModel.test_all(modelData, true)
                     }
@@ -254,7 +249,7 @@ ApplicationWindow {
             CustomMenu {
                 id: testAllWithSpecificTestCaseSubMenu
 
-                systemPalette: systemPalette
+                systemPalette: appSystemPalette
                 title: "Test all with test case"
 
                 Instantiator {
@@ -266,7 +261,7 @@ ApplicationWindow {
                         required property int index
                         required property string modelData
 
-                        systemPalette: systemPalette
+                        systemPalette: appSystemPalette
                         title: modelData
 
                         Instantiator {
@@ -276,7 +271,7 @@ ApplicationWindow {
                                 required property int index
                                 required property string modelData
 
-                                systemPalette: systemPalette
+                                systemPalette: appSystemPalette
                                 text: modelData
                                 onTriggered: testRendersModel.test_all(testAllWithSpecificLayoutTestCaseSubMenu.modelData, false, modelData)
                             }
@@ -305,7 +300,7 @@ ApplicationWindow {
             CustomMenu {
                 id: selectedTemplateLayoutsSubMenu
 
-                systemPalette: systemPalette
+                systemPalette: appSystemPalette
                 title: "Test selected template(s) with layout"
 
                 Instantiator {
@@ -315,7 +310,7 @@ ApplicationWindow {
                         required property int index
                         required property string modelData
 
-                        systemPalette: systemPalette
+                        systemPalette: appSystemPalette
                         text: modelData
                         onTriggered: appWindow.currentRenderingModel.test_render(modelData, false)
                     }
@@ -327,7 +322,7 @@ ApplicationWindow {
             CustomMenu {
                 id: selectedTemplateQuickLayoutsSubMenu
 
-                systemPalette: systemPalette
+                systemPalette: appSystemPalette
                 title: "Quick test selected template(s) with layout"
 
                 Instantiator {
@@ -337,7 +332,7 @@ ApplicationWindow {
                         required property int index
                         required property string modelData
 
-                        systemPalette: systemPalette
+                        systemPalette: appSystemPalette
                         text: modelData
                         onTriggered: appWindow.currentRenderingModel.test_render(modelData, true)
                     }
@@ -349,7 +344,7 @@ ApplicationWindow {
             CustomMenu {
                 id: selectedTemplateSpecificTestCaseSubMenu
 
-                systemPalette: systemPalette
+                systemPalette: appSystemPalette
                 title: "Test selected template(s) with test case"
 
                 Instantiator {
@@ -361,7 +356,7 @@ ApplicationWindow {
                         required property int index
                         required property string modelData
 
-                        systemPalette: systemPalette
+                        systemPalette: appSystemPalette
                         title: modelData
 
                         Instantiator {
@@ -371,7 +366,7 @@ ApplicationWindow {
                                 required property int index
                                 required property string modelData
 
-                                systemPalette: systemPalette
+                                systemPalette: appSystemPalette
                                 text: modelData
                                 onTriggered: appWindow.currentRenderingModel.test_render(selectedTemplateSpecificLayoutTestCaseSubMenu.modelData, false, modelData)
                             }
@@ -388,7 +383,7 @@ ApplicationWindow {
         }
 
         CustomMenu {
-            systemPalette: systemPalette
+            systemPalette: appSystemPalette
             title: "Help"
 
             Action {
@@ -409,21 +404,90 @@ ApplicationWindow {
             parent: menuBar
             anchors.right: parent.right
 
-            CustomButton {
-                systemPalette: systemPalette
-                text: `<font face="${emojiFontLoader.name}">⬇️</font> Updater`
-                onClicked: {
-                    if (templateUpdaterLoader.active) {
-                        templateUpdaterLoader.item?.show();
-                    } else {
-                        templateUpdaterLoader.active = true;
+            Item {
+                width: childrenRect.width
+                height: childrenRect.height
+
+                Rectangle {
+                    id: pluginUpdateDot
+
+                    anchors.right: pluginsButton.right
+                    anchors.top: pluginsButton.top
+                    anchors.topMargin: 4
+
+                    width: 8
+                    height: 8
+                    radius: width / 2
+                    color: appSystemPalette.accent
+                    visible: false
+                }
+                CustomButton {
+                    id: pluginsButton
+
+                    systemPalette: appSystemPalette
+                    text: `<font face="${emojiFontLoader.name}">🔌</font> Plugins`
+                    onClicked: {
+                        pluginUpdateDot.visible = false;
+                        if (pluginUpdaterLoader.active) {
+                            pluginUpdaterLoader.item?.show();
+                        } else {
+                            pluginUpdaterLoader.active = true;
+                        }
+                    }
+                }
+
+                Connections {
+                    target: pluginUpdaterModel
+                    function onUpdateAvailable() {
+                        if (!pluginUpdaterLoader.item?.visible)
+                            pluginUpdateDot.visible = true;
+                    }
+                }
+            }
+            Item {
+                width: childrenRect.width
+                height: childrenRect.height
+
+                Rectangle {
+                    id: templateUpdateDot
+
+                    anchors.right: updaterButton.right
+                    anchors.top: updaterButton.top
+                    anchors.topMargin: 4
+
+                    width: 8
+                    height: 8
+                    radius: width / 2
+                    color: appSystemPalette.accent
+                    visible: false
+                }
+                CustomButton {
+                    id: updaterButton
+
+                    systemPalette: appSystemPalette
+                    text: `<font face="${emojiFontLoader.name}">⬇️</font> Updater`
+                    onClicked: {
+                        templateUpdateDot.visible = false;
+                        if (templateUpdaterLoader.active) {
+                            templateUpdaterLoader.item?.show();
+                        } else {
+                            templateUpdaterLoader.active = true;
+                        }
+                    }
+                }
+
+                Connections {
+                    target: templateUpdaterModel
+                    function onUpdateAvailable() {
+                        if (!templateUpdaterLoader.item?.visible)
+                            templateUpdateDot.visible = true;
                     }
                 }
             }
             CustomButton {
                 id: settingsButton
 
-                systemPalette: systemPalette
+                systemPalette: appSystemPalette
                 text: `<font face="${emojiFontLoader.name}">⚙️</font> Settings`
                 onClicked: openSettings()
 
@@ -471,7 +535,7 @@ ApplicationWindow {
 
         Component.onCompleted: {
             setSource("views/SettingsWindow.qml", {
-                systemPalette: systemPalette,
+                systemPalette: appSystemPalette,
                 pathModel: filePathModel,
                 emojiFontName: emojiFontLoader.name,
                 settingsTreeModel: settingsTreeModel,
@@ -489,8 +553,25 @@ ApplicationWindow {
 
         Component.onCompleted: {
             setSource("views/TemplateUpdater.qml", {
-                systemPalette: systemPalette,
+                systemPalette: appSystemPalette,
                 updaterModel: templateUpdaterModel,
+                pathModel: filePathModel
+            });
+        }
+    }
+
+    Loader {
+        id: pluginUpdaterLoader
+
+        active: false
+        asynchronous: true
+        onLoaded: item.show()
+
+        Component.onCompleted: {
+            setSource("views/PluginUpdater.qml", {
+                systemPalette: appSystemPalette,
+                emojiFontName: emojiFontLoader.name,
+                updaterModel: pluginUpdaterModel,
                 pathModel: filePathModel
             });
         }
@@ -505,7 +586,7 @@ ApplicationWindow {
 
         Component.onCompleted: {
             setSource("views/RenderQueue.qml", {
-                systemPalette: systemPalette,
+                systemPalette: appSystemPalette,
                 emojiFontName: emojiFontLoader.name,
                 queueModel: renderOperationsModel,
                 pathModel: filePathModel
@@ -522,7 +603,7 @@ ApplicationWindow {
 
         Component.onCompleted: {
             setSource("tools/ImageTransformWindow.qml", {
-                systemPalette: systemPalette,
+                systemPalette: appSystemPalette,
                 transformModel: imageTransformModel
             });
         }
@@ -564,18 +645,18 @@ ApplicationWindow {
             width: parent.width
             implicitHeight: 30
             spacing: 0
-            palette.window: systemPalette.mid
-            palette.dark: systemPalette.mid
-            palette.mid: systemPalette.midlight
+            palette.window: appSystemPalette.mid
+            palette.dark: appSystemPalette.mid
+            palette.mid: appSystemPalette.midlight
 
             CustomTabButton {
-                systemPalette: systemPalette
+                systemPalette: appSystemPalette
                 text: "Templates"
                 implicitHeight: viewTabBar.implicitHeight
                 background.implicitHeight: viewTabBar.implicitHeight
             }
             CustomTabButton {
-                systemPalette: systemPalette
+                systemPalette: appSystemPalette
                 text: "Batch mode"
                 implicitHeight: viewTabBar.implicitHeight
                 background.implicitHeight: viewTabBar.implicitHeight
@@ -588,7 +669,7 @@ ApplicationWindow {
                 spacing: 0
 
                 CustomButton {
-                    systemPalette: systemPalette
+                    systemPalette: appSystemPalette
                     implicitHeight: viewTabBar.implicitHeight
                     text: `<font face="${emojiFontLoader.name}">⏩</font> Queue (${renderOperationsConnections.renderQueueSize})`
                     onClicked: {
@@ -600,7 +681,7 @@ ApplicationWindow {
                     }
                 }
                 CustomButton {
-                    systemPalette: systemPalette
+                    systemPalette: appSystemPalette
                     implicitHeight: viewTabBar.implicitHeight
                     text: renderOperationsModel.is_rendering ? `<font face="${emojiFontLoader.name}">🚫</font> Cancel` : `<font face="${emojiFontLoader.name}">⏯️</font> Resume`
                     enabled: renderOperationsConnections.renderQueueSize || renderOperationsModel.is_rendering
@@ -609,7 +690,7 @@ ApplicationWindow {
                 CustomButton {
                     id: renderButton
 
-                    systemPalette: systemPalette
+                    systemPalette: appSystemPalette
                     implicitHeight: viewTabBar.implicitHeight
                     text: `<font face="${emojiFontLoader.name}">▶️</font> Render`
                     onClicked: appWindow.currentRenderingModel.render_selections()
@@ -632,7 +713,7 @@ ApplicationWindow {
                 currentIndex: viewTabBar.currentIndex
 
                 Rectangle {
-                    color: systemPalette.window
+                    color: appSystemPalette.window
                     Layout.fillHeight: true
                     Layout.fillWidth: true
 
@@ -646,18 +727,16 @@ ApplicationWindow {
                             SplitView.fillWidth: true
                             SplitView.fillHeight: true
 
-                            systemPalette: systemPalette
+                            systemPalette: appSystemPalette
                             templateListMdl: templateListModel
-                            templateListDelegateMdl: templateListDelegateModel
                             openSettings: settingsButton.openSettings
                         }
                         TemplateDetails {
                             SplitView.minimumWidth: 100
                             SplitView.preferredWidth: 200
 
-                            systemPalette: systemPalette
+                            systemPalette: appSystemPalette
                             templateListMdl: templateListModel
-                            templateListDelegateMdl: templateListDelegateModel
                             pathModel: filePathModel
                         }
                     }
@@ -666,7 +745,7 @@ ApplicationWindow {
                     Layout.fillHeight: true
                     Layout.fillWidth: true
 
-                    systemPalette: systemPalette
+                    systemPalette: appSystemPalette
                     batchModel: batchRenderModel
                     pathModel: filePathModel
                 }
@@ -675,7 +754,7 @@ ApplicationWindow {
                 SplitView.preferredHeight: 200
                 SplitView.fillWidth: true
 
-                systemPalette: systemPalette
+                systemPalette: appSystemPalette
                 logModel: consoleModel
                 pathModel: filePathModel
                 emojiFontFamily: emojiFontLoader.name

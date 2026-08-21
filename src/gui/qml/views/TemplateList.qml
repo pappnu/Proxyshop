@@ -3,6 +3,7 @@ import QtQml
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQml.Models
 
 import qml.components
 
@@ -11,15 +12,40 @@ ListView {
 
     required property SystemPalette systemPalette
     required property AbstractListModel templateListMdl
-    required property DelegateModel templateListDelegateMdl
     required property var openSettings
+
+    SortFilterProxyModel {
+        id: sfProxyModel
+        model: templateList.templateListMdl
+        sorters: [
+            RoleSorter {
+                roleName: "is_installed"
+                sortOrder: Qt.DescendingOrder
+            },
+            StringSorter {
+                roleName: "plugin"
+            },
+            StringSorter {
+                roleName: "name"
+            }
+        ]
+    }
+
+    DelegateModel {
+        id: templateListDelegateModel
+        model: sfProxyModel
+    }
+
+    function getVisualModelIndex(idx: int): int {
+        return sfProxyModel.mapFromSource(templateListMdl.index(idx, 0)).row;
+    }
 
     Timer {
         id: initTimer
         interval: 50
         running: false
         repeat: false
-        onTriggered: templateList.positionViewAtIndex(templateListMdl.selected_index, ListView.Center)
+        onTriggered: templateList.positionViewAtIndex(templateList.getVisualModelIndex(templateList.templateListMdl.selected_index), ListView.Center)
     }
 
     Component.onCompleted: {
@@ -42,17 +68,19 @@ ListView {
         y: templateList.currentItem?.y ?? 0
     }
     highlightFollowsCurrentItem: false
-    currentIndex: templateListMdl.selected_index
-    model: templateListDelegateMdl
+    currentIndex: templateList.getVisualModelIndex(templateList.templateListMdl.selected_index)
+    model: templateListDelegateModel
     delegate: CustomItemDelegate {
         id: templateListDelegate
 
         required property int index
         required property string name
         required property string plugin
+        required property string plugin_id
         required property bool is_installed
         required property bool has_config
         required property list<string> card_layouts
+        readonly property int sourceIndex: sfProxyModel.mapToSource(sfProxyModel.index(index, 0)).row
 
         systemPalette: templateList.systemPalette
         width: templateList.width
@@ -60,7 +88,7 @@ ListView {
         highlighted: false
 
         onClicked: {
-            templateList.templateListMdl.selected_index = index;
+            templateList.templateListMdl.selected_index = sourceIndex;
         }
 
         contentItem: RowLayout {
@@ -95,13 +123,13 @@ ListView {
                 systemPalette: templateList.systemPalette
                 implicitWidth: 32
                 text: "⚙️"
-                onClicked: templateList.openSettings(templateListDelegate.name, undefined, templateListDelegate.plugin)
+                onClicked: templateList.openSettings(templateListDelegate.name, undefined, templateListDelegate.plugin_id)
             }
             CustomButton {
                 systemPalette: templateList.systemPalette
                 implicitWidth: 32
                 text: templateListDelegate.has_config ? "🧹" : ""
-                onClicked: templateList.templateListMdl.clear_settings(templateListDelegate.index)
+                onClicked: templateList.templateListMdl.clear_settings(templateListDelegate.sourceIndex)
                 enabled: templateListDelegate.has_config
             }
         }

@@ -11,9 +11,20 @@ Rectangle {
 
     required property SystemPalette systemPalette
     required property AbstractListModel templateListMdl
-    required property DelegateModel templateListDelegateMdl
     required property QtObject pathModel
-    property var model: templateListDelegateMdl.items.count ? templateListDelegateMdl.items.get(templateListMdl.selected_index).model : undefined
+    property var model: templateListDelegateModel.items.count ? templateListDelegateModel.items.get(templateListMdl.selected_index).model : undefined
+
+    DelegateModel {
+        id: templateListDelegateModel
+        model: templateDetails.templateListMdl
+    }
+
+    Connections {
+        target: templateDetails.templateListMdl
+        function onSelectedIndexChanged() {
+            templateDetails.model = templateListDelegateModel.items.count ? templateListDelegateModel.items.get(templateDetails.templateListMdl.selected_index).model : undefined;
+        }
+    }
 
     Settings {
         id: settings

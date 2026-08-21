@@ -171,6 +171,9 @@ node_modules/
 /src/data/user.yml
 # User specific version tracker
 /src/data/versions.yml
+/src/data/plugin_versions.yml
+/src/data/added_plugins.yml
+/src/data/previous_update_check.json
 # User defined environment
 /src/data/env.yml
 # User preferences

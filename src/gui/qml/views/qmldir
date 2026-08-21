@@ -6,3 +6,4 @@ Console Console.qml
 RenderQueue RenderQueue.qml
 SettingsWindow SettingsWindow.qml
 TemplateUpdater TemplateUpdater.qml
+PluginUpdater PluginUpdater.qml

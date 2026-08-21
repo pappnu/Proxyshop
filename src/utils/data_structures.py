@@ -10,6 +10,10 @@ def first[T](iterable: Iterable[T]) -> T:
     return next(iter(iterable))
 
 
+def get_item[T](sequence: Sequence[T], idx: int) -> T | None:
+    return sequence[idx] if -1 < idx < len(sequence) else None
+
+
 def find_item[T](iterable: Iterable[T], condition: Callable[[T], bool]) -> T | None:
     for item in iterable:
         if condition(item):
@@ -34,15 +38,14 @@ def find_last_index[T](sequence: Sequence[T], condition: Callable[[T], bool]) ->
 def parse_model[T: BaseModel](path: Path, model: type[T]) -> T:
     if path.suffix == ".json":
         return model.model_validate_json(path.read_bytes())
-    else:
-        if path.suffix == ".toml":
-            with open(path, "rb") as f:
-                data = tomllib.load(f)
-            return model.model_validate(data)
-        if path.suffix in (".yaml", ".yml"):
-            with open(path, "rb") as f:
-                data = yaml.safe_load(f)
-            return model.model_validate(data)
+    elif path.suffix == ".toml":
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+        return model.model_validate(data)
+    elif path.suffix in (".yaml", ".yml"):
+        with open(path, "rb") as f:
+            data = yaml.safe_load(f)
+        return model.model_validate(data)
     raise NotImplementedError(
         f"{
             model
@@ -52,5 +55,13 @@ def parse_model[T: BaseModel](path: Path, model: type[T]) -> T:
 
 def dump_model(path: Path, model: BaseModel) -> None:
     with open(path, "w", encoding="utf-8") as f:
-        if path.suffix in (".yaml", ".yml"):
+        if path.suffix == ".json":
+            f.write(model.model_dump_json())
+        elif path.suffix in (".yaml", ".yml"):
             yaml.dump(model.model_dump(), stream=f)
+        else:
+            raise NotImplementedError(
+                f"{
+                    type(model)
+                } can be dumped only to .json, .yaml and .yml files. Got path: {path}"
+            )

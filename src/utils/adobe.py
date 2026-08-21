@@ -6,8 +6,8 @@ from _ctypes import ArgumentError, COMError
 from collections.abc import Callable
 from contextlib import suppress
 from ctypes import c_uint32
-from functools import cache, cached_property
-from typing import TypedDict
+from functools import cached_property, wraps
+from typing import Self, TypedDict
 
 from packaging.version import parse
 from photoshop.api import (
@@ -55,6 +55,42 @@ PS_EXCEPTIONS = (
     TypeError,
     OSError,
 )
+
+_CHAR_ID_TO_TYPE_ID_CACHE: dict[tuple[object, ...], int] = {}
+_TYPE_ID_TO_CHAR_ID_CACHE: dict[tuple[object, ...], str] = {}
+_STRING_ID_TO_TYPE_ID_CACHE: dict[tuple[object, ...], int] = {}
+_TYPE_ID_TO_STRING_ID_CACHE: dict[tuple[object, ...], str] = {}
+_CHAR_ID_TO_STRING_ID_CACHE: dict[tuple[object, ...], str] = {}
+_STRING_ID_TO_CHAR_ID_CACHE: dict[tuple[object, ...], str] = {}
+_SCALE_BY_DPI_CACHE: dict[tuple[object, ...], int] = {}
+
+
+def _cache_result[**P, T](
+    result_cache: dict[tuple[object, ...], T],
+    key_func: Callable[..., tuple[object, ...]] | None = None,
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    """Cache a method result without retaining the method's instance."""
+
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
+        @wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            key = (
+                key_func(*args, **kwargs)
+                if key_func
+                else (args[1:], *sorted(kwargs.items()))
+            )
+            if key not in result_cache:
+                result_cache[key] = func(*args, **kwargs)
+            return result_cache[key]
+
+        return wrapper
+
+    return decorator
+
+
+def _scale_by_dpi_cache_key(handler: Application, value: float) -> tuple[object, ...]:
+    return (handler.activeDocument.width, value)
+
 
 PS_ERROR_CODES: dict[int, str] = {
     # --> COMError Messages that contain a message string
@@ -156,7 +192,7 @@ class PhotoshopHandler(ApplicationHandler):
             )
         return self._window_handle
 
-    def __new__(cls, env: AppEnvironment | None = None) -> PhotoshopHandler:
+    def __new__(cls, env: AppEnvironment | None = None) -> Self:
         """Always return the same Photoshop Application instance on successive calls.
 
         Args:
@@ -179,7 +215,7 @@ class PhotoshopHandler(ApplicationHandler):
     * Managing the application object
     """
 
-    def refresh_app(self):
+    def refresh_app(self) -> OSError | None:
         """Replace the existing Photoshop Application instance with a new one."""
         if not self.is_running():
             try:
@@ -187,7 +223,7 @@ class PhotoshopHandler(ApplicationHandler):
                 super().__init__(env=self._env)
                 self.preferences.rulerUnits = Units.Pixels
                 self.preferences.typeUnits = TypeUnits.TypePoints
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 # Photoshop is either busy or unresponsive
                 return OSError(get_photoshop_error_message(e))
 
@@ -215,7 +251,7 @@ class PhotoshopHandler(ApplicationHandler):
     * Action Descriptor ID Conversions
     """
 
-    @cache
+    @_cache_result(_CHAR_ID_TO_TYPE_ID_CACHE)
     def charIDToTypeID(self, index: str) -> int:  # pyright: ignore[reportIncompatibleMethodOverride]
         """Caching handler for charIDToTypeID.
 
@@ -231,7 +267,7 @@ class PhotoshopHandler(ApplicationHandler):
         """Shorthand redirect for charIDToTypeID."""
         return self.charIDToTypeID(index)
 
-    @cache
+    @_cache_result(_TYPE_ID_TO_CHAR_ID_CACHE)
     def typeIDToCharID(self, index: int) -> str:  # pyright: ignore[reportIncompatibleMethodOverride]
         """Caching handler for typeIDToCharID.
 
@@ -243,15 +279,11 @@ class PhotoshopHandler(ApplicationHandler):
         """
         return super().typeIDToCharID(index)
 
-    def t2c(self, index: int) -> str:
-        """Shorthand redirect for typeIDToCharID."""
-        return self.typeIDToCharID(index)
-
     """
     * String ID Conversions
     """
 
-    @cache
+    @_cache_result(_STRING_ID_TO_TYPE_ID_CACHE)
     def stringIDToTypeID(self, index: str) -> int:  # pyright: ignore[reportIncompatibleMethodOverride]
         """Caching handler for stringIDToTypeID.
 
@@ -267,7 +299,7 @@ class PhotoshopHandler(ApplicationHandler):
         """Shorthand redirect for stringIDToTypeID."""
         return self.stringIDToTypeID(index)
 
-    @cache
+    @_cache_result(_TYPE_ID_TO_STRING_ID_CACHE)
     def typeIDToStringID(self, index: int) -> str:  # pyright: ignore[reportIncompatibleMethodOverride]
         """Caching handler for typeIDToStringID.
 
@@ -279,16 +311,12 @@ class PhotoshopHandler(ApplicationHandler):
         """
         return super().typeIDToStringID(index)
 
-    def t2s(self, index: int) -> str:
-        """Shorthand redirect for typeIDToStringID."""
-        return self.typeIDToStringID(index)
-
     """
     * String / Char ID Conversions
     """
 
-    @cache
-    def charIDToStringID(self, index: int) -> str:
+    @_cache_result(_CHAR_ID_TO_STRING_ID_CACHE)
+    def charIDToStringID(self, index: str) -> str:
         """Converts a Char ID to a String ID.
 
         Args:
@@ -299,8 +327,8 @@ class PhotoshopHandler(ApplicationHandler):
         """
         return self.typeIDToStringID(self.charIDToTypeID(index))
 
-    @cache
-    def stringIDToCharID(self, index: int) -> str:
+    @_cache_result(_STRING_ID_TO_CHAR_ID_CACHE)
+    def stringIDToCharID(self, index: str) -> str:
         """Converts a String ID to a Char ID.
 
         Args:
@@ -367,16 +395,14 @@ class PhotoshopHandler(ApplicationHandler):
         Args:
             value: Minimum version string required.
         """
-        if parse(self.version) >= parse(value):
-            return True
-        return False
+        return parse(self.version) >= parse(value)
 
     """
     * Dimensions
     """
 
-    @cache
-    def scale_by_dpi(self, value: int | float) -> int:
+    @_cache_result(_SCALE_BY_DPI_CACHE, _scale_by_dpi_cache_key)
+    def scale_by_dpi(self, value: float) -> int:
         """Scales a value by comparing document DPI to ideal DPI.
 
         Args:
@@ -411,22 +437,6 @@ class ReferenceLayer(ArtLayer):
         return ReferenceLayer(super().duplicate(relativeObject, insertionLocation))
 
     """
-    * Cached Conversions
-    """
-
-    @cache
-    def sID(self, index: str) -> int:
-        """Caching handler for stringIDToTypeID on the global application object.
-
-        Args:
-            index: String ID to convert to Type ID.
-
-        Returns:
-            Type ID converted from string ID.
-        """
-        return self._global_app.stringIDToTypeID(index)
-
-    """
     * Layer Properties
     """
 
@@ -443,7 +453,7 @@ class ReferenceLayer(ArtLayer):
             Action descriptor info object about the layer.
         """
         ref = ActionReference()
-        ref.putIdentifier(self.sID("layer"), self.id)
+        ref.putIdentifier(self._global_app.sID("layer"), self.id)
         return self._global_app.executeActionGet(ref)
 
     """
@@ -462,15 +472,15 @@ class ReferenceLayer(ArtLayer):
             d = self.action_getter
             try:
                 # Try getting bounds no effects
-                bounds = d.getObjectValue(self.sID("boundsNoEffects"))
+                bounds = d.getObjectValue(self._global_app.sID("boundsNoEffects"))
             except PS_EXCEPTIONS:
                 # Try getting bounds
-                bounds = d.getObjectValue(self.sID("bounds"))
+                bounds = d.getObjectValue(self._global_app.sID("bounds"))
             return (
-                bounds.getInteger(self.sID("left")),
-                bounds.getInteger(self.sID("top")),
-                bounds.getInteger(self.sID("right")),
-                bounds.getInteger(self.sID("bottom")),
+                bounds.getInteger(self._global_app.sID("left")),
+                bounds.getInteger(self._global_app.sID("top")),
+                bounds.getInteger(self._global_app.sID("right")),
+                bounds.getInteger(self._global_app.sID("bottom")),
             )
         # Fallback to layer object bounds property
         return self.bounds
@@ -591,10 +601,10 @@ def get_com_error(signed_int: int) -> str:
     """
     try:
         err = FormatMessage(signed_int)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         try:
             unsigned_int = c_uint32(signed_int).value
             err = FormatMessage(unsigned_int) or e.args[2]
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             err = e.args[2]
     return err

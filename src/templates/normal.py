@@ -143,9 +143,8 @@ class StargazingTemplate(FullartTemplate):
     @cached_property
     def pt_layer(self) -> ArtLayer | None:
         # Use darker PT boxes except for Vehicle
-        if self.is_vehicle:
-            if layer := psd.getLayer(LAYERS.VEHICLE, LAYERS.PT_BOX):
-                return layer
+        if self.is_vehicle and (layer := psd.getLayer(LAYERS.VEHICLE, LAYERS.PT_BOX)):
+            return layer
         return psd.getLayer(self.twins, LAYERS.PT_BOX + " Dark")
 
     """
@@ -992,7 +991,6 @@ class ClassicRemasteredTemplate(VectorTransformMod, VectorTemplate):
 
     def enable_hollow_crown(self) -> None:
         """No hollow crown."""
-        pass
 
     """
     * Transform Methods
@@ -1000,11 +998,9 @@ class ClassicRemasteredTemplate(VectorTransformMod, VectorTemplate):
 
     def enable_transform_layers(self) -> None:
         """No Transform layers."""
-        pass
 
     def text_layers_transform_back(self) -> None:
         """No back-side text changes."""
-        pass
 
 
 class UniversesBeyondTemplate(VectorTransformMod, VectorTemplate):
@@ -2106,13 +2102,15 @@ class BorderlessVectorTemplate(
             ),
         ]
 
-    """Maps watermark bevel size to textbox size."""
-    watermark_bevel_map: dict[str, int] = {
-        BorderlessTextbox.Short: 20,
-        BorderlessTextbox.Medium: 22,
-        BorderlessTextbox.Normal: 25,
-        BorderlessTextbox.Tall: 28,
-    }
+    @cached_property
+    def watermark_bevel_map(self) -> dict[str, int]:
+        """Maps watermark bevel size to textbox size."""
+        return {
+            BorderlessTextbox.Short: 20,
+            BorderlessTextbox.Medium: 22,
+            BorderlessTextbox.Normal: 25,
+            BorderlessTextbox.Tall: 28,
+        }
 
     """
     * Frame Layer Methods
@@ -2338,7 +2336,6 @@ class BorderlessVectorTemplate(
 
     def text_layers_transform_back(self):
         """No back-side Transform changes."""
-        pass
 
     """
     * MDFC Methods
@@ -2429,10 +2426,14 @@ class ClassicModernTemplate(VectorTransformMod, VectorMDFCMod, VectorTemplate):
     @cached_property
     def textbox_reference(self) -> ReferenceLayer | None:
         """Use a mask to reduce reference size for MDFC cards."""
-        ref = getattr(super(), "textbox_reference")
-        if self.is_mdfc and (
-            layer := psd.getLayer(
-                LAYERS.MDFC, [self.mask_group, LAYERS.TEXTBOX_REFERENCE]
+        ref = super().textbox_reference
+        if (
+            ref
+            and self.is_mdfc
+            and (
+                layer := psd.getLayer(
+                    LAYERS.MDFC, [self.mask_group, LAYERS.TEXTBOX_REFERENCE]
+                )
             )
         ):
             psd.copy_layer_mask(

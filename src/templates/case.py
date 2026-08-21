@@ -129,7 +129,6 @@ class CaseMod(NormalTemplate):
 
     def frame_layers_case(self) -> None:
         """Enable frame layers required by Case cards. None by default."""
-        pass
 
     """
     * Positioning Methods

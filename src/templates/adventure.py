@@ -133,51 +133,64 @@ class AdventureVectorMod(AdventureMod, VectorTemplate):
     """
 
     # Color Maps
-    """Maps color values to adventure name box."""
-    adventure_name_color_map = {
-        "W": (179, 172, 156),
-        "U": (43, 126, 167),
-        "B": (104, 103, 102),
-        "R": (159, 83, 59),
-        "G": (68, 96, 63),
-        # There are no colorless adventure cards as of now
-        "Colorless": (-1, -1, -1),
-        "Gold": (166, 145, 80),
-        "Land": (177, 166, 169),
-    }
-    """Maps color values to adventure typeline box."""
-    adventure_typeline_color_map = {
-        "W": (129, 120, 103),
-        "U": (3, 94, 127),
-        "B": (44, 41, 40),
-        "R": (124, 51, 33),
-        "G": (11, 53, 30),
-        "Colorless": (-1, -1, -1),
-        "Gold": (117, 90, 40),
-        "Land": (154, 137, 130),
-    }
-    """Maps color values to adventure typeline accent box."""
-    adventure_typeline_accent_color_map = {
-        "W": (90, 82, 71),
-        "U": (2, 67, 96),
-        "B": (20, 17, 19),
-        "R": (81, 34, 22),
-        "G": (2, 34, 16),
-        "Colorless": (-1, -1, -1),
-        "Gold": (75, 62, 37),
-        "Land": (115, 98, 89),
-    }
-    """Maps color values to adventure wings."""
-    adventure_wings_color_map = {
-        "W": (213, 203, 181),
-        "U": (181, 198, 213),
-        "B": (162, 155, 152),
-        "R": (192, 142, 115),
-        "G": (174, 174, 155),
-        "Colorless": (-1, -1, -1),
-        "Gold": (196, 172, 131),
-        "Land": (194, 178, 177),
-    }
+    @cached_property
+    def adventure_name_color_map(self) -> dict[str, tuple[float, float, float]]:
+        """Maps color values to adventure name box."""
+        return {
+            "W": (179, 172, 156),
+            "U": (43, 126, 167),
+            "B": (104, 103, 102),
+            "R": (159, 83, 59),
+            "G": (68, 96, 63),
+            # There are no colorless adventure cards as of now
+            "Colorless": (-1, -1, -1),
+            "Gold": (166, 145, 80),
+            "Land": (177, 166, 169),
+        }
+
+    @cached_property
+    def adventure_typeline_color_map(self) -> dict[str, tuple[float, float, float]]:
+        """Maps color values to adventure typeline box."""
+        return {
+            "W": (129, 120, 103),
+            "U": (3, 94, 127),
+            "B": (44, 41, 40),
+            "R": (124, 51, 33),
+            "G": (11, 53, 30),
+            "Colorless": (-1, -1, -1),
+            "Gold": (117, 90, 40),
+            "Land": (154, 137, 130),
+        }
+
+    @cached_property
+    def adventure_typeline_accent_color_map(
+        self,
+    ) -> dict[str, tuple[float, float, float]]:
+        """Maps color values to adventure typeline accent box."""
+        return {
+            "W": (90, 82, 71),
+            "U": (2, 67, 96),
+            "B": (20, 17, 19),
+            "R": (81, 34, 22),
+            "G": (2, 34, 16),
+            "Colorless": (-1, -1, -1),
+            "Gold": (75, 62, 37),
+            "Land": (115, 98, 89),
+        }
+
+    @cached_property
+    def adventure_wings_color_map(self) -> dict[str, tuple[float, float, float]]:
+        """Maps color values to adventure wings."""
+        return {
+            "W": (213, 203, 181),
+            "U": (181, 198, 213),
+            "B": (162, 155, 152),
+            "R": (192, 142, 115),
+            "G": (174, 174, 155),
+            "Colorless": (-1, -1, -1),
+            "Gold": (196, 172, 131),
+            "Land": (194, 178, 177),
+        }
 
     """
     * Mixin Methods

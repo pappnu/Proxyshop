@@ -16,7 +16,9 @@ class FilePathModel(QObject):
     def templates_directory(self) -> QUrl:
         return QUrl.fromLocalFile(PATH.TEMPLATES)
 
-    @Property(QUrl)
+    _plugins_directory_signal = Signal()
+
+    @Property(QUrl, notify=_plugins_directory_signal)
     def plugins_directory(self) -> QUrl:
         return QUrl.fromLocalFile(PATH.PLUGINS)
 

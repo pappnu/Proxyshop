@@ -143,7 +143,6 @@ class TokenTemplate(FullartMod, StarterTemplate):
 
     def expansion_symbol(self) -> None:
         """Does not support expansion symbol."""
-        pass
 
     def enable_frame_layers(self) -> None:
         """Only need to enable the background layer."""

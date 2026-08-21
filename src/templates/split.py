@@ -20,7 +20,7 @@ from src.enums.layers import LAYERS
 from src.helpers import LayerEffects
 from src.helpers.effects import copy_layer_fx
 from src.helpers.layers import get_reference_layer
-from src.layouts import SplitLayout
+from src.layouts import NormalLayout, SplitLayout
 from src.schema.adobe import EffectColorOverlay, EffectGradientOverlay
 from src.schema.colors import ColorObject, GradientColor, GradientConfig
 from src.templates import BaseTemplate
@@ -40,7 +40,9 @@ class SplitMod(BaseTemplate):
         * Color definitions
     """
 
-    sides: list[str] = [LAYERS.LEFT, LAYERS.RIGHT]
+    def __init__(self, layout: NormalLayout):
+        super().__init__(layout)
+        self.sides = (LAYERS.LEFT, LAYERS.RIGHT)
 
     # refion Color maps
 
@@ -321,7 +323,7 @@ class SplitMod(BaseTemplate):
     def load_expansion_symbol(self) -> None:
         super().load_expansion_symbol()
         if self.is_split:
-            self.expansion_symbols
+            _ = self.expansion_symbols
 
     @cached_property
     def expansion_symbols(self) -> list[ArtLayer | None]:
@@ -501,7 +503,6 @@ class SplitMod(BaseTemplate):
 
     def frame_layers_split(self) -> None:
         """Enable frame layers required by Split cards. None by default."""
-        pass
 
     # endregion Frame layer methods
 

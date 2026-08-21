@@ -180,6 +180,15 @@ The settings window allows modifying Proxyshop's behavior. The settings can be a
 
 You may supply Proxyshop with image and JSON pairs to render cards with custom specifications. The image's card name part and the JSON file's name, excluding suffix, should be the same, e.g. *my_custom_card (artist).png* and *my_custom_card.json*. The JSON file should contain a valid [Scryfall card specification](https://scryfall.com/docs/api/cards). Look up `class ScryfallCard` from the source code if you want to know the specifics of the data validation. An easy way to make the JSON is to look up a similar card from Scryfall, download the JSON for that card via Scryfall's web GUI (*Copy-pasteable JSON* on the card's page) and modify the downloaded JSON.
 
+### Plugins
+
+Plugins add extra templates to Proxyshop. The Plugin manager window allows downloading and updating plugins. Proxyshop can automatically check updates for plugins installed via the Plugin manager.
+
+- **Add plugin**: Adds a plugin from a given Git repository. Using non-GitHub Git repositories requires Git to be installed and available in PATH. GitHub repositories are fetched using the GitHub REST API, so they don't require anything extra.
+- **Download**: Downloads and activates a plugin.
+- **Update**: Downloads the latest version of a plugin and overrides the old installed version.
+- **Uninstall**: Deletes the plugin's directory, including downloaded templates and saved settings.
+
 ### Tools
 
 - **Transform images**: Allows re-encoding and downscaling chosen images. Completed transformations are saved to `compressed/` next to the input image.

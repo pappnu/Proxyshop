@@ -3,7 +3,6 @@
 """
 
 import re
-from dataclasses import dataclass
 from enum import StrEnum
 
 """
@@ -413,7 +412,6 @@ def _create_word_end_regex(end: str) -> re.Pattern[str]:
     return re.compile(end + r"(\s|$)")
 
 
-@dataclass
 class CardTextPatterns:
     """Defined card data regex patterns."""
 

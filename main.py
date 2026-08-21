@@ -7,16 +7,13 @@ from pathlib import Path
 from PySide6.QtGui import QIcon
 
 from src import APP, CFG, CON, ENV
-from src._loader import (
-    AppPlugin,
-    TemplateLibrary,
-    get_all_plugins,
-    get_template_file_versions,
-)
+from src._loader import PluginLibrary, get_template_file_versions
 from src.startup import run_startup_checks
 
 
-def launch_gui(template_library: TemplateLibrary, plugins: dict[str, AppPlugin]):
+def launch_gui(
+    plugin_library: PluginLibrary,
+):
     """Launch the app in GUI mode."""
 
     from PySide6 import QtAsyncio
@@ -32,6 +29,7 @@ def launch_gui(template_library: TemplateLibrary, plugins: dict[str, AppPlugin])
     from src.gui.qml.models.message_dialog_content_model import (
         MessageDialogContentModel,
     )
+    from src.gui.qml.models.plugin_updater_model import PluginUpdaterModel
     from src.gui.qml.models.render_operations_model import RenderOperationsModel
     from src.gui.qml.models.settings_model import SettingsModel
     from src.gui.qml.models.settings_tree_model import SettingsTreeModel
@@ -52,12 +50,15 @@ def launch_gui(template_library: TemplateLibrary, plugins: dict[str, AppPlugin])
     render_operations_model = RenderOperationsModel(
         render_queue, render_message_dialog_content_model
     )
+    plugin_updater_model = PluginUpdaterModel(
+        app_env=ENV, con=CON, plugin_library=plugin_library
+    )
     template_updater_model = TemplateUpdaterModel(
-        app_env=ENV, template_library=template_library
+        app_env=ENV, plugin_library=plugin_library
     )
     test_renders_model = TestRendersModel(
         render_queue,
-        template_library,
+        plugin_library,
         file_dialog_model,
         render_message_dialog_content_model,
         CFG,
@@ -66,7 +67,7 @@ def launch_gui(template_library: TemplateLibrary, plugins: dict[str, AppPlugin])
         render_queue,
         file_dialog_model,
         render_message_dialog_content_model,
-        template_library,
+        plugin_library,
         test_renders_model,
         CFG,
     )
@@ -74,13 +75,12 @@ def launch_gui(template_library: TemplateLibrary, plugins: dict[str, AppPlugin])
         file_dialog_model,
         render_message_dialog_content_model,
         render_queue,
-        plugins,
-        template_library,
+        plugin_library,
         test_renders_model,
         CFG,
     )
     settings_tree_model = SettingsTreeModel(
-        app_config=CFG, template_library=template_library
+        app_config=CFG, plugin_library=plugin_library
     )
     settings_model = SettingsModel(settings_tree_model)
     image_transform_model = ImageTransformModel(file_dialog_model=file_dialog_model)
@@ -95,6 +95,7 @@ def launch_gui(template_library: TemplateLibrary, plugins: dict[str, AppPlugin])
     root_context.setContextProperty("renderOperationsModel", render_operations_model)
     root_context.setContextProperty("testRendersModel", test_renders_model)
     root_context.setContextProperty("templateUpdaterModel", template_updater_model)
+    root_context.setContextProperty("pluginUpdaterModel", plugin_updater_model)
     root_context.setContextProperty("templateListModel", template_list_model)
     root_context.setContextProperty("batchRenderModel", batch_render_model)
     root_context.setContextProperty("settingsTreeModel", settings_tree_model)
@@ -113,7 +114,7 @@ def launch_gui(template_library: TemplateLibrary, plugins: dict[str, AppPlugin])
     # Ensure that the root context is available at QML destruction
     app.aboutToQuit.connect(engine.deleteLater)
 
-    run_startup_checks(APP)
+    run_startup_checks(ENV, CON, APP, plugin_updater_model, template_updater_model)
 
     QtAsyncio.run(handle_sigint=True)
 
@@ -121,13 +122,8 @@ def launch_gui(template_library: TemplateLibrary, plugins: dict[str, AppPlugin])
 if __name__ == "__main__":
     initial_versions = get_template_file_versions()
     versions = initial_versions.model_copy(deep=True)
-    plugins = get_all_plugins(con=CON, env=ENV, template_file_versions=versions.root)
-    template_library = TemplateLibrary(
-        con=CON,
-        env=ENV,
-        plugins=plugins,
-        initial_template_file_versions=initial_versions,
-        template_file_versions=versions,
+    plugin_library = PluginLibrary(
+        con=CON, env=ENV, initial_template_file_versions=versions
     )
 
-    launch_gui(template_library, plugins)
+    launch_gui(plugin_library)

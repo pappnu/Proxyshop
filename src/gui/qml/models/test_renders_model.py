@@ -6,7 +6,7 @@ from logging import getLogger
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src._config import AppConfig
-from src._loader import AssembledTemplate, TemplateLibrary
+from src._loader import AssembledTemplate, PluginLibrary, TemplateLibrary
 from src._state import PATH
 from src.cards import CardDetails, parse_card_info, process_card_data
 from src.enums.mtg import (
@@ -30,7 +30,7 @@ class TestRendersModel(QObject):
     def __init__(
         self,
         render_queue: RenderQueue,
-        template_library: TemplateLibrary,
+        plugin_library: PluginLibrary,
         file_dialog_model: FileDialogModel,
         message_dialog_model: MessageDialogContentModel,
         app_config: AppConfig,
@@ -41,11 +41,15 @@ class TestRendersModel(QObject):
     ) -> None:
         super().__init__(parent, objectName=objectName)
         self._render_queue = render_queue
-        self._template_library = template_library
+        self._plugin_library = plugin_library
         self._file_dialog_model = file_dialog_model
         self._message_dialog_model = message_dialog_model
         self._app_config = app_config
         self._layout_categories = list(LayoutCategory)
+
+    @property
+    def _template_library(self) -> TemplateLibrary:
+        return self._plugin_library.template_library
 
     @cached_property
     def template_render_test_cases(self) -> dict[LayoutType, dict[str, str]]:

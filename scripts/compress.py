@@ -31,7 +31,7 @@ class CompressTemplate(BaseModel):
         path = path / self.template
         if not path.is_file():
             print(
-                f"Couldn't find a template named '{self.template}' at path:\n{str(path)}"
+                f"Couldn't find a template named '{self.template}' at path:\n{path!s}"
             )
             return
         compress_7z(path)

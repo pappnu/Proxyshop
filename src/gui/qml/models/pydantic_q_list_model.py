@@ -1,3 +1,4 @@
+from itertools import chain
 from typing import Any, override
 
 from pydantic import BaseModel
@@ -77,7 +78,8 @@ class PydanticQItemModel[T: BaseModel](PydanticQItemModelBase[T], QAbstractItemM
 
     @override
     def rowCount(
-        self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
+        self,
+        parent: QModelIndex | QPersistentModelIndex = QModelIndex(),  # noqa: B008
     ) -> int:
         if parent.column() > 0:
             return 0
@@ -90,7 +92,8 @@ class PydanticQItemModel[T: BaseModel](PydanticQItemModelBase[T], QAbstractItemM
 
     @override
     def columnCount(
-        self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
+        self,
+        parent: QModelIndex | QPersistentModelIndex = QModelIndex(),  # noqa: B008
     ) -> int:
         if parent.isValid():
             parent_item: TreeItem[T] = parent.internalPointer()
@@ -113,7 +116,7 @@ class PydanticQItemModel[T: BaseModel](PydanticQItemModelBase[T], QAbstractItemM
         self,
         row: int,
         column: int,
-        parent: QModelIndex | QPersistentModelIndex = QModelIndex(),
+        parent: QModelIndex | QPersistentModelIndex = QModelIndex(),  # noqa: B008
     ) -> QModelIndex:
         if not self.hasIndex(row, column, parent=parent):
             return QModelIndex()
@@ -128,7 +131,7 @@ class PydanticQItemModel[T: BaseModel](PydanticQItemModelBase[T], QAbstractItemM
         return QModelIndex()
 
     @override
-    def parent(self, index: QModelIndex = QModelIndex()) -> QModelIndex:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def parent(self, index: QModelIndex = QModelIndex()) -> QModelIndex:  # pyright: ignore[reportIncompatibleMethodOverride]  # noqa: B008
         if not index.isValid():
             return QModelIndex()
 
@@ -156,8 +159,7 @@ class PydanticQItemModel[T: BaseModel](PydanticQItemModelBase[T], QAbstractItemM
         if not value.isValid() or not item:
             self._selected_model_index = value
             self.selected_model_index_changed.emit(value)
-            self.selected_title = ""
-            return None
+            return
 
         if value != self._selected_model_index:
             self._selected_model_index = value
@@ -180,12 +182,16 @@ class PydanticQListModel[T: BaseModel](PydanticQItemModelBase[T], QAbstractListM
     def __init__(
         self,
         parent: QObject | None = None,
-        items: list[T] = [],
+        items: list[T] | None = None,
         selected_index: int = -1,
     ) -> None:
         self._roles: dict[int, str] = {
             Qt.ItemDataRole.UserRole + 1 + idx: field
-            for idx, field in enumerate(self.item_model.model_fields)
+            for idx, field in enumerate(
+                chain(
+                    self.item_model.model_fields, self.item_model.model_computed_fields
+                )
+            )
         }
         self._roles_reverse: dict[str, int] = {
             field: idx for idx, field in self._roles.items()
@@ -195,15 +201,15 @@ class PydanticQListModel[T: BaseModel](PydanticQItemModelBase[T], QAbstractListM
             for role, field in self._roles.items()
         }
 
-        self.all_items: list[T] = items
-        self.items: list[T] = items.copy()
+        self.all_items: list[T] = items if items is not None else []
+        self.items: list[T] = self.all_items.copy()
         self._selected_index = selected_index
 
         super().__init__(parent)
 
     # region Signals
 
-    _selected_index_changed = Signal()
+    _selected_index_changed = Signal(name="selectedIndexChanged")
 
     # endregion Signals
 
@@ -235,6 +241,7 @@ class PydanticQListModel[T: BaseModel](PydanticQItemModelBase[T], QAbstractListM
 
     @override
     def rowCount(
-        self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
+        self,
+        parent: QModelIndex | QPersistentModelIndex = QModelIndex(),  # noqa: B008
     ) -> int:
         return len(self.items)

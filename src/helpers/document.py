@@ -100,7 +100,7 @@ def import_art(
 
     active_layer = docref.activeLayer
     if not isinstance(active_layer, ArtLayer):
-        raise ValueError(
+        raise TypeError(
             "Failed to import art. Active layer is unexpectedly not an ArtLayer."
         )
     active_layer.name = name
@@ -133,7 +133,7 @@ def import_svg(
 
     active_layer = docref.activeLayer
     if not isinstance(active_layer, ArtLayer):
-        raise ValueError(
+        raise TypeError(
             "Failed to import SVG. Active layer is unexpectedly a LayerSet."
         )
 
@@ -182,7 +182,7 @@ def paste_file(
 
     active_layer = docref.activeLayer
     if not isinstance(active_layer, ArtLayer):
-        raise ValueError(
+        raise TypeError(
             "Failed to paste file. Active layer is unexpectedly not an ArtLayer."
         )
 
@@ -275,7 +275,7 @@ def reset_document(docref: Document | None = None) -> None:
 """
 
 
-def points_to_pixels(number: int | float, docref: Document | None = None) -> float:
+def points_to_pixels(number: float, docref: Document | None = None) -> float:
     """Converts a given number in point units to pixel units.
 
     Args:
@@ -289,7 +289,7 @@ def points_to_pixels(number: int | float, docref: Document | None = None) -> flo
     return (docref.resolution / 72) * number
 
 
-def pixels_to_points(number: int | float, docref: Document | None = None) -> float:
+def pixels_to_points(number: float, docref: Document | None = None) -> float:
     """Converts a given number in pixel units to point units.
 
     Args:

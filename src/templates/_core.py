@@ -159,11 +159,9 @@ class BaseTemplate:
 
     def hook_creature(self) -> None:
         """Run this if card is a creature."""
-        pass
 
     def hook_large_mana(self) -> None:
         """Run this if card has a large mana symbol."""
-        pass
 
     """
     * App Properties
@@ -433,18 +431,14 @@ class BaseTemplate:
         """bool: Returns True if art provided is vertically oriented, False if it is horizontal."""
         with Image.open(self.layout.art_file) as image:
             width, height = image.size
-        if height > (width * 1.1):
-            # Vertical orientation
-            return True
-        # Horizontal orientation
-        return False
+        return height > (width * 1.1)
 
     @cached_property
     def is_content_aware_enabled(self) -> bool:
         """bool: Governs whether content aware fill should be performed during the art loading step."""
         if self.is_fullart and (
             not self.art_reference
-            or all([n not in self.art_reference.name for n in ["Full", "Borderless"]])
+            or all(n not in self.art_reference.name for n in ["Full", "Borderless"])
         ):
             # By default, fill when we want a fullart image but didn't receive one
             return self.config.fill_mode != FillMode.NO_FILL
@@ -455,12 +449,10 @@ class BaseTemplate:
         """bool: Governs whether to use promo star in collector info."""
         if self.config.collector_promo == CollectorPromo.Always:
             return True
-        if (
+        return (
             self.layout.is_promo
             and self.config.collector_promo == CollectorPromo.Automatic
-        ):
-            return True
-        return False
+        )
 
     """
     * Frame Details
@@ -616,9 +608,13 @@ class BaseTemplate:
     @cached_property
     def divider_layer(self) -> ArtLayer | LayerSet | None:
         """Optional[ArtLayer]: Divider layer between rules text and flavor text."""
-        if self.is_transform and self.is_front and self.is_flipside_creature:
-            if TF_DIVIDER := psd.getLayer("Divider TF", self.text_group):
-                return TF_DIVIDER
+        if (
+            self.is_transform
+            and self.is_front
+            and self.is_flipside_creature
+            and (layer := psd.getLayer("Divider TF", self.text_group))
+        ):
+            return layer
         return psd.getLayer(LAYERS.DIVIDER, self.text_group)
 
     """
@@ -657,12 +653,15 @@ class BaseTemplate:
     def pt_layer(self) -> ArtLayer | None:
         """Power and toughness box layer."""
         # Test for Vehicle PT support
-        if self.is_vehicle and self.background == LAYERS.VEHICLE:
-            if layer := psd.getLayer(LAYERS.VEHICLE, LAYERS.PT_BOX):
-                # Change font to white for Vehicle PT box
-                if self.text_layer_pt:
-                    self.text_layer_pt.textItem.color = self.RGB_WHITE
-                return layer
+        if (
+            self.is_vehicle
+            and self.background == LAYERS.VEHICLE
+            and (layer := psd.getLayer(LAYERS.VEHICLE, LAYERS.PT_BOX))
+        ):
+            # Change font to white for Vehicle PT box
+            if self.text_layer_pt:
+                self.text_layer_pt.textItem.color = self.RGB_WHITE
+            return layer
         return psd.getLayer(self.twins, LAYERS.PT_BOX)
 
     @cached_property
@@ -695,9 +694,10 @@ class BaseTemplate:
     def art_reference(self) -> ReferenceLayer | None:
         """ReferenceLayer: Reference frame used to scale and position the art layer."""
         # Check if art is vertically oriented, or forced vertical, and for valid vertical frame
-        if self.is_art_vertical or (self.is_fullart and self.config.vertical_fullart):
-            if layer := psd.get_reference_layer(self.art_frame_vertical):
-                return layer
+        if (
+            self.is_art_vertical or (self.is_fullart and self.config.vertical_fullart)
+        ) and (layer := psd.get_reference_layer(self.art_frame_vertical)):
+            return layer
         # Check for normal art frame
         return psd.get_reference_layer(self.art_frame) or psd.get_reference_layer(
             LAYERS.ART_FRAME
@@ -833,9 +833,10 @@ class BaseTemplate:
         elif art_reference:
             psd.frame_layer(layer=art_layer, ref=art_reference)
 
-        if self.config.pause_for_manual_art_alignment:
-            if not self.pause("Adjust the art alignment manually."):
-                return
+        if self.config.pause_for_manual_art_alignment and not self.pause(
+            "Adjust the art alignment manually."
+        ):
+            return
 
         # Perform content aware fill if needed
         if self.is_content_aware_enabled:
@@ -1285,7 +1286,6 @@ class BaseTemplate:
         Args:
             wm: ArtLayer containing the Basic Land Watermark.
         """
-        pass
 
     """
     * Border
@@ -1604,23 +1604,18 @@ class BaseTemplate:
 
     def enable_frame_layers(self) -> None:
         """Enable the correct layers for this card's frame."""
-        pass
 
     def enable_crown(self) -> None:
         """Enable layers required by the Legendary Crown."""
-        pass
 
     def enable_hollow_crown(self) -> None:
         """Enable layers required by the Hollow Legendary Crown modification"""
-        pass
 
     def basic_text_layers(self) -> None:
         """Establish mana cost, name (scaled to clear mana cost), and typeline (scaled to not overlap set symbol)."""
-        pass
 
     def rules_text_and_pt_layers(self) -> None:
         """Set up the card's rules and power/toughness text based on whether the card is a creature."""
-        pass
 
     """
     * Execution Sequence
@@ -1702,12 +1697,14 @@ class BaseTemplate:
                 message="Unable to generate basic land watermark!",
             ):
                 return False
-        elif self.config.watermark_mode is not WatermarkMode.Disabled:
-            # Normal watermark
-            if not self.run_tasks(
+        elif (
+            self.config.watermark_mode is not WatermarkMode.Disabled
+            and not self.run_tasks(
                 funcs=[self.create_watermark], message="Unable to generate watermark!"
-            ):
-                return False
+            )
+        ):
+            # Normal watermark
+            return False
 
         # Enable layers to build our frame
         if not self.run_tasks(

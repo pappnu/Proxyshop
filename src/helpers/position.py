@@ -237,7 +237,7 @@ def spread_layers_over_reference(
     return inside_gap
 
 
-def space_layers_apart(layers: Sequence[ArtLayer | LayerSet], gap: int | float) -> None:
+def space_layers_apart(layers: Sequence[ArtLayer | LayerSet], gap: float) -> None:
     """Position list of layers apart using a given gap.
 
     Args:
@@ -390,6 +390,7 @@ class RefSide(Enum):
     TOP = 2
     RIGHT = 3
     BOTTOM = 4
+    ANY = 5
 
 
 def check_bounds_overlap(
@@ -397,14 +398,23 @@ def check_bounds_overlap(
     ref_bounds: tuple[float, float, float, float],
     ref_side: RefSide,
 ) -> bool:
-    if ref_side == RefSide.LEFT:
-        return bounds[2] > ref_bounds[0]
-    elif ref_side == RefSide.TOP:
-        return bounds[3] > ref_bounds[1]
-    elif ref_side == RefSide.RIGHT:
-        return bounds[0] < ref_bounds[2]
-    else:
-        return bounds[1] < ref_bounds[3]
+    match ref_side:
+        case RefSide.LEFT:
+            return bounds[2] > ref_bounds[0]
+        case RefSide.TOP:
+            return bounds[3] > ref_bounds[1]
+        case RefSide.RIGHT:
+            return bounds[0] < ref_bounds[2]
+        case RefSide.BOTTOM:
+            return bounds[1] < ref_bounds[3]
+        case RefSide.ANY:
+            overlap_width = min(bounds[2], ref_bounds[2]) - max(
+                bounds[0], ref_bounds[0]
+            )
+            overlap_height = min(bounds[3], ref_bounds[3]) - max(
+                bounds[1], ref_bounds[1]
+            )
+            return overlap_width > 0 and overlap_height > 0
 
 
 def check_reference_overlap(

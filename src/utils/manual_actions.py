@@ -13,7 +13,7 @@ def manually_modify_model[T: BaseModel](model: T, text_editing_program: str) -> 
         model: Model to edit.
         text_editing_program: The command to open the text editor. Place curly brackets to where the text file path should go in the call, e.g. `notepad "{}"`.
     """
-    tmp = NamedTemporaryFile(
+    tmp = NamedTemporaryFile(  # noqa: SIM115
         "w",
         prefix="Proxyshop_manual_dict_modification_",
         encoding="UTF-8",

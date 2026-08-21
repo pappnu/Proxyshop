@@ -209,20 +209,19 @@ def get_font_details(path: str) -> tuple[str, FontDetails] | None:
     Returns:
         Tuple containing name and postscript name.
     """
-    with suppress(*PS_EXCEPTIONS, TTLibError):
-        with TTFont(path) as font:
-            if (
-                (name_record := font["name"].getName(4, 3, 1, 1033))
-                and (font_postscript := font["name"].getDebugName(6)) is not None
-                and (font_version := font["name"].getDebugName(5)) is not None
-            ):
-                font_name = name_record.toUnicode()
+    with suppress(*PS_EXCEPTIONS, TTLibError), TTFont(path) as font:
+        if (
+            (name_record := font["name"].getName(4, 3, 1, 1033))
+            and (font_postscript := font["name"].getDebugName(6)) is not None
+            and (font_version := font["name"].getDebugName(5)) is not None
+        ):
+            font_name = name_record.toUnicode()
 
-                version_match = REG_FONT_VER.search(font_version)
-                font_version = (
-                    version_match.group(1).lstrip("0") if version_match else None
-                )
-                return font_postscript, {"name": font_name, "version": font_version}
+            version_match = REG_FONT_VER.search(font_version)
+            font_version = (
+                version_match.group(1).lstrip("0") if version_match else None
+            )
+            return font_postscript, {"name": font_name, "version": font_version}
 
 
 def get_fonts_from_folder(folder: str | os.PathLike[str]) -> dict[str, FontDetails]:
