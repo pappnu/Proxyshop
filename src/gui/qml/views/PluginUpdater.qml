@@ -176,6 +176,7 @@ ApplicationWindow {
                             required property string available_version
                             required property string path
                             required property bool downloading
+                            required property bool is_user_defined
                             readonly property int sourceIndex: sfProxyModel.mapToSource(sfProxyModel.index(index, 0)).row
 
                             property bool canDownload: !installed_version && available_version
@@ -208,6 +209,40 @@ ApplicationWindow {
                                     Layout.alignment: Qt.AlignRight
 
                                     asynchronous: true
+                                    sourceComponent: availablePluginsListDelegate.is_user_defined ? removeButtonComponent : undefined
+
+                                    Component {
+                                        id: removeButtonComponent
+
+                                        CustomButton {
+                                            systemPalette: pluginUpdaterWindow.systemPalette
+                                            text: "Remove"
+                                            enabled: !availablePluginsListDelegate.downloading
+                                            onClicked: {
+                                                function onAccepted() {
+                                                    messageDialog.accepted.disconnect(onAccepted);
+                                                    messageDialog.rejected.disconnect(onRejected);
+                                                    pluginUpdaterWindow.updaterModel.remove_added_plugin(availablePluginsListDelegate.sourceIndex);
+                                                }
+
+                                                function onRejected() {
+                                                    messageDialog.accepted.disconnect(onAccepted);
+                                                    messageDialog.rejected.disconnect(onRejected);
+                                                }
+
+                                                messageDialog.title = "Remove plugin";
+                                                messageDialog.text = `Are you sure you want remove the <b>${availablePluginsListDelegate.name}</b> plugin from the list? If the plugin is installed, this will also delete the plugin's directory including templates and saved settings.`;
+                                                messageDialog.accepted.connect(onAccepted);
+                                                messageDialog.rejected.connect(onRejected);
+                                                messageDialog.open();
+                                            }
+                                        }
+                                    }
+                                }
+                                Loader {
+                                    Layout.alignment: Qt.AlignRight
+
+                                    asynchronous: true
                                     sourceComponent: availablePluginsListDelegate.installed_version ? uninstallButtonComponent : undefined
 
                                     Component {
@@ -229,6 +264,7 @@ ApplicationWindow {
                                                     messageDialog.rejected.disconnect(onRejected);
                                                 }
 
+                                                messageDialog.title = "Uninstall plugin";
                                                 messageDialog.text = `Are you sure you want uninstall the <b>${availablePluginsListDelegate.name}</b> plugin? This will also delete the plugin's templates and saved settings.`;
                                                 messageDialog.accepted.connect(onAccepted);
                                                 messageDialog.rejected.connect(onRejected);

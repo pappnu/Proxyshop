@@ -628,6 +628,28 @@ class PluginUpdaterModel(PydanticQListModel[PluginItem]):
             ),
         )
 
+    @Slot(int)
+    def remove_added_plugin(self, index: int) -> None:
+        if index < 0 or index >= self.rowCount():
+            return
+
+        plugin = self.items[index]
+        if not plugin.is_user_defined:
+            return
+
+        if plugin.installed:
+            self._plugin_library.remove_plugin(plugin.id)
+            self._plugin_versions.pop(plugin.id, None)
+            self.save_versions()
+
+        if self._added_plugins.pop(plugin.id, None):
+            self._save_added_plugins()
+
+        self.beginRemoveRows(QModelIndex(), index, index)
+        self.items.pop(index)
+        self.endRemoveRows()
+        self.selected_index = min(self._selected_index, self.rowCount() - 1)  # pyright: ignore[reportAttributeAccessIssue]
+
     @Slot()
     def save_versions(self) -> None:
         versions = self._plugin_versions
