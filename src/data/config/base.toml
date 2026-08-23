@@ -68,6 +68,17 @@ desc = "Fills the second collector info line with given text. Supports the same 
 type = "string"
 default = ""
 
+[TEXT."Collector.Lang.Code"]
+title = "Authentic collector language code"
+desc = """Whether to use authentic language codes as seen in real printed cards or the language codes used by Scryfall. Below is a list of Scryfall language codes that get mapped to a different code when this setting is enabled:<br>
+ES -> SP<br>
+JA -> JP<br>
+KO -> KR<br>
+ZHS -> CH<br>
+ZHT -> CT"""
+type = "bool"
+default = 1
+
 [TEXT."Collector.Promo"]
 title = "Collector Promo Star"
 desc = """Whether to use the promo star in collector info text on supported templates."""

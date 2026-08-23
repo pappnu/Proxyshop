@@ -554,6 +554,9 @@ class AppConfig:
         self.collector_line_b_format = self.get_setting(
             "BASE.TEXT", "Collector.Line.B", default=""
         )
+        self.collector_authentic_lang_code = self.file.getboolean(
+            "BASE.TEXT", "Collector.Lang.Code", fallback=True
+        )
         self.collector_promo = self.get_option(
             "BASE.TEXT",
             "Collector.Promo",

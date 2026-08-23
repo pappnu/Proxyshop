@@ -563,7 +563,9 @@ class NormalLayout:
 
     @cached_property
     def lang(self) -> str:
-        """Card print language, uppercase enforced, falls back to settings defined value."""
+        """Card's language code in uppercase."""
+        if self.config.collector_authentic_lang_code:
+            return self.scryfall.printed_lang
         return self.scryfall.lang.upper()
 
     @cached_property
