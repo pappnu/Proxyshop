@@ -272,6 +272,25 @@ class ScryfallCard(BaseModel):
     # Non-official extensions
     front: bool = Field(default=True, exclude=True)
 
+    @property
+    def printed_lang(self) -> str:
+        """The language code that is printed in the card.
+        Cards use non-standard language codes while Scryfall uses standard ones."""
+        lang_low = self.lang.lower()
+        match lang_low:
+            case "es":
+                return "SP"
+            case "ja":
+                return "JP"
+            case "ko":
+                return "KR"
+            case "zhs":
+                return "CS"
+            case "zht":
+                return "CT"
+            case _:
+                return self.lang.upper()
+
 
 class ScryfallList[T](BaseModel):
     object: Literal["list"]
