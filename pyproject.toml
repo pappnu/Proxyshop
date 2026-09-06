@@ -78,17 +78,20 @@ changelog_start_rev = 'v1.2.0'
 tag_format = "v$major.$minor.$patch"
 update_changelog_on_bump = true
 
-[tool.ruff]
-extend-exclude = ["plugins"]
-
 [tool.ruff.lint]
 extend-select = [
     # isort
     "I",
     # pyupgrade
     "UP",
+    # banned-api
+    "TID251",
 ]
 ignore = ["F403", "UP015"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+banned-api = { "plugins" = { msg = "Absolute imports from 'plugins' aren't allowed. In the release version of the app the plugins are loaded dynamically during runtime in a way that prevents absolute imports to their modules from being resolved. Use relative imports within plugins for any modules that are specific to the plugin." } }
+
 
 [tool.ruff.lint.isort]
 split-on-trailing-comma = false
