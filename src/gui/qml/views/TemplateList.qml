@@ -31,13 +31,28 @@ ListView {
         ]
     }
 
-    DelegateModel {
-        id: templateListDelegateModel
-        model: sfProxyModel
-    }
-
     function getVisualModelIndex(idx: int): int {
         return sfProxyModel.mapFromSource(templateListMdl.index(idx, 0)).row;
+    }
+
+    function updateTemplateListSelection() {
+        templateList.currentIndex = templateList.getVisualModelIndex(templateList.templateListMdl.selected_index);
+    }
+
+    Connections {
+        target: sfProxyModel
+
+        function onLayoutChanged() {
+            templateList.updateTemplateListSelection();
+        }
+    }
+
+    Connections {
+        target: templateListMdl
+
+        function onSelectedIndexChanged() {
+            templateList.updateTemplateListSelection();
+        }
     }
 
     Timer {
@@ -69,7 +84,7 @@ ListView {
     }
     highlightFollowsCurrentItem: false
     currentIndex: templateList.getVisualModelIndex(templateList.templateListMdl.selected_index)
-    model: templateListDelegateModel
+    model: sfProxyModel
     delegate: CustomItemDelegate {
         id: templateListDelegate
 
@@ -80,7 +95,10 @@ ListView {
         required property bool is_installed
         required property bool has_config
         required property list<string> card_layouts
-        readonly property int sourceIndex: sfProxyModel.mapToSource(sfProxyModel.index(index, 0)).row
+
+        function getSourceIndex(): int {
+            return sfProxyModel.mapToSource(sfProxyModel.index(index, 0)).row;
+        }
 
         systemPalette: templateList.systemPalette
         width: templateList.width
@@ -88,7 +106,7 @@ ListView {
         highlighted: false
 
         onClicked: {
-            templateList.templateListMdl.selected_index = sourceIndex;
+            templateList.templateListMdl.selected_index = getSourceIndex();
         }
 
         contentItem: RowLayout {
@@ -129,7 +147,7 @@ ListView {
                 systemPalette: templateList.systemPalette
                 implicitWidth: 32
                 text: templateListDelegate.has_config ? "🧹" : ""
-                onClicked: templateList.templateListMdl.clear_settings(templateListDelegate.sourceIndex)
+                onClicked: templateList.templateListMdl.clear_settings(templateListDelegate.getSourceIndex())
                 enabled: templateListDelegate.has_config
             }
         }
