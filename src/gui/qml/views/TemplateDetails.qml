@@ -12,17 +12,102 @@ Rectangle {
     required property SystemPalette systemPalette
     required property AbstractListModel templateListMdl
     required property QtObject pathModel
-    property var model: templateListDelegateModel.items.count ? templateListDelegateModel.items.get(templateListMdl.selected_index).model : undefined
+    property var img: getImage()
+    property list<var> model: constructModel()
 
-    DelegateModel {
-        id: templateListDelegateModel
-        model: templateDetails.templateListMdl
+    function getImage(): var {
+        const mdl = templateDetails.templateListMdl;
+        return mdl.get_data(mdl.selected_index, "img") ?? pathModel.preview_img_fallback;
+    }
+
+    function constructModel(): list<var> {
+        const idx = templateListMdl.selected_index;
+
+        if (idx < -1 || templateListMdl.rowCount() < 1) {
+            return [];
+        }
+
+        const plugin = templateListMdl.get_data(idx, "plugin");
+        const installedTemplateFiles = templateListMdl.get_data(idx, "installed_template_files");
+        const missingTemplateFiles = templateListMdl.get_data(idx, "missing_template_files");
+        const isPlugin = Boolean(plugin);
+
+        return [
+            {
+                name: "Name:",
+                isTitle: true,
+                isVisible: true
+            },
+            {
+                name: templateListMdl.get_data(idx, "name") ?? "",
+                isTitle: false,
+                isVisible: true
+            },
+            {
+                name: "Plugin:",
+                isTitle: true,
+                isVisible: isPlugin
+            },
+            {
+                name: plugin ?? "",
+                isTitle: false,
+                isVisible: isPlugin
+            },
+            {
+                name: "Supported layouts:",
+                isTitle: true,
+                isVisible: true
+            },
+            {
+                name: templateListMdl.get_data(idx, "card_layouts").join(", "),
+                isTitle: false,
+                isVisible: true
+            },
+            {
+                name: "Installed templates:",
+                isTitle: true,
+                isVisible: true
+            },
+            {
+                name: installedTemplateFiles && installedTemplateFiles.length ? installedTemplateFiles.join(", ") : "None",
+                isTitle: false,
+                isVisible: true
+            },
+            {
+                name: "Missing templates:",
+                isTitle: true,
+                isVisible: true
+            },
+            {
+                name: missingTemplateFiles && missingTemplateFiles.length ? missingTemplateFiles.join(", ") : "None",
+                isTitle: false,
+                isVisible: true
+            }
+        ];
+    }
+
+    function updateSelectedItem() {
+        templateDetails.img = getImage();
+        templateDetails.model = constructModel();
     }
 
     Connections {
         target: templateDetails.templateListMdl
+
         function onSelectedIndexChanged() {
-            templateDetails.model = templateListDelegateModel.items.count ? templateListDelegateModel.items.get(templateDetails.templateListMdl.selected_index).model : undefined;
+            templateDetails.updateSelectedItem();
+        }
+
+        function onModelReset() {
+            templateDetails.updateSelectedItem();
+        }
+
+        function onDataChanged() {
+            templateDetails.updateSelectedItem();
+        }
+
+        function onRowsRemoved() {
+            templateDetails.updateSelectedItem();
         }
     }
 
@@ -56,7 +141,7 @@ Rectangle {
 
             verticalAlignment: Image.AlignTop
             asynchronous: true
-            source: templateDetails.model?.img ?? pathModel.preview_img_fallback
+            source: templateDetails.img
             fillMode: Image.PreserveAspectFit
         }
         ListView {
@@ -72,62 +157,7 @@ Rectangle {
             clip: true
             highlightFollowsCurrentItem: false
             currentIndex: -1
-            model: {
-                const isPlugin = Boolean(templateDetails.model?.plugin);
-
-                return [
-                    {
-                        name: "Name:",
-                        isTitle: true,
-                        isVisible: true
-                    },
-                    {
-                        name: templateDetails.model?.name ?? "",
-                        isTitle: false,
-                        isVisible: true
-                    },
-                    {
-                        name: "Plugin:",
-                        isTitle: true,
-                        isVisible: isPlugin
-                    },
-                    {
-                        name: templateDetails.model?.plugin ?? "",
-                        isTitle: false,
-                        isVisible: isPlugin
-                    },
-                    {
-                        name: "Supported layouts:",
-                        isTitle: true,
-                        isVisible: true
-                    },
-                    {
-                        name: templateDetails.model?.card_layouts.join(", ") ?? "",
-                        isTitle: false,
-                        isVisible: true
-                    },
-                    {
-                        name: "Installed templates:",
-                        isTitle: true,
-                        isVisible: true
-                    },
-                    {
-                        name: templateDetails.model?.installed_template_files && templateDetails.model.installed_template_files.length ? templateDetails.model.installed_template_files.join(", ") : "None",
-                        isTitle: false,
-                        isVisible: true
-                    },
-                    {
-                        name: "Missing templates:",
-                        isTitle: true,
-                        isVisible: true
-                    },
-                    {
-                        name: templateDetails.model?.missing_template_files && templateDetails.model.missing_template_files.length ? templateDetails.model.missing_template_files.join(", ") : "None",
-                        isTitle: false,
-                        isVisible: true
-                    }
-                ];
-            }
+            model: templateDetails.model
             delegate: SelectableText {
                 id: textFieldDelegate
 
