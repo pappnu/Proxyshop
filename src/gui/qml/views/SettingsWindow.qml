@@ -277,7 +277,8 @@ ApplicationWindow {
                     required property int index
                     required property string type
                     required property string title
-                    required property string desc
+                    // Beware: Typing desc as a string here converts undefined to "undefined" string
+                    required property var desc
                     required property var value
                     required property var default_value
                     required property var options
@@ -314,7 +315,7 @@ ApplicationWindow {
                                 Layout.alignment: Qt.AlignTop
                                 Layout.fillWidth: true
 
-                                text: settingsListDelegate.desc
+                                text: settingsListDelegate.desc ?? ""
                                 color: settingsWindow.systemPalette.text
                                 visible: Boolean(settingsListDelegate.desc)
                             }
