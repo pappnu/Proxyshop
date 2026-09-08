@@ -1,4 +1,5 @@
 from itertools import chain
+from logging import getLogger
 from typing import Any, override
 
 from pydantic import BaseModel
@@ -12,7 +13,10 @@ from PySide6.QtCore import (
     QPersistentModelIndex,
     Qt,
     Signal,
+    Slot,
 )
+
+_logger = getLogger(__name__)
 
 
 class TreeItem[T: BaseModel]:
@@ -226,6 +230,20 @@ class PydanticQListModel[T: BaseModel](PydanticQItemModelBase[T], QAbstractListM
             self._selected_index_changed.emit()
 
     # endregion Properties
+
+    @Slot(int, str, result="QVariant")
+    def get_data(self, index: int, role_name: str) -> Any:
+        if (
+            index < -1
+            or index >= len(self.items)
+            or role_name not in self._roles_reverse
+        ):
+            _logger.warning(
+                f"Tried to get data with invalid index '{index}' or role_name '{role_name}'"
+            )
+            return None
+        item = self.items[index]
+        return getattr(item, role_name)
 
     @override
     def data(
