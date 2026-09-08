@@ -331,6 +331,7 @@ class ConfigHandler:
 
     def delete(self, notify: bool = True) -> None:
         self.ini_path.unlink(missing_ok=True)
+        self.has_config = False
         if notify:
             self.config_deleted.trigger(self)
 
