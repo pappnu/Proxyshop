@@ -15,7 +15,6 @@ from typing import Annotated, Any, Literal, NotRequired, Protocol, TypedDict
 
 import yarl
 from omnitils.api.gdrive import gdrive_download_file, gdrive_get_metadata
-from omnitils.modules import get_local_module, import_module_from_path, import_package
 from omnitils.strings import normalize_ver
 from py7zr import SevenZipFile
 from pydantic import (
@@ -42,6 +41,12 @@ from src.enums.mtg import (
 from src.utils.data_structures import dump_model, parse_model
 from src.utils.download import download_cloudfront
 from src.utils.event import SubscribableEvent
+from src.utils.modules import (
+    get_local_module,
+    import_module_from_path,
+    import_modules_recursively,
+    unload_module,
+)
 
 _logger = getLogger(__name__)
 
@@ -317,7 +322,7 @@ class AppPlugin:
     @property
     def module(self) -> ModuleType | None:
         if not self._module:
-            self.load_module()
+            self.load_module(hotswap=True)
         return self._module
 
     @cached_property
@@ -418,12 +423,6 @@ class AppPlugin:
             with open(root_init, "w", encoding="utf-8") as f:
                 f.write("")
         import_module_from_path(name=self._root.stem, path=root_init, hotswap=hotswap)
-        # if not has_root_init:
-        #     try:
-        #         os.remove(root_init)
-        #     except OSError:
-        #         print("Failed to remove temporary plugin init file:", str(root_init))
-        #         print_exc()
 
         # Ensure init file in py module
         if not Path(self.module_path, "__init__.py").is_file():
@@ -433,13 +432,18 @@ class AppPlugin:
                 f.write("from .templates import *")
 
         # Attempt to load this module
-        self._module = import_package(
+        self._module = import_modules_recursively(
             name=self.module_name, path=self.module_path, hotswap=hotswap
         )
 
     def get_template_list(self) -> list[AppTemplate]:
         """list[AppTemplate]: Returns a list of AppTemplate's pulled from this plugin."""
         return list(self.template_map.values())
+
+    def unload(self) -> None:
+        """Unload this plugin's Python modules from the current process."""
+        unload_module(self._root.stem)
+        self._module = None
 
     def remove(self) -> None:
         rmtree(self._root)
@@ -1284,6 +1288,8 @@ class PluginLibrary:
             if self._template_library
             else self._initial_template_file_versions.root,
         )
+        if existing_plugin := self.plugins.get(plugin.id):
+            existing_plugin.unload()
         self.plugins[plugin.id] = plugin
         self.plugins_changed.trigger(self.plugins)
         self.construct_template_library()
