@@ -14,8 +14,6 @@ from types import ModuleType
 from typing import Annotated, Any, Literal, NotRequired, Protocol, TypedDict
 
 import yarl
-from omnitils.api.gdrive import gdrive_download_file, gdrive_get_metadata
-from omnitils.strings import normalize_ver
 from py7zr import SevenZipFile
 from pydantic import (
     BaseModel,
@@ -41,12 +39,14 @@ from src.enums.mtg import (
 from src.utils.data_structures import dump_model, parse_model
 from src.utils.download import download_cloudfront
 from src.utils.event import SubscribableEvent
+from src.utils.gdrive import gdrive_download_file, gdrive_get_metadata
 from src.utils.modules import (
     get_local_module,
     import_module_from_path,
     import_modules_recursively,
     unload_module,
 )
+from src.utils.strings import normalize_ver
 
 _logger = getLogger(__name__)
 
@@ -894,7 +894,11 @@ class AppTemplate:
             return False
 
         # Get our metadata
-        if not (data := gdrive_get_metadata(self.google_drive_id, self.env.API_GOOGLE)):
+        if not (
+            data := gdrive_get_metadata(
+                self.google_drive_id, self.env.API_GOOGLE, headers=DEFAULT_HEADERS
+            )
+        ):
             print(f"{self.name} ({self.file_name}) not found on Google Drive")
             return False
 
@@ -955,7 +959,7 @@ class AppTemplate:
                             path=self.path_download,
                             path_cookies=PATH.LOGS_COOKIES,
                             callback=callback,
-                            headers={**DEFAULT_HEADERS},
+                            headers=DEFAULT_HEADERS,
                         )
                     )
 

@@ -10,8 +10,6 @@ from pathlib import Path
 from threading import Lock
 
 import yaml
-from omnitils.fetch.download import download_file
-from omnitils.files.archive import ArchType, unpack_archive
 from pathvalidate import sanitize_filename
 from pydantic import BaseModel, RootModel, computed_field
 from pydantic_core import Url
@@ -28,7 +26,9 @@ from src._loader import (
 )
 from src._state import PATH, AppConstants, AppEnvironment
 from src.gui.qml.models.pydantic_q_list_model import PydanticQListModel
+from src.utils.archive import ArchType, unpack_archive
 from src.utils.data_structures import dump_model, find_item, parse_model
+from src.utils.download import download_file
 from src.utils.git import get_latest_remote_git_commit_hash, is_git_available
 from src.utils.github import (
     download_github_repository_archive_zip,
@@ -375,7 +375,7 @@ class PluginUpdaterModel(PydanticQListModel[PluginItem]):
 
                     if self._download_and_extract_archive(
                         lambda path, download_url=url: download_file(
-                            download_url, path, header=DEFAULT_HEADERS
+                            download_url, path, headers=DEFAULT_HEADERS
                         ),
                         dest,
                         item,

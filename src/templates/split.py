@@ -8,7 +8,6 @@ from functools import cached_property
 from logging import getLogger
 from pathlib import Path
 
-from omnitils.strings import normalize_str
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 from photoshop.api.enumerations import BlendMode, ElementPlacement
@@ -26,6 +25,7 @@ from src.schema.colors import ColorObject, GradientColor, GradientConfig
 from src.templates import BaseTemplate
 from src.text_layers import FormattedTextArea, FormattedTextField, ScaledTextField
 from src.utils.adobe import ReferenceLayer
+from src.utils.strings import normalize_str
 
 _logger = getLogger(__name__)
 

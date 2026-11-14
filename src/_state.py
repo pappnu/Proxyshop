@@ -9,9 +9,6 @@ from pathlib import Path
 from threading import Lock
 from typing import TypedDict
 
-from hexproof.hexapi.schema.meta import Meta
-from omnitils.files import get_project_version
-from omnitils.properties import tracked_prop
 from pydantic import BaseModel, RootModel, ValidationError
 from pydantic_settings import (
     BaseSettings,
@@ -24,7 +21,10 @@ from src.enums.layers import LAYERS
 from src.enums.mtg import CardFonts, mana_symbol_map
 from src.schema.colors import ColorObject, SymbolColorMap
 from src.utils.data_structures import parse_model
+from src.utils.files import get_project_version
+from src.utils.hexproof import HexproofMeta
 from src.utils.mtg import get_symbol_colors
+from src.utils.properties import tracked_prop
 
 _logger = getLogger(__name__)
 
@@ -41,7 +41,7 @@ class HexproofSet(BaseModel):
 
 HexproofSets = RootModel[dict[str, HexproofSet]]
 
-HexproofMetas = RootModel[dict[str, Meta]]
+HexproofMetas = RootModel[dict[str, HexproofMeta]]
 
 """
 * App Paths
@@ -394,7 +394,7 @@ class AppConstants:
         return self.get_set_data()
 
     @tracked_prop
-    def metadata(self) -> dict[str, Meta]:
+    def metadata(self) -> dict[str, HexproofMeta]:
         """Returns data pulled from Hexproof.io mapped to resources."""
         return self.get_meta_data()
 
@@ -431,7 +431,7 @@ class AppConstants:
             _logger.exception("Failed to load data from Hexproof set file")
         return {}
 
-    def get_meta_data(self) -> dict[str, Meta]:
+    def get_meta_data(self) -> dict[str, HexproofMeta]:
         """Loaded data from the 'meta' data file."""
         try:
             if not PATH.SRC_DATA_HEXPROOF_META.is_file():

@@ -10,7 +10,7 @@ from src.utils.threading import ThreadInitializedInstance
 # Global environment object
 ENV = AppEnvironment()
 
-DEFAULT_HEADERS = {"User-Agent": f"Proxyshop/{ENV.VERSION}"}
+DEFAULT_HEADERS: dict[str, str | bytes] = {"User-Agent": f"Proxyshop/{ENV.VERSION}"}
 
 # Global constants object
 CON = AppConstants()

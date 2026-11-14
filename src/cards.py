@@ -9,7 +9,6 @@ from logging import Logger, getLogger
 from pathlib import Path
 from typing import TypedDict
 
-from omnitils.strings import normalize_str
 from pathvalidate import sanitize_filename
 
 from src._config import AppConfig
@@ -32,6 +31,7 @@ from src.utils.scryfall import (
     get_card_via_url,
     get_cards_collection,
 )
+from src.utils.strings import normalize_str
 
 _logger = getLogger(__name__)
 
