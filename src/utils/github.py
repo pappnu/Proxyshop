@@ -8,14 +8,14 @@ from backoff import expo, on_exception
 from limits import RateLimitItemPerHour
 from limits.storage import MemoryStorage
 from limits.strategies import MovingWindowRateLimiter
-from omnitils.exceptions import return_on_exception
-from omnitils.fetch.download import download_file
-from omnitils.rate_limit import rate_limit
 from pydantic import BaseModel, RootModel
 from requests import RequestException, get
 
 from src import DEFAULT_HEADERS
+from src.utils.download import download_file
+from src.utils.exceptions import return_on_exception
 from src.utils.logging import log_on_exception
+from src.utils.rate_limit import rate_limit
 
 _logger = getLogger(__name__)
 
@@ -152,7 +152,7 @@ def download_github_repository_archive_zip(
     download_file(
         url=GITHUB_API_REPOSITORY_ARCHIVE_ZIP_URL.format(repo=repository, ref=ref),
         path=path,
-        header=DEFAULT_HEADERS,
+        headers=DEFAULT_HEADERS,
     )
 
 

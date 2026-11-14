@@ -16,14 +16,14 @@ import requests
 from limits import RateLimitItemPerSecond
 from limits.storage import MemoryStorage
 from limits.strategies import MovingWindowRateLimiter
-from omnitils.exceptions import return_on_exception
-from omnitils.rate_limit import rate_limit
 from pydantic import BaseModel, Field, HttpUrl, ValidationError
 from requests.exceptions import RequestException
 
 from src import DEFAULT_HEADERS
 from src._state import PATH
 from src.enums.mtg import LayoutScryfall
+from src.utils.exceptions import return_on_exception
+from src.utils.rate_limit import rate_limit
 
 if TYPE_CHECKING:
     from urllib.parse import (

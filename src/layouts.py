@@ -13,8 +13,6 @@ from pprint import pprint
 from re import Match
 from typing import Any, NotRequired, TypedDict
 
-from omnitils.strings import get_line, get_lines, normalize_str, strip_lines
-
 from src import CFG, CON
 from src._config import AppConfig
 from src._state import PATH, HexproofSet
@@ -49,6 +47,7 @@ from src.utils.scryfall import (
     ScryfallCardFace,
     get_cards_oracle,
 )
+from src.utils.strings import get_line, get_lines, normalize_str, strip_lines
 
 _logger = getLogger(__name__)
 

@@ -13,7 +13,6 @@ from threading import Event
 from traceback import format_stack
 from typing import TYPE_CHECKING, Any, Unpack
 
-from omnitils.files import get_unique_filename
 from photoshop.api import SolidColor
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._document import Document
@@ -65,6 +64,7 @@ from src.utils.adobe import (
     get_photoshop_error_message,
     try_photoshop,
 )
+from src.utils.files import get_unique_filename
 from src.utils.scryfall import get_card_scan
 from src.utils.text import format_string_with_indices
 from src.utils.windows import WindowState

@@ -14,26 +14,33 @@ from zipfile import ZipFile
 
 import requests
 from backoff import expo, on_exception
-from hexproof.hexapi.enums import HexURL
-from hexproof.hexapi.schema.meta import Meta
 from limits import RateLimitItemPerSecond
 from limits.storage import MemoryStorage
 from limits.strategies import MovingWindowRateLimiter
-from omnitils.exceptions import return_on_exception
-from omnitils.files import dump_data_file
-from omnitils.rate_limit import rate_limit
+from pydantic import RootModel
 from requests import RequestException, get
 
 from src import CON, DEFAULT_HEADERS, ENV
 from src._loader import SymbolsManifest, get_symbols_manifest
 from src._state import PATH, AppEnvironment, HexproofSet, HexproofSets
+from src.utils.data_structures import dump_model
+from src.utils.exceptions import return_on_exception
 from src.utils.github import GitHubReleaseAsset, get_github_releases
+from src.utils.hexproof import HexproofMeta
+from src.utils.rate_limit import rate_limit
 
 _logger = getLogger(__name__)
 
 """
 * Hexproof.io Objects
 """
+
+_HEXPROOF_API_URL = "https://api.hexproof.io/"
+_HEXPROOF_KEYS_URL = _HEXPROOF_API_URL + "keys"
+_HEXPROOF_META_URL = _HEXPROOF_API_URL + "meta"
+_HEXPROOF_SETS_URL = _HEXPROOF_API_URL + "sets"
+_HEXPROOF_SYMBOLS_URL = _HEXPROOF_API_URL + "symbols"
+
 
 # Rate limiter to safely limit Hexproof.io requests
 _rate_limit_storage = MemoryStorage()
@@ -93,8 +100,8 @@ def get_api_key(key: str) -> str:
     Raises:
         RequestException if request was unsuccessful.
     """
-    url = HexURL.API.Keys.All / key
-    res = requests.get(str(url), headers=_hexproof_http_headers, timeout=(3, 3))
+    url = f"{_HEXPROOF_KEYS_URL}/{key}"
+    res = requests.get(url, headers=_hexproof_http_headers, timeout=(3, 3))
     if res.status_code == 200:
         return res.json().get("key", "")
     raise RequestException(
@@ -128,11 +135,11 @@ async def check_api_keys(env: AppEnvironment) -> bool:
     return bool(env.API_GOOGLE or env.API_AMAZON)
 
 
-_get_metadata_fallback: dict[str, Meta] = {}
+_get_metadata_fallback: dict[str, HexproofMeta] = {}
 
 
 @hexproof_request_wrapper(_get_metadata_fallback)
-def get_metadata() -> dict[str, Meta]:
+def get_metadata() -> dict[str, HexproofMeta]:
     """Return a manifest of all resource metadata.
 
     Returns:
@@ -142,10 +149,10 @@ def get_metadata() -> dict[str, Meta]:
         RequestException if request was unsuccessful.
     """
     res = requests.get(
-        str(HexURL.API.Meta.All), headers=_hexproof_http_headers, timeout=(3, 3)
+        _HEXPROOF_META_URL, headers=_hexproof_http_headers, timeout=(3, 3)
     )
     if res.status_code == 200:
-        return {k: Meta(**v) for k, v in res.json().items()}
+        return {k: HexproofMeta(**v) for k, v in res.json().items()}
     raise RequestException(
         res.json().get("details", "Failed to get metadata!"), response=res
     )
@@ -165,7 +172,7 @@ def get_sets() -> dict[str, HexproofSet]:
         RequestException if request was unsuccessful.
     """
     res = requests.get(
-        str(HexURL.API.Sets.All), headers=_hexproof_http_headers, timeout=(5, 5)
+        _HEXPROOF_SETS_URL, headers=_hexproof_http_headers, timeout=(5, 5)
     )
     if res.status_code == 200:
         return HexproofSets.model_validate_json(res.content).root
@@ -197,7 +204,7 @@ def update_hexproof_cache() -> tuple[bool, str | None]:
     """
     meta, updated = {}, False
     with suppress(Exception):
-        meta: dict[str, Meta] = get_metadata()
+        meta: dict[str, HexproofMeta] = get_metadata()
 
     # Check against current metadata
     new_set_data: dict[str, HexproofSet] | None = None
@@ -242,7 +249,7 @@ def update_hexproof_cache() -> tuple[bool, str | None]:
     else:
         _current, _next = CON.metadata.get("symbols"), meta.get("symbols")
         if not _current or not _next or _current.version != _next.version:
-            symbols_dl_url = str(HexURL.API.Symbols.All / "package")
+            symbols_dl_url = f"{_HEXPROOF_SYMBOLS_URL}/package"
 
     if symbols_dl_url:
         try:
@@ -289,9 +296,9 @@ def update_hexproof_cache() -> tuple[bool, str | None]:
             with open(PATH.SRC_DATA_HEXPROOF_SET, "w") as f:
                 f.write(HexproofSets(set_data).model_dump_json(indent=2))
 
-        dump_data_file(
-            obj={k: v.model_dump() for k, v in meta.items()},
-            path=PATH.SRC_DATA_HEXPROOF_META,
+        dump_model(
+            PATH.SRC_DATA_HEXPROOF_META,
+            RootModel[dict[str, HexproofMeta]](meta),
         )
         return updated, None
     except FileNotFoundError, OSError, ValueError:

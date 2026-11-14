@@ -136,7 +136,7 @@ def clear_layer_fx(layer: ArtLayer | LayerSet | None) -> None:
         )
     except COMError:
         _logger.exception(
-            f"""\nLayer "{layer.name if layer else "<no_layer_provided>"}" has no effects.""",
+            f'Layer "{layer.name if layer else "<no_layer_provided>"}" has no effects.',
         )
 
 
