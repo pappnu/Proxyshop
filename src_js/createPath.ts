@@ -34,8 +34,11 @@ function createPath(points: PathPointConf[]) {
   subPath.closed = true;
   subPath.operation = constants.ShapeOperation.SHAPEADD;
   subPath.entireSubPath = infoPoints;
-  const newPath = app.activeDocument.pathItems.add("New Path", [subPath]);
-  newPath.select();
+  const activeDoc = app.activeDocument;
+  if (activeDoc) {
+    const newPath = activeDoc.pathItems.add("New Path", [subPath]);
+    newPath.select();
+  }
 }
 
 core.executeAsModal(async () => createPath(data), {

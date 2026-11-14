@@ -2,13 +2,13 @@
   "type": "module",
   "scripts": {
     "build": "tsc && node --experimental-transform-types scripts_js/build.ts",
-    "type-check": "pyright ./plugins/** ./src/** ./tests/** ./scripts/** && tsc --noEmit && npx tsc --project tsconfig.tools.json --noEmit"
+    "type-check": "pyright ./plugins/** ./src/** ./tests/** ./scripts/** && tsc --noEmit && npx tsc --project tsconfig.scripts.json --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
-    "@types/photoshop": "^25.0.4",
-    "prettier": "^3.9.6",
-    "pyright": "^1.1.413",
+    "@types/node": "^26.6.6",
+    "@types/photoshop": "^27.11.0",
+    "prettier": "^3.10.1",
+    "pyright": "^1.1.414",
     "typescript": "^7.0.2"
   }
 }
